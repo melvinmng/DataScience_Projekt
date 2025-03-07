@@ -25,4 +25,4 @@ request = youtube.channels().list(
 )
 response = request.execute()
 
-JSON(response)
+print(response)
