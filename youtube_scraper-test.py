@@ -1,6 +1,10 @@
 import ytapi as yt
+import json
 from youtube_transcript_api import YouTubeTranscriptApi
 
+with open("gemini_api_config.json") as f:
+    config = json.load(f)
+gemini_api_key = config["api_key"]
 
 video_id = "sGE4i_v5JrQ"  # Beispiel-Video-ID
 
@@ -17,7 +21,7 @@ info = yt.get_video_info(video_id)
 
 from google import genai
 
-client = genai.Client(api_key="AIzaSyD9zfzJajkNxGSG0pFHrGZ1jwQN2F9NQC8")
+client = genai.Client(api_key=gemini_api_key)
 response = client.models.generate_content(
     model="gemini-2.0-flash", contents=f"Kannst du mir das Video von '{info['Creator']}' mit dem Titel '{info['Title']}' welches am {info['Publish Date']} erschienen ist knapp und przise in 2-3 Stzen zusammenfassen? Das ist der zugehörige Transskript:'{transcript_text}'"
 )

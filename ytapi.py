@@ -1,14 +1,11 @@
 from googleapiclient.discovery import build
 import json
 
-with open("api_config.json") as f:
+with open("youtube_api_config.json") as f:
     config = json.load(f)
-api_key = config["api_key"]
+youtube_api_key = config["api_key"]
 
-# Dein API-Schlüssel hier einfügen
-API_KEY = 'AIzaSyB7DvFs_Yqq9GpFM2hUyEvWfgYv7jJ20xs'
-
-youtube = build('youtube', 'v3', developerKey=API_KEY)
+youtube = build('youtube', 'v3', developerKey=youtube_api_key)
 
 def get_video_info(video_id):
     # Abrufen der Video-Details
