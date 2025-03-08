@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+## configs, later to be summarized under settings
+
 client = genai.Client(api_key=os.getenv("TOKEN_GOOGLEAPI"))
 
 model = "gemini-2.0-flash"
@@ -22,10 +24,14 @@ generate_content_config = types.GenerateContentConfig(
     ],
 )
 
-response = client.models.generate_content(
-    model=model,
-    config=generate_content_config,
-    contents="Was ist deine Aufgabe?",
-)
+##
 
-print(response.text)
+
+def get_summary(transcript: str) -> str:
+    response = client.models.generate_content(
+        model=model,
+        config=generate_content_config,
+        contents=f"Fasse mir dieses Video zusammen: ",
+    )
+
+    print(response.text)
