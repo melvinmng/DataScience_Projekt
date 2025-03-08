@@ -31,7 +31,25 @@ def get_summary(transcript: str) -> str:
     response = client.models.generate_content(
         model=model,
         config=generate_content_config,
-        contents=f"Fasse mir dieses Video zusammen: ",
+        contents=f"Fasse mir dieses Video zusammen: {transcript}",
     )
 
     print(response.text)
+
+
+def get_summary_without_spoiler(transcript: str) -> str:
+    response = client.models.generate_content(
+        model=model,
+        config=generate_content_config,
+        contents=f"Fasse mir dieses Video zusammen: {transcript}. Achte dabei darauf, keinen Inhalt zu spoilern",
+    )
+
+    print(response.text)
+
+
+def get_recommendation():
+    pass
+
+
+def check_for_clickbait():
+    pass
