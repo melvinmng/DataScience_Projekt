@@ -17,7 +17,7 @@ transcript_text = " ".join([entry["text"] for entry in transcript])
 
 
 info = yt.get_video_info(video_id)
-#AIzaSyD9zfzJajkNxGSG0pFHrGZ1jwQN2F9NQC8
+
 
 from google import genai
 
