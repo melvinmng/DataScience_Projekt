@@ -1,4 +1,9 @@
 from googleapiclient.discovery import build
+import json
+
+with open("api_config.json") as f:
+    config = json.load(f)
+api_key = config["api_key"]
 
 # Dein API-Schlüssel hier einfügen
 API_KEY = 'AIzaSyB7DvFs_Yqq9GpFM2hUyEvWfgYv7jJ20xs'
