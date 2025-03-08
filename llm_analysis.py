@@ -28,26 +28,42 @@ generate_content_config = types.GenerateContentConfig(
 
 
 def get_summary(transcript: str) -> str:
+    """_summary_
+
+    Args:
+        transcript (str): _description_
+
+    Returns:
+        str: _description_
+    """
     response = client.models.generate_content(
         model=model,
         config=generate_content_config,
         contents=f"Fasse mir dieses Video zusammen: {transcript}",
     )
 
-    print(response.text)
+    return response.text
 
 
 def get_summary_without_spoiler(transcript: str) -> str:
+    """_summary_
+
+    Args:
+        transcript (str): _description_
+
+    Returns:
+        str: _description_
+    """
     response = client.models.generate_content(
         model=model,
         config=generate_content_config,
         contents=f"Fasse mir dieses Video zusammen: {transcript}. Achte dabei darauf, keinen Inhalt zu spoilern",
     )
 
-    print(response.text)
+    return response.text
 
 
-def get_recommendation():
+def get_recommendation(interests: list) -> str:
     pass
 
 
