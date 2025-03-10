@@ -1,5 +1,7 @@
 from settings import ai_client, ai_model, ai_generate_content_config
 
+# from ... import transcript, creator
+
 
 def get_summary(transcript: str) -> str:
     """_summary_
