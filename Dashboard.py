@@ -6,7 +6,7 @@ from googleapiclient.discovery import build
 import isodate
 
 # 🔑 YouTube API Key
-
+# Enter 'streamlit run Dashboard.py' in Terminal
 API_KEY = "YOUR API KEY"
 YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 
