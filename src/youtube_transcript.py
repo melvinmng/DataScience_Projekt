@@ -1,6 +1,7 @@
 from youtube_transcript_api import YouTubeTranscriptApi
 
-def get_transcript(video_id: str, required_languages: list) -> str:
+
+def get_transcript(video_id: str, required_languages: list[str]) -> str:
     """
     Fetches the transcript of a YouTube video in the specified languages.
 
@@ -11,11 +12,10 @@ def get_transcript(video_id: str, required_languages: list) -> str:
     Returns:
         str: The transcript as a single string.
     """
-    transcript = YouTubeTranscriptApi.get_transcript(video_id, languages = required_languages)
+    transcript = YouTubeTranscriptApi.get_transcript(
+        video_id, languages=required_languages
+    )
     # Ausgabe in lesbarer Form
     transcript_text = " ".join([entry["text"] for entry in transcript])
 
     return transcript_text
-    
-
-

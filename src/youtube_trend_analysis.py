@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-from key_management.youtube_api_key_management import load_api_key, create_api_client
+from .key_management.youtube_api_key_management import load_api_key, create_api_client
 
 
 def parse_duration(duration):
