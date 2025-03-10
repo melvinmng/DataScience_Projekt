@@ -1,5 +1,5 @@
 import os
-from src import config
+from src import config_env
 
 
 def get_api_key() -> str:

@@ -1,6 +1,6 @@
 import os
 from googleapiclient.discovery import build
-from src import config
+from src import config_env
 
 
 def load_api_key():
