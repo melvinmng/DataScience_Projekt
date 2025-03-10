@@ -11,7 +11,6 @@ def test_get_gemini_api_key():
         pytest.fail(f"Test ist fehlgeschlagen, weil ein Fehler auftrat: {e}")
 
 
-@pytest.mark.xfail(reason="YouTube-API-Key noch nicht in .env-Datei")
 def test_load_youtube_api_key():
     try:
         src.key_management.youtube_api_key_management.load_api_key()
