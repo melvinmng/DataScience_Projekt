@@ -18,7 +18,7 @@ Repository für unser Data-Science-Projekt
 3. Klicken Sie auf "API Schlüssel erstellen"
 4. Falls nötig, erstellen Sie ein Projekt und wählen Sie dieses für den API-Schlüssel aus
 5. Klicken Sie auf "API Schlüssel in bestehendem Projekt erstellen"
-6. Kopieren Sie ihren API-Schlüssel und fügen ihn in ihre lokale .env-Datei ein, damit der Code auf diesen zugreifen kann
+6. Kopieren Sie ihren API-Schlüssel und fügen ihn in ihre lokale .env-Datei ein, damit der Code auf diesen zugreifen kann (halten Sie dabei folgende Struktur ein: TOKEN_GOOGLEAPI = "YOUR_KEY")
 
 ## How to create a YouTube API Key
 1. Melden Sie sich mit ihrem Google Account bei Google Cloud Platform an: https://console.cloud.google.com/
@@ -26,7 +26,7 @@ Repository für unser Data-Science-Projekt
 3. Aktivieren Sie für Ihr Projekt die YouTube Data API v3 über "API und Dienste" oder direkt über die Suchzeile.
 4. Klicken Sie auf "Anmeldedaten"
 5. Klicken Sie auf "Anmeldedaten erstellen" und wählen Sie "API Schlüssel" aus
-6. Kopieren Sie ihren API-Schlüssel und fügen ihn in ihre lokale .env-Datei ein, damit der Code auf diesen zugreifen kann
+6. Kopieren Sie ihren API-Schlüssel und fügen ihn in ihre lokale .env-Datei ein, damit der Code auf diesen zugreifen kann (halten Sie dabei folgende Struktur ein: YOUTUBE_API_KEY = "YOUR_KEY")
 
 ## Das muss später in die requirements.txt
 Um die benötigten Pakete zu installieren, führen Sie folgende Befehle aus:
