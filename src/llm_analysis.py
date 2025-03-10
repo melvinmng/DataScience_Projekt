@@ -12,7 +12,7 @@ from .youtube_transcript import get_transcript
 
 
 def get_summary(
-    transcript: str = get_transcript(video_id="", required_languages=languages)
+    transcript: str
 ) -> str:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers possible.
@@ -33,7 +33,7 @@ def get_summary(
 
 
 def get_summary_without_spoiler(
-    transcript: str = get_transcript(video_id="", required_languages=languages)
+    transcript: str
 ) -> str:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers prevented.

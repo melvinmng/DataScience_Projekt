@@ -2,13 +2,13 @@ import streamlit as st
 import pandas as pd
 
 # Konfiguration und API-Initialisierung
-import config_env  # Lädt die .env-Datei
+import src.config_env  # Lädt die .env-Datei
 
-from .key_management.youtube_api_key_management import load_api_key, create_api_client
-from .key_management.gemini_api_key_management import get_api_key
-from youtube_trend_analysis import get_trending_videos
-from llm_analysis import get_summary, get_summary_without_spoiler, evaluate_video_clickbait  # get_recommendation und check_for_clickbait sind noch Platzhalter
-import settings
+from src.key_management.youtube_api_key_management import load_api_key, create_api_client
+from src.key_management.gemini_api_key_management import get_api_key
+from src.youtube_trend_analysis import get_trending_videos
+from src.llm_analysis import get_summary, get_summary_without_spoiler # get_recommendation und check_for_clickbait sind noch Platzhalter
+import src.settings
 
 # Hilfsfunktion: Konvertiere "MM:SS" in Sekunden
 def duration_to_seconds(duration_str: str) -> int:
@@ -49,7 +49,7 @@ available_time_minutes = st.sidebar.slider(
     value=30,
     help="Wähle dein verfügbares Zeitbudget in Minuten."
 )
-user_interests = st.sidebar.text_input("Deine Interessensgebiete (kommagetrennt)", value=settings.interests)
+user_interests = st.sidebar.text_input("Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests)
 
 # Verwenden von Tabs, um verschiedene Funktionen übersichtlich zu präsentieren
 tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Feedback"])
@@ -94,9 +94,9 @@ with tabs[0]:
                 st.write(f"**Kategorie:** {video['Kategorie']}")
                 st.write(f"**Tags:** {video['Tags']}")
                 # Beispiel: Clickbait-Bewertung (hier könnte man später noch differenziertere Ansätze einbinden)
-                clickbait_score = evaluate_video_clickbait(video['Titel'])
-                st.write(f"**Clickbait-Risiko:** {clickbait_score}")
-                st.markdown("---")
+                #clickbait_score = evaluate_video_clickbait(video['Titel'])
+                #st.write(f"**Clickbait-Risiko:** {clickbait_score}")
+                #st.markdown("---")
         else:
             st.write("Kein Video passt in das angegebene Zeitbudget.")
 
@@ -113,6 +113,7 @@ with tabs[1]:
 
 ####################################
 # Tab 3: Clickbait Analyse
+"""
 with tabs[2]:
     st.header("Clickbait Analyse")
     st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
@@ -122,7 +123,8 @@ with tabs[2]:
             score = evaluate_video_clickbait(video_title)
             st.write(f"Das Clickbait-Risiko für den Titel **{video_title}** wird als **{score}** eingestuft.")
         else:
-            st.warning("Bitte gib einen Titel ein, um die Analyse zu starten.")
+            st.warning("Bitte gib einen Titel ein, um die Analyse zu starten.")"
+"""
 
 ####################################
 # Tab 4: Feedback & Wünsche
