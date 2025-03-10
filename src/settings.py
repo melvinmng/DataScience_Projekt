@@ -9,7 +9,7 @@ try:
 except:
     raise ValueError("Kein API_KEY gefunden.")
 else:
-    print("Hat alles geklappt")
+    print("API_KEY gefunden")
 ai_model = "gemini-2.0-flash"
 ai_generate_content_config = types.GenerateContentConfig(
     temperature=1,
