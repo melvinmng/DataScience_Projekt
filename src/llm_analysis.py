@@ -1,4 +1,5 @@
-from settings import ai_client, ai_model, ai_generate_content_config
+from typing import Optional
+from settings import ai_client, ai_model, ai_generate_content_config, interests
 
 # from ... import transcript, creator
 
@@ -39,7 +40,7 @@ def get_summary_without_spoiler(transcript: str) -> str:
     return response.text
 
 
-def get_recommendation(interests: list) -> str:
+def get_recommendation(interests: Optional[str] = interests) -> str:
     pass
 
 

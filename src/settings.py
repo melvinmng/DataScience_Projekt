@@ -19,4 +19,5 @@ ai_generate_content_config = types.GenerateContentConfig(
     ],
 )
 
-##
+## Personal Settings
+interests = "chess, ..."
