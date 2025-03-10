@@ -2,13 +2,15 @@ from google import genai
 from google.genai import types
 import os
 from dotenv import load_dotenv
-from .key_management.gemini_api_key_management import api_key
-
-## Access to .env file
-load_dotenv()
+from .key_management.gemini_api_key_management import get_api_key
 
 ## GEMINI
-ai_client = genai.Client(api_key)
+try:
+    ai_client = genai.Client(get_api_key())
+except:
+    raise ValueError("Kein API_KEY gefunden.")
+else:
+    print("Hat alles geklappt")
 ai_model = "gemini-2.0-flash"
 ai_generate_content_config = types.GenerateContentConfig(
     temperature=1,

@@ -1,11 +1,16 @@
 import os
-from dotenv import load_dotenv
+from src import config
 
-load_dotenv()
 
-try:
-    api_key = os.getenv("TOKEN_GOOGLEAPI")
-except:
-    raise ValueError(
-        "API_KEY nicht gefunden! Bitte stelle sicher, dass der API-Schlüssel in der .env-Datei definiert ist."
-    )
+def get_api_key() -> str:
+    try:
+        api_key = os.getenv("TOKEN_GOOGLEAPI")
+    except:
+        raise ValueError(
+            "API_KEY nicht gefunden! Bitte stelle sicher, dass der API-Schlüssel in der .env-Datei definiert ist."
+        )
+    return api_key
+
+
+if __name__ == "__main__":
+    print(get_api_key())
