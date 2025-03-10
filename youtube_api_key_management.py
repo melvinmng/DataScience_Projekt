@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Greife auf den API-Schlüssel zu, der in der .env-Datei gespeichert ist
-api_key = os.getenv("API_KEY")
+api_key = os.getenv("YOUTUBE_API_KEY")
 
 if not api_key:
     raise ValueError("API_KEY nicht gefunden! Bitte stelle sicher, dass der API-Schlüssel in der .env-Datei definiert ist.")

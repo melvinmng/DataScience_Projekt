@@ -1,9 +1,20 @@
 import pandas as pd
 from googleapiclient.discovery import build
-import youtube_api_key_management as yt_key_management
+import os
+from dotenv import load_dotenv
 import re
 
-youtube = yt_key_management.create_api_client()
+# Lade Umgebungsvariablen aus der .env-Datei
+load_dotenv()
+
+# Hol den API Key aus der .env-Datei
+API_KEY = os.getenv("YOUTUBE_API_KEY")
+
+# Erstelle den YouTube-API-Client mit dem API-Schlüssel
+def create_api_client():
+    return build("youtube", "v3", developerKey=API_KEY)
+
+youtube = create_api_client()
 
 def parse_duration(duration):
     pattern = re.compile(r'PT(\d+M)?(\d+S)?')
@@ -62,7 +73,7 @@ def get_trending_videos():
     df = pd.DataFrame(video_data)
     
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
-        print("Trending Videos:")
+        print("\nTrending Videos")
         print(df)
     return df
 
