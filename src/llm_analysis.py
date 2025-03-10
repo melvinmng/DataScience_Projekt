@@ -48,7 +48,6 @@ def check_for_clickbait():
     pass
 
 
-"""
 if __name__ == "__main__":
     print("Starte Konversation")
     question = input("Was kann ich für dich tun?")
@@ -56,4 +55,3 @@ if __name__ == "__main__":
         model=ai_model, config=ai_generate_content_config, contents=question
     )
     print(response.text)
-"""

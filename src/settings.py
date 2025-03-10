@@ -2,9 +2,13 @@ from google import genai
 from google.genai import types
 import os
 from dotenv import load_dotenv
+from gemini_api_key_management import api_key
+
+## Access to .env file
+load_dotenv()
 
 ## GEMINI
-ai_client = genai.Client(api_key=os.getenv("TOKEN_GOOGLEAPI"))
+ai_client = genai.Client(api_key)
 ai_model = "gemini-2.0-flash"
 ai_generate_content_config = types.GenerateContentConfig(
     temperature=1,
