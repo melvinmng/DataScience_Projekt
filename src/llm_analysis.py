@@ -1,5 +1,5 @@
 from typing import Optional
-from settings import ai_client, ai_model, ai_generate_content_config, interests
+from .settings import ai_client, ai_model, ai_generate_content_config, interests
 
 # from ... import transcript, creator
 

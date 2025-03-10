@@ -2,7 +2,7 @@ from google import genai
 from google.genai import types
 import os
 from dotenv import load_dotenv
-from gemini_api_key_management import api_key
+from .key_management.gemini_api_key_management import api_key
 
 ## Access to .env file
 load_dotenv()
