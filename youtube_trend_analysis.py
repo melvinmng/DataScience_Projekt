@@ -1,20 +1,6 @@
 import pandas as pd
-from googleapiclient.discovery import build
-import os
-from dotenv import load_dotenv
 import re
-
-# Lade Umgebungsvariablen aus der .env-Datei
-load_dotenv()
-
-# Hol den API Key aus der .env-Datei
-API_KEY = os.getenv("YOUTUBE_API_KEY")
-
-# Erstelle den YouTube-API-Client mit dem API-Schlüssel
-def create_api_client():
-    return build("youtube", "v3", developerKey=API_KEY)
-
-youtube = create_api_client()
+from youtube_api_key_management import load_api_key, create_api_client
 
 def parse_duration(duration):
     pattern = re.compile(r'PT(\d+M)?(\d+S)?')
@@ -31,7 +17,7 @@ def parse_duration(duration):
     
     return f'{minutes:02}:{seconds:02}'
 
-def get_category_name(category_id):
+def get_category_name(youtube, category_id):
     request = youtube.videoCategories().list(
         part="snippet",
         regionCode="DE"
@@ -43,7 +29,7 @@ def get_category_name(category_id):
     
     return categories.get(category_id, 'Unbekannte Kategorie')
 
-def get_trending_videos():
+def get_trending_videos(youtube):
     request = youtube.videos().list(
         part="snippet,contentDetails",
         chart="mostPopular",
@@ -60,7 +46,7 @@ def get_trending_videos():
         tags = item['snippet'].get('tags', [])
         video_duration = item['contentDetails']['duration']
         formatted_duration = parse_duration(video_duration)
-        category_name = get_category_name(category_id)
+        category_name = get_category_name(youtube, category_id)
         
         video_data.append({
             'Platz': index,
@@ -73,7 +59,7 @@ def get_trending_videos():
     df = pd.DataFrame(video_data)
     
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
-        print("\nTrending Videos")
+        print("\nTrending Videos:")
         print(df)
     return df
 
@@ -81,9 +67,19 @@ def get_trending_videos_stats(df):
     category_counts = df['Kategorie'].value_counts().reset_index()
     category_counts.columns = ['Kategorie', 'Anzahl']
     
-    print("\nHäufigste Kategorien")
+    print("\nHäufigste Kategorien:")
     print(category_counts)
 
 if __name__ == '__main__':
-    df = get_trending_videos()
-    get_trending_videos_stats(df)
+    try:
+        api_key = load_api_key()
+        youtube = create_api_client(api_key)
+        
+        df = get_trending_videos(youtube)
+        get_trending_videos_stats(df)
+        
+    except ValueError as e:
+        print(f"Fehler: {e}")
+        
+    except Exception as e:
+        print(f"Ein unerwarteter Fehler ist aufgetreten: {e}")
