@@ -1,27 +1,26 @@
-import json
 import os
-import google_auth_oauthlib.flow
-import googleapiclient.discovery
-import googleapiclient.errors
 from googleapiclient.discovery import build
-from IPython.display import JSON
+from dotenv import load_dotenv
 
-with open("api_config.json") as f:
-    config = json.load(f)
-api_key = config["api_key"]
+# Lade die Umgebungsvariablen aus der .env-Datei
+load_dotenv()
+
+# Greife auf den API-Schlüssel zu, der in der .env-Datei gespeichert ist
+api_key = os.getenv("YOUTUBE_API_KEY")
+
+if not api_key:
+    raise ValueError("API_KEY nicht gefunden! Bitte stelle sicher, dass der API-Schlüssel in der .env-Datei definiert ist.")
 
 print(api_key)
 
 api_service_name = "youtube"
 api_version = "v3"
 
-# Get credentials and create an API client
-youtube = build(
-    api_service_name, api_version, developerKey=api_key)
+# Erstelle den API-Client
+youtube = build(api_service_name, api_version, developerKey=api_key)
 
 request = youtube.channels().list(
-    part="snippet,contentDetails,statistics",
-    id="UC_x5XG1OV2P6uZZ5FSM9Ttw"
+    part="snippet,contentDetails,statistics", id="UC_x5XG1OV2P6uZZ5FSM9Ttw"
 )
 response = request.execute()
 
