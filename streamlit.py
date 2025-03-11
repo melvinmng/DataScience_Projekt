@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 
 # Konfiguration und API-Initialisierung
-import src.config_env  # Lädt die .env-Datei
-
+import src.config_env  # Lädt die .env-Date
+from youtube_helper import get_video_data
 from src.key_management.youtube_api_key_management import load_api_key, create_api_client
 from src.key_management.gemini_api_key_management import get_api_key
 from src.youtube_trend_analysis import get_trending_videos
@@ -42,17 +42,21 @@ st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
 # Sidebar: Grundlegende Einstellungen
 st.sidebar.header("Einstellungen")
-available_time_minutes = st.sidebar.slider(
+import streamlit as st
+
+# Range-Slider für die verfügbare Zeit
+length_filter = st.sidebar.slider(
     "Wie viele Minuten hast du heute für YouTube?",
-    min_value=1,
+    min_value=0,
     max_value=180,
-    value=30,
+    value=(0, 60),  # Standardbereich (von 10 bis 60 Minuten)
     help="Wähle dein verfügbares Zeitbudget in Minuten."
 )
+
 user_interests = st.sidebar.text_input("Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests)
 
 # Verwenden von Tabs, um verschiedene Funktionen übersichtlich zu präsentieren
-tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Feedback"])
+tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche", "Feedback"])
 
 ####################################
 # Tab 1: Trending Videos
@@ -75,14 +79,14 @@ with tabs[0]:
         st.dataframe(df_videos)
 
         # Filterung: Videos, deren kumulative Dauer in das Zeitbudget passen
-        available_time_seconds = available_time_minutes * 60
+        
         selected_videos = []
         cumulative_time = 0
 
         df_videos = df_videos.sort_values(by="Platz")
         for _, row in df_videos.iterrows():
             video_duration_seconds = duration_to_seconds(row["Dauer"])
-            if cumulative_time + video_duration_seconds <= available_time_seconds:
+            if cumulative_time + video_duration_seconds <= length_filter[1]:
                 selected_videos.append(row)
                 cumulative_time += video_duration_seconds
 
@@ -113,22 +117,67 @@ with tabs[1]:
 
 ####################################
 # Tab 3: Clickbait Analyse
-"""
-with tabs[2]:
-    st.header("Clickbait Analyse")
-    st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
-    video_title = st.text_input("Gib einen Videotitel ein:")
-    if st.button("Analyse starten"):
-        if video_title:
-            score = evaluate_video_clickbait(video_title)
-            st.write(f"Das Clickbait-Risiko für den Titel **{video_title}** wird als **{score}** eingestuft.")
-        else:
-            st.warning("Bitte gib einen Titel ein, um die Analyse zu starten.")"
-"""
+
+#with tabs[2]:
+    #st.header("Clickbait Analyse")
+    #st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
+    #video_title = st.text_input("Gib einen Videotitel ein:")
+    #if st.button("Analyse starten"):
+        #if video_title:
+            #score = evaluate_video_clickbait(video_title)
+            #st.write(f"Das Clickbait-Risiko für den Titel **{video_title}** wird als **{score}** eingestuft.")
+        #else:
+            #st.warning("Bitte gib einen Titel ein, um die Analyse zu starten.")"
+
 
 ####################################
-# Tab 4: Feedback & Wünsche
+#Tab 3: Suche
 with tabs[3]:
+    st.header("Suche")
+    st.write("Hier kannst du nach Videos oder Kategorien suchen.")
+    query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
+
+    ###YOUTUBE REQUEST###
+    yt_api_key = load_api_key()
+    YOUTUBE = create_api_client(yt_api_key)
+
+    request = YOUTUBE.search().list(
+        part="snippet",
+        q=query,
+        type="video",
+        maxResults=10
+    )
+    ###YOUTUBE REQUEST###
+    response = request.execute()
+
+    if st.button("🔍 Suchen"):
+        videos = get_video_data(YOUTUBE, response)
+        st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
+
+    if "videos" in st.session_state:
+        videos = st.session_state["videos"]
+
+        filtered_videos = [v for v in videos if length_filter[0]*60 <= duration_to_seconds(v["length"]) <= length_filter[1]*60]
+        #FIlter so konfigurieren, dass Videos mit ensprechender Länge gesucht werden.
+        for video in filtered_videos:
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.image(video["thumbnail"], use_container_width=True)
+                with col2:
+                    st.subheader(video["title"])
+
+                    st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
+
+                    # 🟢 **Zusammenfassung anzeigen**
+                    with st.expander("📜 Zusammenfassung"):
+                        st.write('Hier kommt GEMINI Zusammenfassung hin')
+
+                    # 🎬 **YouTube-Video einbetten**
+                    st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                    st.write(video["length"])
+####################################
+# Tab 4: Feedback & Wünsche
+with tabs[4]:
     st.header("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
