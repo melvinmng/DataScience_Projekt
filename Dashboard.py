@@ -1,20 +1,16 @@
 import streamlit as st
-import pandas as pd
-import requests
 from youtube_transcript_api import YouTubeTranscriptApi
 from googleapiclient.discovery import build
 import isodate
 import os
 from dotenv import load_dotenv
 
+# API-Setup
 load_dotenv()
-# 🔑 YouTube API Key
-# Enter 'streamlit run Dashboard.py' in Terminal
 API_KEY = os.getenv('YOUTUBE_API_KEY')
-print(API_KEY)
 YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 
-# 🟢 Funktion: Videos suchen
+# 🔹 **Funktion: Videos suchen**
 def get_videos(query, max_results=10):
     request = YOUTUBE.search().list(
         part="snippet",
@@ -33,7 +29,7 @@ def get_videos(query, max_results=10):
     
     return videos
 
-# 🟢 Funktion: Video-Zusammenfassung abrufen
+# 🔹 **Funktion: Video-Zusammenfassung abrufen**
 def get_transcript(video_id):
     try:
         transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["de", "en"])
@@ -42,7 +38,7 @@ def get_transcript(video_id):
     except:
         return "Keine Zusammenfassung verfügbar."
 
-# 🟢 Funktion: Video-Länge abrufen
+# 🔹 **Funktion: Video-Länge abrufen**
 def get_video_length(video_id):
     request = YOUTUBE.videos().list(
         part="contentDetails",
@@ -55,12 +51,14 @@ def get_video_length(video_id):
         return parse_duration(duration)
     return 0
 
-# 🟢 Funktion: YouTube-Zeitformat (PT10M30S) in Minuten umwandeln
+# 🔹 **Funktion: YouTube-Zeitformat (PT10M30S) in Minuten umwandeln**
 def parse_duration(duration):
     parsed_duration = isodate.parse_duration(duration)
     return parsed_duration.total_seconds() / 60  # Minuten zurückgeben
 
-# 🔥 Streamlit Dashboard starten
+# 🔥 **Streamlit Dashboard Funktion**
+os.system('streamlit run Dashboard.py')
+
 st.title("🎬 YouTube Video Empfehlungen")
 
 # 🟠 **Suchfeld für YouTube-Videos**
