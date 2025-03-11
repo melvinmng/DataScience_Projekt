@@ -5,6 +5,7 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from googleapiclient.discovery import build
 import isodate
 import os
+import dotenv
 # 🔑 YouTube API Key
 # Enter 'streamlit run Dashboard.py' in Terminal
 API_KEY = os.getenv('YOUTUBE_API_KEY')
