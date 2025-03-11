@@ -4,10 +4,11 @@ import requests
 from youtube_transcript_api import YouTubeTranscriptApi
 from googleapiclient.discovery import build
 import isodate
-
+import os
 # 🔑 YouTube API Key
 # Enter 'streamlit run Dashboard.py' in Terminal
-API_KEY = "YOUR API KEY"
+API_KEY = os.getenv('YOUTUBE_API_KEY')
+print(API_KEY)
 YOUTUBE = build("youtube", "v3", developerKey=API_KEY)
 
 # 🟢 Funktion: Videos suchen
