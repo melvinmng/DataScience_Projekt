@@ -57,7 +57,7 @@ def parse_duration(duration):
     return parsed_duration.total_seconds() / 60  # Minuten zurückgeben
 
 # 🔥 **Streamlit Dashboard Funktion**
-os.system('streamlit run Dashboard.py')
+
 
 st.title("🎬 YouTube Video Empfehlungen")
 
