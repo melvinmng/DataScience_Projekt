@@ -79,4 +79,4 @@ def live_conversation() -> str:
 
 
 if __name__ == "__main__":
-    print(get_summary())
+    pass

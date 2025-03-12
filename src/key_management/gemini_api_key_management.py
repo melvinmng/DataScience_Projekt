@@ -1,8 +1,10 @@
 import os
+
+from git import Optional
 from src import config_env
 
 
-def get_api_key() -> str:
+def get_api_key() -> Optional[str]:
     try:
         api_key = os.getenv("TOKEN_GOOGLEAPI")
     except:
