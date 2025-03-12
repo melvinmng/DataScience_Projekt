@@ -42,7 +42,6 @@ st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
 # Sidebar: Grundlegende Einstellungen
 st.sidebar.header("Einstellungen")
-import run as st
 
 # Range-Slider für die verfügbare Zeit
 length_filter = st.sidebar.slider(

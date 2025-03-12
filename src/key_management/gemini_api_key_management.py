@@ -1,5 +1,4 @@
 import os
-
 from git import Optional
 from src import config_env
 
