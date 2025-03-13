@@ -2,20 +2,17 @@ from googleapiclient.discovery import build
 import googleapiclient.discovery
 import pandas as pd
 
-def get_subscriptions(channel_Id: str, API_KEY: str) -> pd.DataFrame:
+def get_subscriptions(channel_Id: str, youtube: str) -> pd.DataFrame:
     """
     Retrieves all YouTube channel subscriptions for a given channel ID.
 
     Args:
         channel_Id (str): The YouTube channel ID.
-        API_KEY (str): The API key for authentication.
+        youtube (str): Youtube API Client.
 
     Returns:
         pd.DataFrame: A DataFrame containing subscription details.
     """
-    
-    youtube = googleapiclient.discovery.build("youtube", "v3", developerKey=API_KEY)
-
     subscriptions = []
     next_page_token = None
 
