@@ -54,7 +54,7 @@ def get_summary_without_spoiler(
 
 
 def get_recommendation(
-    interests: Optional[str] = interests, todays_free_time: Optional[float] = None
+    interests: Optional[str] = interests, todays_free_time: Optional[float] = None, videos : Optional[str] = None
 ) -> str:
     pass
 

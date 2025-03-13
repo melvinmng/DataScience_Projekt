@@ -37,6 +37,16 @@ def get_personalized_recommendations(interests: str) -> pd.DataFrame:
     }
     return pd.DataFrame(data)
 
+def initialize() -> None:
+    try:
+        yt_api_key = load_api_key()
+        youtube = create_api_client(yt_api_key)
+    except Exception as e:
+        st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
+        st.stop()
+    
+    return youtube
+
 # Dashboard-Titel
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
@@ -61,12 +71,7 @@ tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche",
 # Tab 1: Trending Videos
 with tabs[0]:
     st.header("Trending Videos")
-    try:
-        yt_api_key = load_api_key()
-        youtube = create_api_client(yt_api_key)
-    except Exception as e:
-        st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
-        st.stop()
+    initialize()
 
     with st.spinner("Lade Trending Videos..."):
         df_videos = get_trending_videos(youtube)
