@@ -71,7 +71,7 @@ tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche",
 # Tab 1: Trending Videos
 with tabs[0]:
     st.header("Trending Videos")
-    initialize()
+    youtube = initialize()
 
     with st.spinner("Lade Trending Videos..."):
         df_videos = get_trending_videos(youtube)
