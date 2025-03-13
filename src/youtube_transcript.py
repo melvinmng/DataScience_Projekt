@@ -1,7 +1,7 @@
 from youtube_transcript_api import YouTubeTranscriptApi
 
 
-def get_transcript(video_id: str, required_languages: list[str]) -> str:
+def get_transcript(video_id: str, required_languages: list[str] = ["de", "en"]) -> str:
     """
     Fetches the transcript of a YouTube video in the specified languages.
 

@@ -3,11 +3,12 @@ import pandas as pd
 
 # Konfiguration und API-Initialisierung
 import src.config_env  # Lädt die .env-Date
+from src.youtube_transcript import get_transcript
 from youtube_helper import get_video_data
 from src.key_management.youtube_api_key_management import load_api_key, create_api_client
 from src.key_management.gemini_api_key_management import get_api_key
 from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_title_and_transcript  #check_for_clickbait sind noch Platzhalter
+from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_title_and_transcript, extract_video_id_title_and_transcript  #check_for_clickbait sind noch Platzhalter
 import src.settings
 import googleapiclient
 from typing import Optional
@@ -48,6 +49,29 @@ def initialize() -> Optional[googleapiclient.discovery.Resource]:
         st.stop()
     
     return youtube
+
+def build_recommendation_tab(retry_count : int = 0) -> None:
+    if retry_count == 0:
+        st.header("Personalisierte Empfehlungen")
+
+    if retry_count >= 3:
+        st.error("Nach mehreren Versuchen konnte keine Empfehlung generiert werden.\nBitte versuchen Sie es später erneut.")
+        return
+
+    with st.spinner("Lade Empfehlungen..."):
+        df_videos = get_trending_videos(youtube)
+        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(df_videos)
+        recommendations_unfiltered = get_recommendation(video_ids_titles_and_transcripts=video_ids_titles_and_transcripts, interests=user_interests)
+        recommendations = extract_video_id_title_and_transcript(recommendations_unfiltered, on_fail=lambda: build_recommendation_tab(retry_count=retry_count+1))
+    st.write(recommendations["Titel"])
+    st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
+    st.write("## Begründung:")
+    st.write(recommendations["Begründung"])
+    st.write("## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)")
+    st.write(get_summary(get_transcript(recommendations["Video-ID"])))
+
+    # Beispiel: Man könnte hier auch Details oder Zusammenfassungen via LLM einbinden
+    st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
 
 # Dashboard-Titel
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
@@ -118,20 +142,7 @@ with tabs[0]:
 ####################################
 # Tab 2: Personalisierte Empfehlungen
 with tabs[1]:
-    st.header("Personalisierte Empfehlungen")
-    with st.spinner("Lade Empfehlungen..."):
-        df_videos = get_trending_videos(youtube)
-        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(df_videos)
-        recommendations = get_recommendation(video_ids_titles_and_transcripts=video_ids_titles_and_transcripts, interests=user_interests)
-    st.write(recommendations["Titel"])
-    st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
-    st.write("## Begründung:")
-    st.write(recommendations["Begründung"])
-    st.write("## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)")
-    st.write(get_summary(recommendations["Video-ID"]))
-
-    # Beispiel: Man könnte hier auch Details oder Zusammenfassungen via LLM einbinden
-    st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
+    build_recommendation_tab()
 
 ####################################
 # Tab 3: Clickbait Analyse

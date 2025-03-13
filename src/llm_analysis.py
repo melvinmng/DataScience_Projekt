@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Callable, Optional
 from .settings import (
     ai_client,
     ai_model,
@@ -10,8 +10,6 @@ from .youtube_transcript import get_transcript
 import googleapiclient
 from pandas import DataFrame
 import re
-
-# from ... get_video_id / video_id
 
 
 def get_summary(
@@ -63,8 +61,8 @@ def get_recommendation(
             f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
             f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
             f"Bitte wähle aus dieser Liste genau ein Video als Empfehlung aus, das am besten zu meinen Interessen passt: {interests}.\n"
-            f"Antworte ausschließlich mit einer Python-Liste, die genau ein Element enthält, "
-            f"z.B. [('Titel': 'Titelx'\n'Transkript': 'Transkriptx'\n'Video-ID': 'Video-IDx'\n'Begründung': 'Begründungx wieso diese Video von dir empfohlen wird')].\n"
+            f"Antworte ausschließlich mit einer Python-Liste, die genau ein Element enthält, das genau folgende Struktur einhalten muss (achte vor allem auf die Keywords 'Titel', 'Video-ID' und 'Begründung' - sie müssen enthalten und richtig geschrieben sein) "
+            f"z.B. [('Titel': 'Titelx'\n'Video-ID': 'Video-IDx'\n'Begründung': 'Begründungx wieso diese Video von dir empfohlen wird')].\n"
             f"Hier ist die Liste der Videos: {video_ids_titles_and_transcripts}")
 
     response = ai_client.models.generate_content(
@@ -73,7 +71,7 @@ def get_recommendation(
         contents=prompt,
     )
 
-    return extract_video_id_title_and_transcript(response.text)
+    return response.text
 
 def combine_video_id_title_and_transcript(
     videos: DataFrame
@@ -94,7 +92,7 @@ def combine_video_id_title_and_transcript(
         title = video['Titel']
         video_id = video["Video-ID"]
         if video_id:
-            transcript = get_transcript(video_id, ['de', 'en'])
+            transcript = get_transcript(video_id)
 
             if transcript != "":
                 video_id_title_and_transcript.append(f"Titel: {title}\nTranskript: {transcript}\nVideo-ID: {video_id}\n")
@@ -103,28 +101,32 @@ def combine_video_id_title_and_transcript(
         
     return video_id_title_and_transcript
 
-def extract_video_id_title_and_transcript(text: str) -> dict[str, str]:
+def extract_video_id_title_and_transcript(text: str, on_fail: Callable = None) -> dict[str, str]:
 
-    title_match = re.search(r"'?Titel'?:\s*\"(.+?)\"", text)
-    title = title_match.group(1) if title_match else None
+    def extract_field(fieldname: str, text : str) -> str:
+        """
+        Sucht nach einem Feld wie 'Titel', 'Video-ID' oder 'Begründung' und gibt den Inhalt zurück.
+        Akzeptiert einfache oder doppelte Anführungszeichen (aber nur, wenn sie korrekt paaren).
+        """
+        pattern = rf"'?{fieldname}'?:\s*(?P<q>['\"])(.+?)(?P=q)"
+        match = re.search(pattern, text, re.DOTALL)
+        return match.group(2).strip() if match else None
 
-    transkript_match = re.search(
-        r"'?Transkript'?:\s*\"(.+?)\"\s*,\s*'?Video-ID'?:", text, re.DOTALL
-    )
-    transkript = transkript_match.group(1).strip() if transkript_match else None
+    # Einzelne Felder extrahieren
+    title = extract_field("Titel", text)
+    video_id = extract_field("Video-ID", text)
+    reason = extract_field("Begründung", text)
 
-    video_id_match = re.search(r"'?Video-ID'?:\s*'(.+?)'", text)
-    video_id = video_id_match.group(1) if video_id_match else None
-
-    reason_match = re.search(r"'?Begründung'?:\s*'(.+?)'", text)
-    reason = reason_match.group(1) if reason_match else None
-
-    return {
-        "Titel": title,
-        "Transkript": transkript,
-        "Video-ID": video_id,
-        "Begründung": reason
-    }
+    if title and video_id and reason:
+        return {
+            "Titel": title,
+            "Video-ID": video_id,
+            "Begründung": reason
+        }
+    else:
+        if on_fail:
+            on_fail()
+        return None
 
 
 
