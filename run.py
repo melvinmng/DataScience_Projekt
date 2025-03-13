@@ -1,14 +1,11 @@
 import streamlit as st
 import pandas as pd
-
-# Konfiguration und API-Initialisierung
-import src.config_env  # Lädt die .env-Date
+import src.config_env  
 from src.youtube_transcript import get_transcript
 from youtube_helper import get_video_data
 from src.key_management.youtube_api_key_management import load_api_key, create_api_client
-from src.key_management.gemini_api_key_management import get_api_key
 from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_title_and_transcript, extract_video_id_title_and_transcript  #check_for_clickbait sind noch Platzhalter
+from src.llm_analysis import get_summary, get_recommendation, combine_video_id_title_and_transcript, extract_video_id_title_and_transcript  #check_for_clickbait sind noch Platzhalter
 import src.settings
 import googleapiclient
 from typing import Optional
