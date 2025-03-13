@@ -193,9 +193,16 @@ with tabs[3]:
                     # 🎬 **YouTube-Video einbetten**
                     st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                     st.write(video["length"])
+
 ####################################
-# Tab 4: Feedback & Wünsche
+# Tab 4 Abobox
 with tabs[4]:
+    st.header("Abobox")
+    st.write("Hier finedst du die Videos deiner letzten abonnierten Kanäle")
+    
+####################################
+# Tab 5: Feedback & Wünsche
+with tabs[5]:
     st.header("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
