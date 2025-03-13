@@ -13,7 +13,7 @@ import src.settings
 import googleapiclient
 from typing import Optional
 
-# Hilfsfunktion: Konvertiere "MM:SS" in Sekunden
+## Hilfsfunktionen
 def duration_to_seconds(duration_str: str) -> int:
     try:
         parts = duration_str.split(":")
@@ -24,31 +24,15 @@ def duration_to_seconds(duration_str: str) -> int:
         st.error(f"Fehler beim Parsen der Dauer: {e}")
     return 0
 
-# Dummy-Implementierung für personalisierte Empfehlungen (Platzhalter)
-def get_personalized_recommendations(interests: str) -> pd.DataFrame:
-    # Hier könntest du z. B. die Funktion get_recommendation in llm_analysis nutzen,
-    # um auf Basis der Interessen personalisierte Vorschläge zu generieren.
-    # Aktuell wird ein Dummy-DataFrame zurückgegeben.
-    data = {
-        "Titel": ["Empfehlung 1", "Empfehlung 2"],
-        "Dauer": ["04:30", "05:15"],
-        "Beschreibung": [
-            "Ein Video, das zu deinen Interessen passt.",
-            "Noch ein Video, das du dir anschauen könntest."
-        ],
-        "Clickbait": ["Niedrig", "Mittel"]
-    }
-    return pd.DataFrame(data)
-
 def initialize() -> Optional[googleapiclient.discovery.Resource]:
     try:
-        yt_api_key = load_api_key()
-        youtube = create_api_client(yt_api_key)
+        YT_API_KEY = load_api_key()
+        YOUTUBE = create_api_client(YT_API_KEY)
     except Exception as e:
         st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
         st.stop()
     
-    return youtube
+    return YOUTUBE
 
 def build_recommendation_tab(retry_count : int = 0) -> None:
     if retry_count == 0:
@@ -59,7 +43,7 @@ def build_recommendation_tab(retry_count : int = 0) -> None:
         return
 
     with st.spinner("Lade Empfehlungen..."):
-        df_videos = get_trending_videos(youtube)
+        df_videos = get_trending_videos(YOUTUBE)
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(df_videos)
         recommendations_unfiltered = get_recommendation(video_ids_titles_and_transcripts=video_ids_titles_and_transcripts, interests=user_interests)
         recommendations = extract_video_id_title_and_transcript(recommendations_unfiltered, on_fail=lambda: build_recommendation_tab(retry_count=retry_count+1))
@@ -70,37 +54,32 @@ def build_recommendation_tab(retry_count : int = 0) -> None:
     st.write("## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)")
     st.write(get_summary(get_transcript(recommendations["Video-ID"])))
 
-    # Beispiel: Man könnte hier auch Details oder Zusammenfassungen via LLM einbinden
     st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
 
-# Dashboard-Titel
+## Initialisierung
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
-# Sidebar: Grundlegende Einstellungen
 st.sidebar.header("Einstellungen")
-
-# Range-Slider für die verfügbare Zeit
 length_filter = st.sidebar.slider(
     "Wie viele Minuten hast du heute für YouTube?",
     min_value=0,
     max_value=180,
-    value=(0, 60),  # Standardbereich (von 10 bis 60 Minuten)
+    value=(0, 60), 
     help="Wähle dein verfügbares Zeitbudget in Minuten."
 )
-
 user_interests = st.sidebar.text_input("Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests)
 
-# Verwenden von Tabs, um verschiedene Funktionen übersichtlich zu präsentieren
 tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche", "Feedback"])
+
+YOUTUBE = initialize()
 
 ####################################
 # Tab 1: Trending Videos
 with tabs[0]:
     st.header("Trending Videos")
-    youtube = initialize()
-
+    
     with st.spinner("Lade Trending Videos..."):
-        df_videos = get_trending_videos(youtube)
+        df_videos = get_trending_videos(YOUTUBE)
 
     if df_videos.empty:
         st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
@@ -166,28 +145,22 @@ with tabs[3]:
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
-    ###YOUTUBE REQUEST###
-    yt_api_key = load_api_key()
-    YOUTUBE = create_api_client(yt_api_key)
-
     request = YOUTUBE.search().list(
         part="snippet",
         q=query,
         type="video",
         maxResults=10
     )
-    ###YOUTUBE REQUEST###
     response = request.execute()
 
     if st.button("🔍 Suchen"):
         videos = get_video_data(YOUTUBE, response)
-        st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
+        st.session_state["videos"] = videos 
 
     if "videos" in st.session_state:
         videos = st.session_state["videos"]
 
         filtered_videos = [v for v in videos if length_filter[0]*60 <= duration_to_seconds(v["length"]) <= length_filter[1]*60]
-        #FIlter so konfigurieren, dass Videos mit ensprechender Länge gesucht werden.
         for video in filtered_videos:
                 col1, col2 = st.columns([1, 3])
                 with col1:
@@ -197,11 +170,9 @@ with tabs[3]:
 
                     st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
 
-                    # 🟢 **Zusammenfassung anzeigen**
                     with st.expander("📜 Zusammenfassung"):
                         st.write('Hier kommt GEMINI Zusammenfassung hin')
 
-                    # 🎬 **YouTube-Video einbetten**
                     st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                     st.write(video["length"])
 ####################################
@@ -211,9 +182,8 @@ with tabs[4]:
     st.write("Hilf uns, das Dashboard zu verbessern!")
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
     if st.button("Feedback absenden"):
-        # Hier könntest du das Feedback speichern, per E-Mail versenden oder in einer Datenbank ablegen.
+        # Sollen wir Feedback speichern?
         st.success("Danke für dein Feedback!")
 
-# Optional: Button, um das Dashboard manuell zu aktualisieren
 if st.button("Dashboard aktualisieren"):
     st.experimental_rerun()
