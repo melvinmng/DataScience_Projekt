@@ -27,7 +27,7 @@ def get_summary(
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
-        contents=f"Fasse mir dieses Video zusammen: {transcript}",
+        contents=f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein.",
     )
 
     return response.text
@@ -48,7 +48,7 @@ def get_summary_without_spoiler(
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
-        contents=f"Fasse mir dieses Video zusammen: {transcript}. Achte dabei darauf, keinen Inhalt zu spoilern",
+        contents=f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein und achte darauf, keinen Inhalt zu spoilern.",
     )
 
     return response.text
