@@ -7,7 +7,7 @@ from youtube_helper import get_video_data
 from src.key_management.youtube_api_key_management import load_api_key, create_api_client
 from src.key_management.gemini_api_key_management import get_api_key
 from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_and_transcript  #check_for_clickbait sind noch Platzhalter
+from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_title_and_transcript  #check_for_clickbait sind noch Platzhalter
 import src.settings
 import googleapiclient
 from typing import Optional
@@ -121,9 +121,15 @@ with tabs[1]:
     st.header("Personalisierte Empfehlungen")
     with st.spinner("Lade Empfehlungen..."):
         df_videos = get_trending_videos(youtube)
-        video_ids_and_transcripts = combine_video_id_and_transcript(df_videos)
-        recommendations = get_recommendation(video_ids_and_transcripts=video_ids_and_transcripts, interests=user_interests)
-    st.write(recommendations)
+        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(df_videos)
+        recommendations = get_recommendation(video_ids_titles_and_transcripts=video_ids_titles_and_transcripts, interests=user_interests)
+    st.write(recommendations["Titel"])
+    st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
+    st.write("## Begründung:")
+    st.write(recommendations["Begründung"])
+    st.write("## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)")
+    st.write(get_summary(recommendations["Video-ID"]))
+
     # Beispiel: Man könnte hier auch Details oder Zusammenfassungen via LLM einbinden
     st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
 
