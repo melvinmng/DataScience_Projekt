@@ -75,9 +75,14 @@ with tabs[0]:
         st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
     else:
         st.subheader("Alle Trending Videos")
-        st.dataframe(df_videos)
+        for _, video in df_videos.sort_values(by="Platz").iterrows():
+            st.markdown(f"### {video['Platz']}. {video['Titel']}")
+            st.write(f"**Dauer:** {video['Dauer']}")
+            st.write(f"**Kategorie:** {video['Kategorie']}")
+            st.write(f"**Tags:** {video['Tags']}")
+            st.video(video["Video_URL"])
+            st.markdown("---")
 
-        # Filterung: Videos, deren kumulative Dauer in das Zeitbudget passen
         
         selected_videos = []
         cumulative_time = 0
