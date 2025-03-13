@@ -47,6 +47,8 @@ def get_trending_videos(youtube):
         video_duration = item["contentDetails"]["duration"]
         formatted_duration = parse_duration(video_duration)
         category_name = get_category_name(youtube, category_id)
+        video_id = item["id"]
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
 
         video_data.append(
             {
@@ -55,6 +57,7 @@ def get_trending_videos(youtube):
                 "Dauer": formatted_duration,
                 "Tags": ", ".join(tags) if tags else "Keine Tags",
                 "Kategorie": category_name,
+                "Video_URL": video_url,
             }
         )
 
