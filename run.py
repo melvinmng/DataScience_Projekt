@@ -7,8 +7,10 @@ from youtube_helper import get_video_data
 from src.key_management.youtube_api_key_management import load_api_key, create_api_client
 from src.key_management.gemini_api_key_management import get_api_key
 from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import get_summary, get_summary_without_spoiler # get_recommendation und check_for_clickbait sind noch Platzhalter
+from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_and_transcript  #check_for_clickbait sind noch Platzhalter
 import src.settings
+import googleapiclient
+from typing import Optional
 
 # Hilfsfunktion: Konvertiere "MM:SS" in Sekunden
 def duration_to_seconds(duration_str: str) -> int:
@@ -37,7 +39,7 @@ def get_personalized_recommendations(interests: str) -> pd.DataFrame:
     }
     return pd.DataFrame(data)
 
-def initialize() -> None:
+def initialize() -> Optional[googleapiclient.discovery.Resource]:
     try:
         yt_api_key = load_api_key()
         youtube = create_api_client(yt_api_key)
@@ -117,10 +119,11 @@ with tabs[0]:
 # Tab 2: Personalisierte Empfehlungen
 with tabs[1]:
     st.header("Personalisierte Empfehlungen")
-    st.write("Hier werden Videos angezeigt, die basierend auf deinen Interessen und deinem Zeitbudget empfohlen werden.")
-    # Hier wird eine Dummy-Funktion verwendet. Ersetze sie später durch deine eigene Logik.
-    recommendations_df = get_personalized_recommendations(user_interests)
-    st.dataframe(recommendations_df)
+    with st.spinner("Lade Empfehlungen..."):
+        df_videos = get_trending_videos(youtube)
+        video_ids_and_transcripts = combine_video_id_and_transcript(df_videos)
+        recommendations = get_recommendation(video_ids_and_transcripts=video_ids_and_transcripts, interests=user_interests)
+    st.write(recommendations)
     # Beispiel: Man könnte hier auch Details oder Zusammenfassungen via LLM einbinden
     st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
 

@@ -12,10 +12,14 @@ def get_transcript(video_id: str, required_languages: list[str]) -> str:
     Returns:
         str: The transcript as a single string.
     """
-    transcript = YouTubeTranscriptApi.get_transcript(
-        video_id, languages=required_languages
-    )
-    # Ausgabe in lesbarer Form
-    transcript_text = " ".join([entry["text"] for entry in transcript])
-
-    return transcript_text
+    try:
+            
+        transcript = YouTubeTranscriptApi.get_transcript(
+            video_id, languages=required_languages)
+        transcript_text = " ".join([entry["text"] for entry in transcript])
+        return transcript_text
+    except:
+        print(f"Video {video_id} hat kein Transkript und wird ignoriert")
+        return ""
+    
+    

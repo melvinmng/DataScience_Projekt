@@ -58,6 +58,7 @@ def get_trending_videos(youtube):
                 "Tags": ", ".join(tags) if tags else "Keine Tags",
                 "Kategorie": category_name,
                 "Video_URL": video_url,
+                "Video-ID": video_id
             }
         )
 
