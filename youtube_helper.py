@@ -1,5 +1,4 @@
 import re
-import isodate
 from googleapiclient.discovery import build
 import pandas as pd
 import datetime as dt
@@ -40,6 +39,7 @@ def get_video_data(youtube, response):
     for index, item in enumerate(response["items"], start=1):
         video_id = item["id"]["videoId"]
         title = item["snippet"]["title"]
+        channel_name = item["snippet"]["channelTitle"]
         tags = item["snippet"].get("tags", [])
         thumbnail = item["snippet"]["thumbnails"]["medium"]["url"]
         length = get_video_length(youtube, video_id)
@@ -51,7 +51,8 @@ def get_video_data(youtube, response):
                 "tags": ", ".join(tags) if tags else "Keine Tags",
                 "video_id": video_id,  
                 "thumbnail": thumbnail,
-                "length": length
+                "length": length,
+                "channel_name": channel_name
             }
         )
     
@@ -111,33 +112,20 @@ def get_subscriptions(channel_Id: str, YOUTUBE: str) -> pd.DataFrame:
 
     return subs
 
-def get_last_week_videos_from_subscriptions(youtube, channel_ids: list ) -> list:
-    one_week_ago = (dt.datetime.utcnow() - dt.timedelta(days=7)).isoformat() + "Z"
+def get_recent_videos_from_subscriptions(youtube, channel_ids: list ,number_of_videos:int) -> list:
 
-    # Ergebnisse speichern
-    all_videos = []
-
+    videos = []
     # API-Anfragen minimieren: 1 Request pro Kanal
     for channel_id in channel_ids:
         request = youtube.search().list(
             part="id,snippet",
             channelId=channel_id,
-            maxResults=2,  # Maximal 10 neueste Videos abrufen
+            maxResults=number_of_videos,  # Maximal 10 neueste Videos abrufen
             order="date",  # Neueste zuerst
-            publishedAfter=one_week_ago,  # Nur Videos der letzten 7 Tage
             type="video"  # Nur Videos (keine Streams oder Playlists)
+            
         )
         response = request.execute()
-
-        for item in response.get("items", []):
-            video_id = item["id"]["videoId"]
-            title = item["snippet"]["title"]
-            publish_date = item["snippet"]["publishedAt"]
-            
-            all_videos.append({
-                "Kanal-ID": channel_id,
-                "Video-ID": video_id,
-                "Titel": title,
-                "Veröffentlichung": publish_date
-            })
-    return all_videos
+        videos.append(get_video_data(youtube, response)[0])
+    
+    return videos
