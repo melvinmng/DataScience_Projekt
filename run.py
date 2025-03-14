@@ -3,14 +3,17 @@ import pandas as pd
 
 # Konfiguration und API-Initialisierung
 import src.config_env  # Lädt die .env-Date
-from youtube_helper import get_video_data
+from youtube_helper import get_video_data, get_subscriptions, get_last_week_videos_from_subscriptions
 from src.key_management.youtube_api_key_management import load_api_key, create_api_client
 from src.key_management.gemini_api_key_management import get_api_key
+from src.key_management.youtube_channel_id import load_channel_id
 from src.youtube_trend_analysis import get_trending_videos
 from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_title_and_transcript  #check_for_clickbait sind noch Platzhalter
 import src.settings
 import googleapiclient
 from typing import Optional
+
+
 
 # Hilfsfunktion: Konvertiere "MM:SS" in Sekunden
 def duration_to_seconds(duration_str: str) -> int:
@@ -49,6 +52,26 @@ def initialize() -> Optional[googleapiclient.discovery.Resource]:
     
     return youtube
 
+
+
+def load_tab(tab_name):
+    st.session_state["loaded_tabs"][tab_name] = True
+
+
+############################### CODE #######################################
+
+
+
+if "loaded_tabs" not in st.session_state:
+    st.session_state["loaded_tabs"] = {
+        "Trending Videos": False,
+        "Empfehlungen": False,
+        "Clickbait Analyse": False,
+        "Suche": False,
+        "Abobox": False,
+        "Feedback": False
+    }
+
 # Dashboard-Titel
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
@@ -67,77 +90,83 @@ length_filter = st.sidebar.slider(
 user_interests = st.sidebar.text_input("Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests)
 
 # Verwenden von Tabs, um verschiedene Funktionen übersichtlich zu präsentieren
-tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche", "Feedback"])
+tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche","Abobox","Feedback"])
 
+youtube = initialize()
 ####################################
 # Tab 1: Trending Videos
 with tabs[0]:
-    st.header("Trending Videos")
-    youtube = initialize()
-
-    with st.spinner("Lade Trending Videos..."):
-        df_videos = get_trending_videos(youtube)
-
-    if df_videos.empty:
-        st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
-    else:
-        st.subheader("Alle Trending Videos")
-        for _, video in df_videos.sort_values(by="Platz").iterrows():
-            st.markdown(f"### {video['Platz']}. {video['Titel']}")
-            st.write(f"**Dauer:** {video['Dauer']}")
-            st.write(f"**Kategorie:** {video['Kategorie']}")
-            st.write(f"**Tags:** {video['Tags']}")
-            st.video(video["Video_URL"])
-            st.markdown("---")
-
+    if st.button("🔄 Trending Videos laden"):
+        st.header("Trending Videos")
+        load_tab("Trending Videos")
         
-        selected_videos = []
-        cumulative_time = 0
 
-        df_videos = df_videos.sort_values(by="Platz")
-        for _, row in df_videos.iterrows():
-            video_duration_seconds = duration_to_seconds(row["Dauer"])
-            if cumulative_time + video_duration_seconds <= length_filter[1]:
-                selected_videos.append(row)
-                cumulative_time += video_duration_seconds
+        with st.spinner("Lade Trending Videos..."):
+            df_videos = get_trending_videos(youtube)
 
-        if selected_videos:
-            st.header("Empfohlene Videos für dein Zeitbudget")
-            for video in selected_videos:
-                st.subheader(f"{video['Platz']}. {video['Titel']}")
+        if df_videos.empty:
+            st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
+        else:
+            st.subheader("Alle Trending Videos")
+            for _, video in df_videos.sort_values(by="Platz").iterrows():
+                st.markdown(f"### {video['Platz']}. {video['Titel']}")
                 st.write(f"**Dauer:** {video['Dauer']}")
                 st.write(f"**Kategorie:** {video['Kategorie']}")
                 st.write(f"**Tags:** {video['Tags']}")
-                # Beispiel: Clickbait-Bewertung (hier könnte man später noch differenziertere Ansätze einbinden)
-                #clickbait_score = evaluate_video_clickbait(video['Titel'])
-                #st.write(f"**Clickbait-Risiko:** {clickbait_score}")
-                #st.markdown("---")
-        else:
-            st.write("Kein Video passt in das angegebene Zeitbudget.")
+                st.video(video["Video_URL"])
+                st.markdown("---")
+
+            
+            selected_videos = []
+            cumulative_time = 0
+
+            df_videos = df_videos.sort_values(by="Platz")
+            for _, row in df_videos.iterrows():
+                video_duration_seconds = duration_to_seconds(row["Dauer"])
+                if cumulative_time + video_duration_seconds <= length_filter[1]:
+                    selected_videos.append(row)
+                    cumulative_time += video_duration_seconds
+
+            if selected_videos:
+                st.header("Empfohlene Videos für dein Zeitbudget")
+                for video in selected_videos:
+                    st.subheader(f"{video['Platz']}. {video['Titel']}")
+                    st.write(f"**Dauer:** {video['Dauer']}")
+                    st.write(f"**Kategorie:** {video['Kategorie']}")
+                    st.write(f"**Tags:** {video['Tags']}")
+                    # Beispiel: Clickbait-Bewertung (hier könnte man später noch differenziertere Ansätze einbinden)
+                    #clickbait_score = evaluate_video_clickbait(video['Titel'])
+                    #st.write(f"**Clickbait-Risiko:** {clickbait_score}")
+                    #st.markdown("---")
+            else:
+                st.write("Kein Video passt in das angegebene Zeitbudget.")
 
 ####################################
 # Tab 2: Personalisierte Empfehlungen
 with tabs[1]:
-    st.header("Personalisierte Empfehlungen")
-    with st.spinner("Lade Empfehlungen..."):
-        df_videos = get_trending_videos(youtube)
-        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(df_videos)
-        recommendations = get_recommendation(video_ids_titles_and_transcripts=video_ids_titles_and_transcripts, interests=user_interests)
-    st.write(recommendations["Titel"])
-    st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
-    st.write("## Begründung:")
-    st.write(recommendations["Begründung"])
-    st.write("## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)")
-    st.write(get_summary(recommendations["Video-ID"]))
+    if st.button("🔄 Empfehlungen abrufen"):
+        st.header("Personalisierte Empfehlungen")
+        load_tab("Personalisierte Empfehlungen")
+        with st.spinner("Lade Empfehlungen..."):
+            df_videos = get_trending_videos(youtube)
+            video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(df_videos)
+            recommendations = get_recommendation(video_ids_titles_and_transcripts=video_ids_titles_and_transcripts, interests=user_interests)
+        st.write(recommendations["Titel"])
+        st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
+        st.write("## Begründung:")
+        st.write(recommendations["Begründung"])
+        st.write("## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)")
+        st.write(get_summary(recommendations["Video-ID"]))
 
-    # Beispiel: Man könnte hier auch Details oder Zusammenfassungen via LLM einbinden
-    st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
+        # Beispiel: Man könnte hier auch Details oder Zusammenfassungen via LLM einbinden
+        st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
 
 ####################################
 # Tab 3: Clickbait Analyse
 
 #with tabs[2]:
     #st.header("Clickbait Analyse")
+    #load_tab("Clickbait Analyse")
     #st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
     #video_title = st.text_input("Gib einen Videotitel ein:")
     #if st.button("Analyse starten"):
@@ -152,14 +181,13 @@ with tabs[1]:
 #Tab 3: Suche
 with tabs[3]:
     st.header("Suche")
+    load_tab("Suche")
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
-    ###YOUTUBE REQUEST###
-    yt_api_key = load_api_key()
-    YOUTUBE = create_api_client(yt_api_key)
+    
 
-    request = YOUTUBE.search().list(
+    request = youtube.search().list(
         part="snippet",
         q=query,
         type="video",
@@ -169,7 +197,7 @@ with tabs[3]:
     response = request.execute()
 
     if st.button("🔍 Suchen"):
-        videos = get_video_data(YOUTUBE, response)
+        videos = get_video_data(youtube, response)
         st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
 
     if "videos" in st.session_state:
@@ -197,13 +225,36 @@ with tabs[3]:
 ####################################
 # Tab 4 Abobox
 with tabs[4]:
-    st.header("Abobox")
-    st.write("Hier finedst du die Videos deiner letzten abonnierten Kanäle")
+    if st.button("🔄 Abobox laden"):
+        st.header("Abobox")
+        load_tab("Abobox")
+        st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
+        try:
+            channelId = load_channel_id()
+        except:
+            st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
+        st.write(channelId)
+        try:
+            subscriptions = get_subscriptions(channel_Id = channelId, YOUTUBE = youtube)
+        except:
+            st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
+        st.dataframe(subscriptions)
+        channel_IDs = subscriptions['channel_id'].tolist()
+        
+        #UNTEREN CODE NICHT AUSFÜHREN, SONST API REQUESTS AUFGEBRAUCHT
+        #latest_videos = get_last_week_videos_from_subscriptions(youtube, channel_IDs)
+        #st.write(latest_videos)
+        #print(latest_videos)
+
+
+
+
     
 ####################################
 # Tab 5: Feedback & Wünsche
 with tabs[5]:
     st.header("Feedback & Wünsche")
+    load_tab("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
     if st.button("Feedback absenden"):
