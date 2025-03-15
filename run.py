@@ -3,7 +3,7 @@ import pandas as pd
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.youtube_helper import get_video_data  # Wiederverwendet die Funktion für Videodaten
 from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import get_recommendation, combine_video_id_title_and_transcript
+from src.llm_analysis import get_recommendation, combine_video_id_title_and_transcript, get_summary, get_summary_without_spoiler
 import src.settings
 from typing import Optional
 import googleapiclient
