@@ -58,8 +58,11 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
     spinner_context = (
         st.spinner("Lade Empfehlungen...") if show_spinner else nullcontext()
     )
-
     with spinner_context:
+        loading_time_information = st.empty()
+        loading_time_information.info(
+            "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
+        )
         df_videos = get_trending_videos(YOUTUBE)
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
             df_videos
@@ -74,6 +77,8 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
                 retry_count=retry_count + 1, show_spinner=False
             ),
         )
+        loading_time_information.empty()
+
     st.write(recommendations["Titel"])
     st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
     st.write("## Begründung:")
