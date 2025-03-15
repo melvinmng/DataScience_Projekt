@@ -1,6 +1,6 @@
 import pandas as pd
 import re
-from .key_management.youtube_api_key_management import load_api_key, create_api_client
+from .key_management.api_key_management import get_api_key, create_youtube_client
 
 
 def parse_duration(duration):
@@ -80,11 +80,12 @@ def get_trending_videos_stats(df):
 
 if __name__ == "__main__":
     try:
-        api_key = load_api_key()
-        youtube = create_api_client(api_key)
+        # Ändere die API-Key-Ladung, um die neuen Funktionen zu verwenden
+        api_key = get_api_key("YOUTUBE_API_KEY")  # API-Schlüssel aus den Umgebungsvariablen laden
+        youtube = create_youtube_client(api_key)  # YouTube API-Client erstellen
 
-        df = get_trending_videos(youtube)
-        get_trending_videos_stats(df)
+        df = get_trending_videos(youtube)  # Trending Videos abrufen
+        get_trending_videos_stats(df)  # Statistik der Kategorien anzeigen
 
     except ValueError as e:
         print(f"Fehler: {e}")

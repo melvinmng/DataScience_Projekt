@@ -1,11 +1,11 @@
 from google import genai
 from google.genai import types
 import os
-from .key_management.gemini_api_key_management import get_api_key
+from .key_management.api_key_management import get_api_key
 
 ## GEMINI
 try:
-    ai_client = genai.Client(api_key=get_api_key())
+    ai_client = genai.Client(api_key=get_api_key("TOKEN_GOOGLEAPI"))
 except:
     raise ValueError("Kein API_KEY gefunden.")
 else:

@@ -2,12 +2,13 @@ import streamlit as st
 import pandas as pd
 
 # Konfiguration und API-Initialisierung
-import src.config_env  # Lädt die .env-Date
+import src.config_env  # Lädt die .env-Datei
 from youtube_helper import get_video_data
-from src.key_management.youtube_api_key_management import load_api_key, create_api_client
-from src.key_management.gemini_api_key_management import get_api_key
+# from src.key_management.youtube_api_key_management import get_api_key, create_youtube_client  # API-Management angepasst
+# from src.key_management.gemini_api_key_management import get_api_key as get_gemini_api_key
+from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_title_and_transcript  #check_for_clickbait sind noch Platzhalter
+from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_title_and_transcript
 import src.settings
 import googleapiclient
 from typing import Optional
@@ -41,8 +42,8 @@ def get_personalized_recommendations(interests: str) -> pd.DataFrame:
 
 def initialize() -> Optional[googleapiclient.discovery.Resource]:
     try:
-        yt_api_key = load_api_key()
-        youtube = create_api_client(yt_api_key)
+        yt_api_key = get_api_key("YOUTUBE_API_KEY")  # API-Schlüssel aus den Umgebungsvariablen laden
+        youtube = create_youtube_client(yt_api_key)  # YouTube API-Client erstellen
     except Exception as e:
         st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
         st.stop()
@@ -108,10 +109,6 @@ with tabs[0]:
                 st.write(f"**Dauer:** {video['Dauer']}")
                 st.write(f"**Kategorie:** {video['Kategorie']}")
                 st.write(f"**Tags:** {video['Tags']}")
-                # Beispiel: Clickbait-Bewertung (hier könnte man später noch differenziertere Ansätze einbinden)
-                #clickbait_score = evaluate_video_clickbait(video['Titel'])
-                #st.write(f"**Clickbait-Risiko:** {clickbait_score}")
-                #st.markdown("---")
         else:
             st.write("Kein Video passt in das angegebene Zeitbudget.")
 
@@ -130,69 +127,48 @@ with tabs[1]:
     st.write("## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)")
     st.write(get_summary(recommendations["Video-ID"]))
 
-    # Beispiel: Man könnte hier auch Details oder Zusammenfassungen via LLM einbinden
     st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
 
 ####################################
-# Tab 3: Clickbait Analyse
-
-#with tabs[2]:
-    #st.header("Clickbait Analyse")
-    #st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
-    #video_title = st.text_input("Gib einen Videotitel ein:")
-    #if st.button("Analyse starten"):
-        #if video_title:
-            #score = evaluate_video_clickbait(video_title)
-            #st.write(f"Das Clickbait-Risiko für den Titel **{video_title}** wird als **{score}** eingestuft.")
-        #else:
-            #st.warning("Bitte gib einen Titel ein, um die Analyse zu starten.")"
-
-
-####################################
-#Tab 3: Suche
+# Tab 3: Suche
 with tabs[3]:
     st.header("Suche")
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
-    ###YOUTUBE REQUEST###
-    yt_api_key = load_api_key()
-    YOUTUBE = create_api_client(yt_api_key)
+    yt_api_key = get_api_key("YOUTUBE_API_KEY")  # API-Schlüssel aus den Umgebungsvariablen laden
+    youtube = create_youtube_client(yt_api_key)  # YouTube API-Client erstellen
 
-    request = YOUTUBE.search().list(
+    request = youtube.search().list(
         part="snippet",
         q=query,
         type="video",
         maxResults=10
     )
-    ###YOUTUBE REQUEST###
-    response = request.execute()
 
     if st.button("🔍 Suchen"):
-        videos = get_video_data(YOUTUBE, response)
+        response = request.execute()
+        videos = get_video_data(youtube, response)
         st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
 
     if "videos" in st.session_state:
         videos = st.session_state["videos"]
 
         filtered_videos = [v for v in videos if length_filter[0]*60 <= duration_to_seconds(v["length"]) <= length_filter[1]*60]
-        #FIlter so konfigurieren, dass Videos mit ensprechender Länge gesucht werden.
         for video in filtered_videos:
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    st.image(video["thumbnail"], use_container_width=True)
-                with col2:
-                    st.subheader(video["title"])
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                st.image(video["thumbnail"], use_container_width=True)
+            with col2:
+                st.subheader(video["title"])
+                st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
 
-                    st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
+                with st.expander("📜 Zusammenfassung"):
+                    st.write('Hier kommt GEMINI Zusammenfassung hin')
 
-                    # 🟢 **Zusammenfassung anzeigen**
-                    with st.expander("📜 Zusammenfassung"):
-                        st.write('Hier kommt GEMINI Zusammenfassung hin')
+                st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                st.write(video["length"])
 
-                    # 🎬 **YouTube-Video einbetten**
-                    st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                    st.write(video["length"])
 ####################################
 # Tab 4: Feedback & Wünsche
 with tabs[4]:
@@ -200,7 +176,6 @@ with tabs[4]:
     st.write("Hilf uns, das Dashboard zu verbessern!")
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
     if st.button("Feedback absenden"):
-        # Hier könntest du das Feedback speichern, per E-Mail versenden oder in einer Datenbank ablegen.
         st.success("Danke für dein Feedback!")
 
 # Optional: Button, um das Dashboard manuell zu aktualisieren
