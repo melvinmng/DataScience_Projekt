@@ -56,7 +56,7 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
         return
 
     spinner_context = (
-        st.spinner("Lade Empfehlungen...") if show_spinner else nullcontext
+        st.spinner("Lade Empfehlungen...") if show_spinner else nullcontext()
     )
 
     with spinner_context:
