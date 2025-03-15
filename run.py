@@ -36,12 +36,12 @@ def duration_to_seconds(duration_str: str) -> int:
 def initialize() -> Optional[googleapiclient.discovery.Resource]:
     try:
         YT_API_KEY = load_api_key()
-        YOUTUBE = create_api_client(YT_API_KEY)
+        youtube = create_api_client(YT_API_KEY)
     except Exception as e:
         st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
         st.stop()
 
-    return YOUTUBE
+    return youtube
 
 
 ## BUILD TABS
@@ -64,7 +64,7 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
         loading_time_information.info(
             "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
         )
-        df_videos = get_trending_videos(YOUTUBE)
+        df_videos = get_trending_videos(youtube)
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
             df_videos
         )
@@ -123,7 +123,7 @@ tabs = st.tabs(
     ["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche", "Feedback"]
 )
 
-YOUTUBE = initialize()
+youtube = initialize()
 
 
 ####################################
@@ -132,7 +132,7 @@ with tabs[0]:
     st.header("Trending Videos")
 
     with st.spinner("Lade Trending Videos..."):
-        df_videos = get_trending_videos(YOUTUBE)
+        df_videos = get_trending_videos(youtube)
 
     if df_videos.empty:
         st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
@@ -193,13 +193,13 @@ with tabs[3]:
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
-    request = YOUTUBE.search().list(
+    request = youtube.search().list(
         part="snippet", q=query, type="video", maxResults=10
     )
     response = request.execute()
 
     if st.button("🔍 Suchen"):
-        videos = get_video_data(YOUTUBE, response)
+        videos = get_video_data(youtube, response)
         st.session_state["videos"] = videos
 
     if "videos" in st.session_state:
