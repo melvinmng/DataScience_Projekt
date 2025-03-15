@@ -21,7 +21,7 @@ import googleapiclient
 from typing import Optional
 
 
-## Hilfsfunktionen
+## HELPERS
 def duration_to_seconds(duration_str: str) -> int:
     try:
         parts = duration_str.split(":")
@@ -44,6 +44,7 @@ def initialize() -> Optional[googleapiclient.discovery.Resource]:
     return YOUTUBE
 
 
+## BUILD TABS
 def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) -> None:
     max_retries = 3
     if retry_count == 0:
@@ -84,7 +85,7 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
     st.write("## Begründung:")
     st.write(recommendations["Begründung"])
     st.write(
-        "## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)"
+        "## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr je nach Einstellung in Sidebar!!!)"
     )
     if st.session_state.show_spoiler == True:
         st.write(get_summary(get_transcript(recommendations["Video-ID"])))
@@ -93,17 +94,13 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
             get_summary_without_spoiler(get_transcript(recommendations["Video-ID"]))
         )
 
-    st.info(
-        "Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen."
-    )
-
 
 ## Session States
 if "show_spoiler" not in st.session_state:
     st.session_state.show_spoiler = False
 
 
-## Initialisierung
+## INITIALIZATION
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
 st.sidebar.header("Einstellungen")
