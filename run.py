@@ -1,3 +1,4 @@
+from contextlib import nullcontext
 import streamlit as st
 import pandas as pd
 import src.config_env
@@ -43,17 +44,22 @@ def initialize() -> Optional[googleapiclient.discovery.Resource]:
     return YOUTUBE
 
 
-def build_recommendation_tab(retry_count: int = 0) -> None:
+def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) -> None:
+    max_retries = 3
     if retry_count == 0:
         st.header("Personalisierte Empfehlungen")
 
-    if retry_count >= 3:
+    if retry_count >= max_retries:
         st.error(
             "Nach mehreren Versuchen konnte keine Empfehlung generiert werden.\nBitte versuchen Sie es später erneut."
         )
         return
 
-    with st.spinner("Lade Empfehlungen..."):
+    spinner_context = (
+        st.spinner("Lade Empfehlungen...") if show_spinner else nullcontext
+    )
+
+    with spinner_context:
         df_videos = get_trending_videos(YOUTUBE)
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
             df_videos
@@ -64,7 +70,9 @@ def build_recommendation_tab(retry_count: int = 0) -> None:
         )
         recommendations = extract_video_id_title_and_transcript(
             recommendations_unfiltered,
-            on_fail=lambda: build_recommendation_tab(retry_count=retry_count + 1),
+            on_fail=lambda: build_recommendation_tab(
+                retry_count=retry_count + 1, show_spinner=False
+            ),
         )
     st.write(recommendations["Titel"])
     st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")

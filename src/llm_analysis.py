@@ -12,9 +12,7 @@ from pandas import DataFrame
 import re
 
 
-def get_summary(
-    transcript: str
-) -> str:
+def get_summary(transcript: str) -> str:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers possible.
 
@@ -33,9 +31,7 @@ def get_summary(
     return response.text
 
 
-def get_summary_without_spoiler(
-    transcript: str
-) -> str:
+def get_summary_without_spoiler(transcript: str) -> str:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers prevented.
 
@@ -55,15 +51,19 @@ def get_summary_without_spoiler(
 
 
 def get_recommendation(
-     video_ids_titles_and_transcripts : list[str], interests: Optional[str] = interests, todays_free_time: Optional[float] = None, abonnements : Optional[DataFrame] = None
-) -> dict[str, str]:
+    video_ids_titles_and_transcripts: list[str],
+    interests: Optional[str] = interests,
+    todays_free_time: Optional[float] = None,
+    abonnements: Optional[DataFrame] = None,
+) -> str:
     prompt = (
-            f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
-            f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
-            f"Bitte wähle aus dieser Liste genau ein Video als Empfehlung aus, das am besten zu meinen Interessen passt: {interests}.\n"
-            f"Antworte ausschließlich mit einer Python-Liste, die genau ein Element enthält, das genau folgende Struktur einhalten muss (achte vor allem auf die Keywords 'Titel', 'Video-ID' und 'Begründung' - sie müssen enthalten und richtig geschrieben sein) "
-            f"z.B. [('Titel': 'Titelx'\n'Video-ID': 'Video-IDx'\n'Begründung': 'Begründungx wieso diese Video von dir empfohlen wird')].\n"
-            f"Hier ist die Liste der Videos: {video_ids_titles_and_transcripts}")
+        f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
+        f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
+        f"Bitte wähle aus dieser Liste genau ein Video als Empfehlung aus, das am besten zu meinen Interessen passt: {interests}.\n"
+        f"Antworte ausschließlich mit einer Python-Liste, die genau ein Element enthält, das genau folgende Struktur einhalten muss (achte vor allem auf die Keywords 'Titel', 'Video-ID' und 'Begründung' - sie müssen enthalten und richtig geschrieben sein) "
+        f"z.B. [('Titel': 'Titelx'\n'Video-ID': 'Video-IDx'\n'Begründung': 'Begründungx wieso diese Video von dir empfohlen wird')].\n"
+        f"Hier ist die Liste der Videos: {video_ids_titles_and_transcripts}"
+    )
 
     response = ai_client.models.generate_content(
         model=ai_model,
@@ -73,11 +73,10 @@ def get_recommendation(
 
     return response.text
 
-def combine_video_id_title_and_transcript(
-    videos: DataFrame
-) -> str:
+
+def combine_video_id_title_and_transcript(videos: DataFrame) -> str:
     """
-    Erstellt eine Empfehlungsliste, in der für jedes Video der Titel 
+    Erstellt eine Empfehlungsliste, in der für jedes Video der Titel
     und das zugehörige Transkript (in den angegebenen Sprachen) angezeigt werden.
 
     Args:
@@ -89,21 +88,26 @@ def combine_video_id_title_and_transcript(
     video_id_title_and_transcript = []
 
     for _, video in videos.iterrows():
-        title = video['Titel']
+        title = video["Titel"]
         video_id = video["Video-ID"]
         if video_id:
             transcript = get_transcript(video_id)
 
             if transcript != "":
-                video_id_title_and_transcript.append(f"Titel: {title}\nTranskript: {transcript}\nVideo-ID: {video_id}\n")
+                video_id_title_and_transcript.append(
+                    f"Titel: {title}\nTranskript: {transcript}\nVideo-ID: {video_id}\n"
+                )
         else:
             raise KeyError("Keine Video-ID gefunden")
-        
+
     return video_id_title_and_transcript
 
-def extract_video_id_title_and_transcript(text: str, on_fail: Callable = None) -> dict[str, str]:
 
-    def extract_field(fieldname: str, text : str) -> str:
+def extract_video_id_title_and_transcript(
+    text: str, on_fail: Callable = None
+) -> Optional[dict[str, str]]:
+
+    def extract_field(fieldname: str, text: str) -> str:
         """
         Sucht nach einem Feld wie 'Titel', 'Video-ID' oder 'Begründung' und gibt den Inhalt zurück.
         Akzeptiert einfache oder doppelte Anführungszeichen (aber nur, wenn sie korrekt paaren).
@@ -118,16 +122,11 @@ def extract_video_id_title_and_transcript(text: str, on_fail: Callable = None) -
     reason = extract_field("Begründung", text)
 
     if title and video_id and reason:
-        return {
-            "Titel": title,
-            "Video-ID": video_id,
-            "Begründung": reason
-        }
+        return {"Titel": title, "Video-ID": video_id, "Begründung": reason}
     else:
         if on_fail:
             on_fail()
-        return None
-
+        return
 
 
 def check_for_clickbait():
