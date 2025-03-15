@@ -17,6 +17,7 @@ def parse_duration(duration):
 
     return f"{minutes:02}:{seconds:02}"
 
+
 def get_video_length(youtube, video_id):
     request = youtube.videos().list(
         part="snippet,contentDetails",
@@ -32,8 +33,6 @@ def get_video_length(youtube, video_id):
     
 
 def get_video_data(youtube, response):
-    
-
     videos = []
     for index, item in enumerate(response["items"], start=1):
         video_id = item["id"]["videoId"]
@@ -54,3 +53,13 @@ def get_video_data(youtube, response):
         )
     
     return videos
+
+
+def get_category_name(youtube, category_id):
+    request = youtube.videoCategories().list(part="snippet", regionCode="DE")
+
+    response = request.execute()
+
+    categories = {item["id"]: item["snippet"]["title"] for item in response["items"]}
+
+    return categories.get(category_id, "Unbekannte Kategorie")

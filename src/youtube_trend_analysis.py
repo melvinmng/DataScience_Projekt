@@ -1,32 +1,7 @@
 import pandas as pd
 import re
 from .key_management.api_key_management import get_api_key, create_youtube_client
-
-
-def parse_duration(duration):
-    pattern = re.compile(r"PT(\d+M)?(\d+S)?")
-    match = pattern.match(duration)
-
-    minutes = 0
-    seconds = 0
-
-    if match:
-        if match.group(1):
-            minutes = int(match.group(1)[:-1])
-        if match.group(2):
-            seconds = int(match.group(2)[:-1])
-
-    return f"{minutes:02}:{seconds:02}"
-
-
-def get_category_name(youtube, category_id):
-    request = youtube.videoCategories().list(part="snippet", regionCode="DE")
-
-    response = request.execute()
-
-    categories = {item["id"]: item["snippet"]["title"] for item in response["items"]}
-
-    return categories.get(category_id, "Unbekannte Kategorie")
+from .youtube_helper import parse_duration, get_category_name
 
 
 def get_trending_videos(youtube):
@@ -80,12 +55,11 @@ def get_trending_videos_stats(df):
 
 if __name__ == "__main__":
     try:
-        # Ändere die API-Key-Ladung, um die neuen Funktionen zu verwenden
-        api_key = get_api_key("YOUTUBE_API_KEY")  # API-Schlüssel aus den Umgebungsvariablen laden
-        youtube = create_youtube_client(api_key)  # YouTube API-Client erstellen
+        api_key = get_api_key()
+        youtube = create_youtube_client(api_key)
 
-        df = get_trending_videos(youtube)  # Trending Videos abrufen
-        get_trending_videos_stats(df)  # Statistik der Kategorien anzeigen
+        df = get_trending_videos(youtube)
+        get_trending_videos_stats(df)
 
     except ValueError as e:
         print(f"Fehler: {e}")

@@ -1,34 +1,26 @@
 import streamlit as st
 import pandas as pd
-
-# Konfiguration und API-Initialisierung
-import src.config_env  # Lädt die .env-Datei
-from youtube_helper import get_video_data
-# from src.key_management.youtube_api_key_management import get_api_key, create_youtube_client  # API-Management angepasst
-# from src.key_management.gemini_api_key_management import get_api_key as get_gemini_api_key
 from src.key_management.api_key_management import get_api_key, create_youtube_client
+from src.youtube_helper import get_video_data  # Wiederverwendet die Funktion für Videodaten
 from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import get_summary, get_summary_without_spoiler, get_recommendation, combine_video_id_title_and_transcript
+from src.llm_analysis import get_recommendation, combine_video_id_title_and_transcript
 import src.settings
-import googleapiclient
 from typing import Optional
+import googleapiclient
+
 
 # Hilfsfunktion: Konvertiere "MM:SS" in Sekunden
 def duration_to_seconds(duration_str: str) -> int:
     try:
-        parts = duration_str.split(":")
-        if len(parts) == 2:
-            minutes, seconds = parts
-            return int(minutes) * 60 + int(seconds)
+        minutes, seconds = map(int, duration_str.split(":"))
+        return minutes * 60 + seconds
     except Exception as e:
         st.error(f"Fehler beim Parsen der Dauer: {e}")
     return 0
 
+
 # Dummy-Implementierung für personalisierte Empfehlungen (Platzhalter)
 def get_personalized_recommendations(interests: str) -> pd.DataFrame:
-    # Hier könntest du z. B. die Funktion get_recommendation in llm_analysis nutzen,
-    # um auf Basis der Interessen personalisierte Vorschläge zu generieren.
-    # Aktuell wird ein Dummy-DataFrame zurückgegeben.
     data = {
         "Titel": ["Empfehlung 1", "Empfehlung 2"],
         "Dauer": ["04:30", "05:15"],
@@ -40,15 +32,18 @@ def get_personalized_recommendations(interests: str) -> pd.DataFrame:
     }
     return pd.DataFrame(data)
 
+
+# API-Client-Initialisierung
 def initialize() -> Optional[googleapiclient.discovery.Resource]:
     try:
-        yt_api_key = get_api_key("YOUTUBE_API_KEY")  # API-Schlüssel aus den Umgebungsvariablen laden
-        youtube = create_youtube_client(yt_api_key)  # YouTube API-Client erstellen
+        yt_api_key = get_api_key("YOUTUBE_API_KEY")
+        youtube = create_youtube_client(yt_api_key)
     except Exception as e:
         st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
         st.stop()
     
     return youtube
+
 
 # Dashboard-Titel
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
@@ -61,7 +56,7 @@ length_filter = st.sidebar.slider(
     "Wie viele Minuten hast du heute für YouTube?",
     min_value=0,
     max_value=180,
-    value=(0, 60),  # Standardbereich (von 10 bis 60 Minuten)
+    value=(0, 60),
     help="Wähle dein verfügbares Zeitbudget in Minuten."
 )
 
@@ -91,14 +86,13 @@ with tabs[0]:
             st.video(video["Video_URL"])
             st.markdown("---")
 
-        
         selected_videos = []
         cumulative_time = 0
 
         df_videos = df_videos.sort_values(by="Platz")
         for _, row in df_videos.iterrows():
             video_duration_seconds = duration_to_seconds(row["Dauer"])
-            if cumulative_time + video_duration_seconds <= length_filter[1]:
+            if cumulative_time + video_duration_seconds <= length_filter[1] * 60:
                 selected_videos.append(row)
                 cumulative_time += video_duration_seconds
 
@@ -120,6 +114,7 @@ with tabs[1]:
         df_videos = get_trending_videos(youtube)
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(df_videos)
         recommendations = get_recommendation(video_ids_titles_and_transcripts=video_ids_titles_and_transcripts, interests=user_interests)
+
     st.write(recommendations["Titel"])
     st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
     st.write("## Begründung:")
@@ -136,8 +131,7 @@ with tabs[3]:
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
-    yt_api_key = get_api_key("YOUTUBE_API_KEY")  # API-Schlüssel aus den Umgebungsvariablen laden
-    youtube = create_youtube_client(yt_api_key)  # YouTube API-Client erstellen
+    youtube = initialize()
 
     request = youtube.search().list(
         part="snippet",
@@ -154,7 +148,7 @@ with tabs[3]:
     if "videos" in st.session_state:
         videos = st.session_state["videos"]
 
-        filtered_videos = [v for v in videos if length_filter[0]*60 <= duration_to_seconds(v["length"]) <= length_filter[1]*60]
+        filtered_videos = [v for v in videos if length_filter[0] * 60 <= duration_to_seconds(v["length"]) <= length_filter[1] * 60]
         for video in filtered_videos:
             col1, col2 = st.columns([1, 3])
             with col1:
