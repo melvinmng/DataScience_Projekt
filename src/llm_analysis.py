@@ -1,4 +1,4 @@
-from typing import Callable, Optional
+from typing import Callable
 from .settings import (
     ai_client,
     ai_model,
@@ -52,9 +52,9 @@ def get_summary_without_spoiler(transcript: str) -> str:
 
 def get_recommendation(
     video_ids_titles_and_transcripts: list[str],
-    interests: Optional[str] = interests,
-    todays_free_time: Optional[float] = None,
-    abonnements: Optional[DataFrame] = None,
+    interests: str | None = interests,
+    todays_free_time: float | None = None,
+    abonnements: DataFrame | None = None,
 ) -> str:
     prompt = (
         f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
@@ -74,7 +74,7 @@ def get_recommendation(
     return response.text
 
 
-def combine_video_id_title_and_transcript(videos: DataFrame) -> str:
+def combine_video_id_title_and_transcript(videos: DataFrame) -> list[str]:
     """
     Erstellt eine Empfehlungsliste, in der für jedes Video der Titel
     und das zugehörige Transkript (in den angegebenen Sprachen) angezeigt werden.
@@ -103,11 +103,11 @@ def combine_video_id_title_and_transcript(videos: DataFrame) -> str:
     return video_id_title_and_transcript
 
 
-def extract_video_id_title_and_transcript(
-    text: str, on_fail: Callable = None
-) -> Optional[dict[str, str]]:
+def extract_video_id_title_and_reason(
+    text: str, on_fail: Callable | None = None
+) -> dict[str, str] | None:
 
-    def extract_field(fieldname: str, text: str) -> str:
+    def extract_field(fieldname: str, text: str) -> str | None:
         """
         Sucht nach einem Feld wie 'Titel', 'Video-ID' oder 'Begründung' und gibt den Inhalt zurück.
         Akzeptiert einfache oder doppelte Anführungszeichen (aber nur, wenn sie korrekt paaren).
@@ -126,7 +126,7 @@ def extract_video_id_title_and_transcript(
     else:
         if on_fail:
             on_fail()
-        return
+        return None
 
 
 def check_for_clickbait():
@@ -148,7 +148,3 @@ def live_conversation() -> str:
     print(response.text)
 
     return response.text
-
-
-if __name__ == "__main__":
-    get_recommendation()

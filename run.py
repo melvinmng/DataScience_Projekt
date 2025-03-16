@@ -10,15 +10,14 @@ from src.key_management.youtube_api_key_management import (
 )
 from src.youtube_trend_analysis import get_trending_videos
 from src.llm_analysis import (
+    extract_video_id_title_and_reason,
     get_summary,
     get_summary_without_spoiler,
     get_recommendation,
     combine_video_id_title_and_transcript,
-    extract_video_id_title_and_transcript,
 )
 import src.settings
 import googleapiclient
-from typing import Optional
 
 
 ## HELPERS
@@ -33,7 +32,7 @@ def duration_to_seconds(duration_str: str) -> int:
     return 0
 
 
-def initialize() -> Optional[googleapiclient.discovery.Resource]:
+def initialize() -> googleapiclient.discovery.Resource | None:
     try:
         YT_API_KEY = load_api_key()
         youtube = create_api_client(YT_API_KEY)
@@ -72,7 +71,7 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
             video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
             interests=user_interests,
         )
-        recommendations = extract_video_id_title_and_transcript(
+        recommendations = extract_video_id_title_and_reason(
             recommendations_unfiltered,
             on_fail=lambda: build_recommendation_tab(
                 retry_count=retry_count + 1, show_spinner=False
