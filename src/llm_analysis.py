@@ -12,7 +12,7 @@ from pandas import DataFrame
 import re
 
 
-def get_summary(transcript: str) -> str:
+def get_summary(transcript: str) -> str | None:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers possible.
 
@@ -27,11 +27,13 @@ def get_summary(transcript: str) -> str:
         config=ai_generate_content_config,
         contents=f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein.",
     )
+    if response.text:
+        return response.text
+    else:
+        return None
 
-    return response.text
 
-
-def get_summary_without_spoiler(transcript: str) -> str:
+def get_summary_without_spoiler(transcript: str) -> str | None:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers prevented.
 
@@ -47,7 +49,10 @@ def get_summary_without_spoiler(transcript: str) -> str:
         contents=f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein und achte darauf, keinen Inhalt zu spoilern.",
     )
 
-    return response.text
+    if response.text:
+        return response.text
+    else:
+        return None
 
 
 def get_recommendation(
@@ -55,7 +60,7 @@ def get_recommendation(
     interests: str | None = interests,
     todays_free_time: float | None = None,
     abonnements: DataFrame | None = None,
-) -> str:
+) -> str | None:
     prompt = (
         f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
         f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
@@ -71,7 +76,10 @@ def get_recommendation(
         contents=prompt,
     )
 
-    return response.text
+    if response.text:
+        return response.text
+    else:
+        return None
 
 
 def combine_video_id_title_and_transcript(videos: DataFrame) -> list[str]:
