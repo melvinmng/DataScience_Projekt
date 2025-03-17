@@ -125,7 +125,7 @@ def build_clickbait_recognition_tab() -> None:
                 "Es gab leider ein Problem mit Gemini. Bitte versuchen Sie es später noch einmal."
             )
         else:
-            st.video(video_url)
+            st.video(f"https://www.youtube.com/watch?v={video_id}")
             st.write(clickbait_elements)
     else:
         st.warning(

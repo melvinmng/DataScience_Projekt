@@ -30,7 +30,7 @@ def get_video_length(youtube, video_id):
     return parse_duration(duration)
 
 
-@st.cache_data
+# @st.cache_data
 def get_video_data(
     youtube, response
 ):  # @AdriSieDS Was ist response?? Kann ich damit Zugriff auf den Titel eines bestimmten Videos bekommen?

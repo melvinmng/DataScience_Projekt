@@ -30,7 +30,7 @@ def get_category_name(youtube, category_id):
     return categories.get(category_id, "Unbekannte Kategorie")
 
 
-@st.cache_data
+# @st.cache_data
 def get_trending_videos(youtube):
     request = youtube.videos().list(
         part="snippet,contentDetails",
