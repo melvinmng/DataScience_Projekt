@@ -32,7 +32,7 @@ def get_video_length(youtube, video_id):
     return parse_duration(duration)
     
 
-def get_video_data(youtube, response):
+def get_video_data(YOUTUBE, response: dict) -> list:
     
 
     videos = []
@@ -42,7 +42,7 @@ def get_video_data(youtube, response):
         channel_name = item["snippet"]["channelTitle"]
         tags = item["snippet"].get("tags", [])
         thumbnail = item["snippet"]["thumbnails"]["medium"]["url"]
-        length = get_video_length(youtube, video_id)
+        length = get_video_length(YOUTUBE, video_id)
 
         videos.append(
             {
@@ -60,7 +60,7 @@ def get_video_data(youtube, response):
 
 
 
-def get_subscriptions(channel_Id: str, YOUTUBE: str) -> pd.DataFrame:
+def get_subscriptions(channel_Id: str, YOUTUBE) -> pd.DataFrame:
     """
     Retrieves all YouTube channel subscriptions for a given channel ID.
 
