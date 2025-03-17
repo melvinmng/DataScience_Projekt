@@ -87,7 +87,8 @@ def build_recommendation_tab(
                     show_loading_time_information=False,
                 ),
             )
-        loading_time_information.empty()
+        if loading_time_information:
+            loading_time_information.empty()
 
     st.write(recommendations["Titel"])
     st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
