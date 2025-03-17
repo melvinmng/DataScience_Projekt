@@ -1,5 +1,6 @@
 import re
 import isodate
+import streamlit as st
 
 
 def parse_duration(duration):
@@ -17,11 +18,9 @@ def parse_duration(duration):
 
     return f"{minutes:02}:{seconds:02}"
 
+
 def get_video_length(youtube, video_id):
-    request = youtube.videos().list(
-        part="snippet,contentDetails",
-        id=video_id
-    )
+    request = youtube.videos().list(part="snippet,contentDetails", id=video_id)
     response = request.execute()
     if "items" not in response or len(response["items"]) == 0:
         print(f"Fehler: Kein Video gefunden für ID {video_id}")
@@ -29,10 +28,12 @@ def get_video_length(youtube, video_id):
 
     duration = response["items"][0]["contentDetails"]["duration"]
     return parse_duration(duration)
-    
 
-def get_video_data(youtube, response):
-    
+
+@st.cache_data
+def get_video_data(
+    youtube, response
+):  # @AdriSieDS Was ist response?? Kann ich damit Zugriff auf den Titel eines bestimmten Videos bekommen?
 
     videos = []
     for index, item in enumerate(response["items"], start=1):
@@ -47,10 +48,18 @@ def get_video_data(youtube, response):
                 "place": index,
                 "title": title,
                 "tags": ", ".join(tags) if tags else "Keine Tags",
-                "video_id": video_id,  
+                "video_id": video_id,
                 "thumbnail": thumbnail,
-                "length": length
+                "length": length,
             }
         )
-    
+
     return videos
+
+
+def extract_video_id_from_url(url: str) -> str | None:
+    pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11})"
+    match = re.search(pattern, url)
+    if match:
+        return match.group(1)
+    return None

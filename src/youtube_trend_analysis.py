@@ -1,6 +1,7 @@
 import pandas as pd
 import re
 from .key_management.youtube_api_key_management import load_api_key, create_api_client
+import streamlit as st
 
 
 def parse_duration(duration):
@@ -29,6 +30,7 @@ def get_category_name(youtube, category_id):
     return categories.get(category_id, "Unbekannte Kategorie")
 
 
+@st.cache_data
 def get_trending_videos(youtube):
     request = youtube.videos().list(
         part="snippet,contentDetails",
@@ -58,7 +60,7 @@ def get_trending_videos(youtube):
                 "Tags": ", ".join(tags) if tags else "Keine Tags",
                 "Kategorie": category_name,
                 "Video_URL": video_url,
-                "Video-ID": video_id
+                "Video-ID": video_id,
             }
         )
 

@@ -84,14 +84,7 @@ def get_recommendation(
 
 def combine_video_id_title_and_transcript(videos: DataFrame) -> list[str]:
     """
-    Erstellt eine Empfehlungsliste, in der für jedes Video der Titel
-    und das zugehörige Transkript (in den angegebenen Sprachen) angezeigt werden.
-
-    Args:
-        videos (DataFrame): DataFrame mit Trend-Videos; erwartet Spalten "Titel" und "VideoID".
-
-    Returns:
-        str: Formatierter String mit Titeln und Transkripten der Videos.
+    outsource to youtube_helper.py
     """
     video_id_title_and_transcript = []
 
@@ -114,12 +107,11 @@ def combine_video_id_title_and_transcript(videos: DataFrame) -> list[str]:
 def extract_video_id_title_and_reason(
     text: str, on_fail: Callable | None = None
 ) -> dict[str, str] | None:
+    """
+    could be outsourced to a gemini_helper.py but as it's the only funtion it seems not to make sense
+    """
 
     def extract_field(fieldname: str, text: str) -> str | None:
-        """
-        Sucht nach einem Feld wie 'Titel', 'Video-ID' oder 'Begründung' und gibt den Inhalt zurück.
-        Akzeptiert einfache oder doppelte Anführungszeichen (aber nur, wenn sie korrekt paaren).
-        """
         pattern = rf"'?{fieldname}'?:\s*(?P<q>['\"])(.+?)(?P=q)"
         match = re.search(pattern, text, re.DOTALL)
         return match.group(2).strip() if match else None
@@ -137,8 +129,21 @@ def extract_video_id_title_and_reason(
         return None
 
 
-def check_for_clickbait():
-    pass
+def check_for_clickbait(transcript: str) -> str:
+
+    if transcript:
+        response = ai_client.models.generate_content(
+            model=ai_model,
+            config=ai_generate_content_config,
+            contents=f"Analysiere dieses Video auf Clickbait-Elemente: {transcript}. Achte darauf, nicht inhaltlich zu spoilern, aber gebe dennoch alle Clickbait-Elemente, die dir auffallen aus.",
+        )
+
+        if response.text:
+            return response.text
+        else:
+            return "no response"
+    else:
+        return "no transcript"
 
 
 def live_conversation() -> str:

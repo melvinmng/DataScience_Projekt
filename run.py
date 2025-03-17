@@ -1,9 +1,10 @@
 from contextlib import nullcontext
+from logging import warn
 import streamlit as st
 import pandas as pd
 import src.config_env
 from src.youtube_transcript import get_transcript
-from youtube_helper import get_video_data
+from youtube_helper import get_video_data, extract_video_id_from_url
 from src.key_management.youtube_api_key_management import (
     load_api_key,
     create_api_client,
@@ -15,6 +16,7 @@ from src.llm_analysis import (
     get_summary_without_spoiler,
     get_recommendation,
     combine_video_id_title_and_transcript,
+    check_for_clickbait,
 )
 import src.settings
 import googleapiclient
@@ -44,7 +46,11 @@ def initialize() -> googleapiclient.discovery.Resource | None:
 
 
 ## BUILD TABS
-def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) -> None:
+def build_recommendation_tab(
+    retry_count: int = 0,
+    show_spinner: bool = True,
+    loading_time_information: bool = True,
+) -> None:
     max_retries = 3
     if retry_count == 0:
         st.header("Personalisierte Empfehlungen")
@@ -59,10 +65,11 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
         st.spinner("Lade Empfehlungen...") if show_spinner else nullcontext()
     )
     with spinner_context:
-        loading_time_information = st.empty()
-        loading_time_information.info(
-            "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
-        )
+        if loading_time_information:
+            loading_time_information = st.empty()
+            loading_time_information.info(
+                "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
+            )
         df_videos = get_trending_videos(youtube)
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
             df_videos
@@ -71,12 +78,15 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
             video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
             interests=user_interests,
         )
-        recommendations = extract_video_id_title_and_reason(
-            recommendations_unfiltered,
-            on_fail=lambda: build_recommendation_tab(
-                retry_count=retry_count + 1, show_spinner=False
-            ),
-        )
+        if recommendations_unfiltered:
+            recommendations = extract_video_id_title_and_reason(
+                recommendations_unfiltered,
+                on_fail=lambda: build_recommendation_tab(
+                    retry_count=retry_count + 1,
+                    show_spinner=False,
+                    loading_time_information=False,
+                ),
+            )
         loading_time_information.empty()
 
     st.write(recommendations["Titel"])
@@ -91,6 +101,35 @@ def build_recommendation_tab(retry_count: int = 0, show_spinner: bool = True) ->
     else:
         st.write(
             get_summary_without_spoiler(get_transcript(recommendations["Video-ID"]))
+        )
+
+
+def build_clickbait_recognition_tab() -> None:
+    st.header("Clickbait Analyse")
+    st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
+
+    video_url = st.text_input(
+        "🔎 Welches Video möchtest du prüfen? Gib hier die Video-Url ein!",
+        "https://www.youtube.com/watch?v=onE9aPkSmlw",
+    )
+    video_id = extract_video_id_from_url(video_url)
+
+    if video_id:
+        clickbait_elements = check_for_clickbait(get_transcript(video_id))
+        if clickbait_elements == "no transcript":
+            st.warning(
+                "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuchen Sie es mit einem anderen Video."
+            )
+        elif clickbait_elements == "no response":
+            st.warning(
+                "Es gab leider ein Problem mit Gemini. Bitte versuchen Sie es später noch einmal."
+            )
+        else:
+            st.video(video_url)
+            st.write(clickbait_elements)
+    else:
+        st.warning(
+            "Kein Video mit dieser Video-ID gefunden, bitte versuchen Sie es noch einmal"
         )
 
 
@@ -173,16 +212,8 @@ with tabs[1]:
 ####################################
 # Tab 3: Clickbait Analyse
 
-# with tabs[2]:
-# st.header("Clickbait Analyse")
-# st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
-# video_title = st.text_input("Gib einen Videotitel ein:")
-# if st.button("Analyse starten"):
-# if video_title:
-# score = evaluate_video_clickbait(video_title)
-# st.write(f"Das Clickbait-Risiko für den Titel **{video_title}** wird als **{score}** eingestuft.")
-# else:
-# st.warning("Bitte gib einen Titel ein, um die Analyse zu starten.")"
+with tabs[2]:
+    build_clickbait_recognition_tab()
 
 
 ####################################
