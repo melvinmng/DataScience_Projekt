@@ -5,12 +5,21 @@ from src.youtube_helper import get_video_data  # Wiederverwendet die Funktion f�
 from src.youtube_trend_analysis import get_trending_videos
 from src.llm_analysis import get_recommendation, combine_video_id_title_and_transcript, get_summary, get_summary_without_spoiler
 import src.settings
-from typing import Optional
+from typing import Optional, List, Dict
 import googleapiclient
 
 
 # Hilfsfunktion: Konvertiere "MM:SS" in Sekunden
 def duration_to_seconds(duration_str: str) -> int:
+    """
+    Converts a duration in "MM:SS" format to seconds.
+
+    Args:
+        duration_str (str): The duration in "MM:SS" format.
+
+    Returns:
+        int: The duration in seconds.
+    """
     try:
         minutes, seconds = map(int, duration_str.split(":"))
         return minutes * 60 + seconds
@@ -21,6 +30,15 @@ def duration_to_seconds(duration_str: str) -> int:
 
 # Dummy-Implementierung f체r personalisierte Empfehlungen (Platzhalter)
 def get_personalized_recommendations(interests: str) -> pd.DataFrame:
+    """
+    Generates dummy personalized video recommendations.
+
+    Args:
+        interests (str): The user's interests.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing personalized recommendations.
+    """
     data = {
         "Titel": ["Empfehlung 1", "Empfehlung 2"],
         "Dauer": ["04:30", "05:15"],
@@ -35,6 +53,12 @@ def get_personalized_recommendations(interests: str) -> pd.DataFrame:
 
 # API-Client-Initialisierung
 def initialize() -> Optional[googleapiclient.discovery.Resource]:
+    """
+    Initializes the YouTube API client.
+
+    Returns:
+        Optional[googleapiclient.discovery.Resource]: The authenticated YouTube API client or None in case of an error.
+    """
     try:
         yt_api_key = get_api_key("YOUTUBE_API_KEY")
         youtube = create_youtube_client(yt_api_key)
@@ -44,9 +68,11 @@ def initialize() -> Optional[googleapiclient.discovery.Resource]:
     
     return youtube
 
+# Logo anzeigen
+st.image("your-time-logo.JPG", width=100)
 
 # Dashboard-Titel
-st.title("Dein personalisiertes YouTube-FY-Dashboard")
+st.title("YourTime")
 
 # Sidebar: Grundlegende Einstellungen
 st.sidebar.header("Einstellungen")
@@ -64,6 +90,7 @@ user_interests = st.sidebar.text_input("Deine Interessensgebiete (kommagetrennt)
 
 # Verwenden von Tabs, um verschiedene Funktionen 체bersichtlich zu pr채sentieren
 tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche", "Feedback"])
+
 
 ####################################
 # Tab 1: Trending Videos
@@ -106,6 +133,7 @@ with tabs[0]:
         else:
             st.write("Kein Video passt in das angegebene Zeitbudget.")
 
+
 ####################################
 # Tab 2: Personalisierte Empfehlungen
 with tabs[1]:
@@ -123,6 +151,7 @@ with tabs[1]:
     st.write(get_summary(recommendations["Video-ID"]))
 
     st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Pr채ferenzen einzugehen.")
+
 
 ####################################
 # Tab 3: Suche
@@ -163,6 +192,7 @@ with tabs[3]:
                 st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                 st.write(video["length"])
 
+
 ####################################
 # Tab 4: Feedback & W체nsche
 with tabs[4]:
@@ -171,6 +201,7 @@ with tabs[4]:
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschl채ge:")
     if st.button("Feedback absenden"):
         st.success("Danke f체r dein Feedback!")
+
 
 # Optional: Button, um das Dashboard manuell zu aktualisieren
 if st.button("Dashboard aktualisieren"):

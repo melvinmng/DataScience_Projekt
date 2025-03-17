@@ -3,11 +3,12 @@ import pickle
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
+from typing import Optional
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
 
-def authenticate():
+def authenticate() -> Optional[object]:
     creds = None
     # Die Token-Datei speichert den Zugriffstoken und wird bei der ersten Authentifizierung erzeugt.
     if os.path.exists("token.pickle"):
@@ -34,7 +35,7 @@ def authenticate():
     return youtube
 
 
-def get_subscriptions(youtube):
+def get_subscriptions(youtube: object) -> None:
     request = youtube.subscriptions().list(
         part="snippet",
         mine=True,  # Nur für den authentifizierten Benutzer
@@ -54,7 +55,7 @@ def get_subscriptions(youtube):
             print(f"- {channel_title} (Channel ID: {channel_id})")
 
 
-def main():
+def main() -> None:
     youtube = authenticate()
     get_subscriptions(youtube)
 

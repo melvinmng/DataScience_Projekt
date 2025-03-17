@@ -14,9 +14,7 @@ import re
 # from ... get_video_id / video_id
 
 
-def get_summary(
-    transcript: str
-) -> str:
+def get_summary(transcript: str) -> str:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers possible.
 
@@ -35,9 +33,7 @@ def get_summary(
     return response.text
 
 
-def get_summary_without_spoiler(
-    transcript: str
-) -> str:
+def get_summary_without_spoiler(transcript: str) -> str:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers prevented.
 
@@ -57,7 +53,7 @@ def get_summary_without_spoiler(
 
 
 def get_recommendation(
-     video_ids_titles_and_transcripts : list[str], interests: Optional[str] = interests, todays_free_time: Optional[float] = None, abonnements : Optional[DataFrame] = None
+video_ids_titles_and_transcripts : list[str], interests: Optional[str] = interests, todays_free_time: Optional[float] = None, abonnements : Optional[DataFrame] = None
 ) -> dict[str, str]:
     prompt = (
             f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
@@ -75,9 +71,7 @@ def get_recommendation(
 
     return extract_video_id_title_and_transcript(response.text)
 
-def combine_video_id_title_and_transcript(
-    videos: DataFrame
-) -> str:
+def combine_video_id_title_and_transcript(videos: DataFrame) -> str:
     """
     Erstellt eine Empfehlungsliste, in der für jedes Video der Titel 
     und das zugehörige Transkript (in den angegebenen Sprachen) angezeigt werden.
@@ -125,7 +119,6 @@ def extract_video_id_title_and_transcript(text: str) -> dict[str, str]:
         "Video-ID": video_id,
         "Begründung": reason
     }
-
 
 
 def check_for_clickbait():

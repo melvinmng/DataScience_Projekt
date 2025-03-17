@@ -1,10 +1,19 @@
 import pandas as pd
-import re
+from typing import Optional
 from .key_management.api_key_management import get_api_key, create_youtube_client
 from .youtube_helper import parse_duration, get_category_name
 
 
-def get_trending_videos(youtube):
+def get_trending_videos(youtube: object) -> pd.DataFrame:
+    """
+    Retrieves trending videos from YouTube and formats them into a DataFrame.
+
+    Args:
+        youtube (object): The authenticated YouTube API client.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing trending video data.
+    """
     request = youtube.videos().list(
         part="snippet,contentDetails",
         chart="mostPopular",
@@ -45,7 +54,13 @@ def get_trending_videos(youtube):
     return df
 
 
-def get_trending_videos_stats(df):
+def get_trending_videos_stats(df: pd.DataFrame) -> None:
+    """
+    Analyzes and prints statistics about the trending videos.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing trending video data.
+    """
     category_counts = df["Kategorie"].value_counts().reset_index()
     category_counts.columns = ["Kategorie", "Anzahl"]
 
@@ -55,7 +70,7 @@ def get_trending_videos_stats(df):
 
 if __name__ == "__main__":
     try:
-        api_key = get_api_key()
+        api_key: Optional[str] = get_api_key()
         youtube = create_youtube_client(api_key)
 
         df = get_trending_videos(youtube)
