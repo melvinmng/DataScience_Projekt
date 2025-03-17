@@ -49,7 +49,7 @@ def initialize() -> googleapiclient.discovery.Resource | None:
 def build_recommendation_tab(
     retry_count: int = 0,
     show_spinner: bool = True,
-    loading_time_information: bool = True,
+    show_loading_time_information: bool = True,
 ) -> None:
     max_retries = 3
     if retry_count == 0:
@@ -65,7 +65,7 @@ def build_recommendation_tab(
         st.spinner("Lade Empfehlungen...") if show_spinner else nullcontext()
     )
     with spinner_context:
-        if loading_time_information:
+        if show_loading_time_information:
             loading_time_information = st.empty()
             loading_time_information.info(
                 "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
