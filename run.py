@@ -58,6 +58,103 @@ def initialize() -> Optional[googleapiclient.discovery.Resource]:
 def load_tab(tab_name):
     st.session_state["loaded_tabs"][tab_name] = True
 
+def search(): 
+    st.header("Suche")
+    load_tab("Suche")
+    st.write("Hier kannst du nach Videos oder Kategorien suchen.")
+    query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
+
+    
+
+    request = youtube.search().list(
+        part="snippet",
+        q=query,
+        type="video",
+        maxResults=10
+    )
+    ###YOUTUBE REQUEST###
+    response = request.execute()
+
+    if st.button("🔍 Suchen"):
+        videos = get_video_data(youtube, response)
+        st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
+
+    if "videos" in st.session_state:
+        videos = st.session_state["videos"]
+
+        filtered_videos = [v for v in videos if length_filter[0]*60 <= duration_to_seconds(v["length"]) <= length_filter[1]*60]
+        #FIlter so konfigurieren, dass Videos mit ensprechender Länge gesucht werden.
+        for video in filtered_videos:
+                col1, col2 = st.columns([1, 3])
+                with col1:
+                    st.image(video["thumbnail"], use_container_width=True)
+                with col2:
+                    st.subheader(video["title"])
+                    st.write(video["channel_name"])
+
+                    st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
+
+                    # 🟢 **Zusammenfassung anzeigen**
+                    with st.expander("📜 Zusammenfassung"):
+                        st.write('Hier kommt GEMINI Zusammenfassung hin')
+
+                    # 🎬 **YouTube-Video einbetten**
+                    st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                    st.write(video["length"])
+
+def abobox():
+    st.header("Abobox")
+    load_tab("Abobox")
+    st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
+    try:
+        channelId = load_channel_id()
+    except:
+        st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
+    st.write(channelId)
+    try:
+        Subs = get_subscriptions(channel_Id = channelId, YOUTUBE = youtube)
+        st.dataframe(Subs)
+    except:
+        st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
+
+    channel_names_and_description = ", ".join(Subs[Subs['description'].str.strip() != ""].apply(lambda row: f"{row['channel_name']}:{row['description']}", axis=1))
+
+    channel_string = get_subscriptions_based_on_interests(channel_names_and_description, user_interests, 10)
+    
+    channel_list = channel_string.split(",")
+    
+    matched_ids = []
+    
+    for channel in channel_list:
+        # Kanalnamen normalisieren (entfernt Leerzeichen & Sonderzeichen)
+        normalized_channel = re.sub(r"\W+", "", channel.lower())  
+        
+        # Filtert Kanäle aus Subs mit flexiblerem Regex-Match
+        match = Subs[Subs['channel_name'].str.lower().str.replace(r"\W+", "", regex=True).str.contains(normalized_channel, na=False)]
+
+        if not match.empty:
+            matched_ids.append(match.iloc[0]['channel_id']) 
+    
+    recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, 4)
+    filtered_videos = [v for v in recent_videos if length_filter[0]*60 <= duration_to_seconds(v["length"]) <= length_filter[1]*60]
+
+    for video in filtered_videos:
+            col1, col2 = st.columns([1, 3])
+            with col1:
+                st.image(video["thumbnail"], use_container_width=True)
+            with col2:
+                st.subheader(video["title"])
+                st.write(video["channel_name"])
+
+                st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
+
+                # 🟢 **Zusammenfassung anzeigen**
+                with st.expander("📜 Zusammenfassung"):
+                    st.write('Hier kommt GEMINI Zusammenfassung hin')
+
+                # 🎬 **YouTube-Video einbetten**
+                st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+                st.write(video["length"])
 
 ############################### CODE #######################################
 
@@ -181,104 +278,13 @@ with tabs[1]:
 ####################################
 #Tab 3: Suche
 with tabs[3]:
-    st.header("Suche")
-    load_tab("Suche")
-    st.write("Hier kannst du nach Videos oder Kategorien suchen.")
-    query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
-
-    
-
-    request = youtube.search().list(
-        part="snippet",
-        q=query,
-        type="video",
-        maxResults=10
-    )
-    ###YOUTUBE REQUEST###
-    response = request.execute()
-
-    if st.button("🔍 Suchen"):
-        videos = get_video_data(youtube, response)
-        st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
-
-    if "videos" in st.session_state:
-        videos = st.session_state["videos"]
-
-        filtered_videos = [v for v in videos if length_filter[0]*60 <= duration_to_seconds(v["length"]) <= length_filter[1]*60]
-        #FIlter so konfigurieren, dass Videos mit ensprechender Länge gesucht werden.
-        for video in filtered_videos:
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    st.image(video["thumbnail"], use_container_width=True)
-                with col2:
-                    st.subheader(video["title"])
-                    st.write(video["channel_name"])
-
-                    st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
-
-                    # 🟢 **Zusammenfassung anzeigen**
-                    with st.expander("📜 Zusammenfassung"):
-                        st.write('Hier kommt GEMINI Zusammenfassung hin')
-
-                    # 🎬 **YouTube-Video einbetten**
-                    st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                    st.write(video["length"])
+    search()
 
 ####################################
 # Tab 4 Abobox
 with tabs[4]:
-    if st.button("🔄 Abobox laden"):
-        st.header("Abobox")
-        load_tab("Abobox")
-        st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
-        try:
-            channelId = load_channel_id()
-        except:
-            st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
-        st.write(channelId)
-        try:
-            Subs = get_subscriptions(channel_Id = channelId, YOUTUBE = youtube)
-        except:
-            st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
-  
-        channel_names_and_description = ", ".join(Subs[Subs['description'].str.strip() != ""].apply(lambda row: f"{row['channel_name']}:{row['description']}", axis=1))
-
-        channel_string = get_subscriptions_based_on_interests(channel_names_and_description, user_interests, 10)
-        
-        channel_list = channel_string.split(",")
-        
-        matched_ids = []
-      
-        for channel in channel_list:
-            # Kanalnamen normalisieren (entfernt Leerzeichen & Sonderzeichen)
-            normalized_channel = re.sub(r"\W+", "", channel.lower())  
-            
-            # Filtert Kanäle aus Subs mit flexiblerem Regex-Match
-            match = Subs[Subs['channel_name'].str.lower().str.replace(r"\W+", "", regex=True).str.contains(normalized_channel, na=False)]
-
-            if not match.empty:
-                matched_ids.append(match.iloc[0]['channel_id']) 
-       
-        recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, 4)
-        filtered_videos = [v for v in recent_videos if length_filter[0]*60 <= duration_to_seconds(v["length"]) <= length_filter[1]*60]
-
-        for video in filtered_videos:
-                col1, col2 = st.columns([1, 3])
-                with col1:
-                    st.image(video["thumbnail"], use_container_width=True)
-                with col2:
-                    st.subheader(video["title"])
-                    st.write(video["channel_name"])
-
-                    st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
-
-                    # 🟢 **Zusammenfassung anzeigen**
-                    with st.expander("📜 Zusammenfassung"):
-                        st.write('Hier kommt GEMINI Zusammenfassung hin')
-
-                    # 🎬 **YouTube-Video einbetten**
-                    st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                    st.write(video["length"])
+    abobox()
+    
 ####################################
 # Tab 5: Feedback & Wünsche
 with tabs[5]:
