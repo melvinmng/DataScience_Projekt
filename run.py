@@ -84,7 +84,7 @@ def build_recommendation_tab(
                 on_fail=lambda: build_recommendation_tab(
                     retry_count=retry_count + 1,
                     show_spinner=False,
-                    loading_time_information=False,
+                    show_loading_time_information=False,
                 ),
             )
         loading_time_information.empty()
