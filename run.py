@@ -107,6 +107,7 @@ def build_recommendation_tab(
     show_spinner: bool = True,
     show_loading_time_information: bool = True,
 ) -> None:
+    loading_time_information = None
     max_retries = 3
     if retry_count == 0:
         st.header("Personalisierte Empfehlungen")
@@ -145,20 +146,20 @@ def build_recommendation_tab(
             )
         if loading_time_information:
             loading_time_information.empty()
-
-    st.write(recommendations["Titel"])
-    st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
-    st.write("## Begründung:")
-    st.write(recommendations["Begründung"])
-    st.write(
-        "## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr je nach Einstellung in Sidebar!!!)"
-    )
-    if st.session_state.show_spoiler == True:
-        st.write(get_summary(get_transcript(recommendations["Video-ID"])))
-    else:
+    if recommendations:
+        st.write(recommendations["Titel"])
+        st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
+        st.write("## Begründung:")
+        st.write(recommendations["Begründung"])
         st.write(
-            get_summary_without_spoiler(get_transcript(recommendations["Video-ID"]))
+            "## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr je nach Einstellung in Sidebar!!!)"
         )
+        if st.session_state.show_spoiler == True:
+            st.write(get_summary(get_transcript(recommendations["Video-ID"])))
+        else:
+            st.write(
+                get_summary_without_spoiler(get_transcript(recommendations["Video-ID"]))
+            )
 
 
 def build_clickbait_recognition_tab() -> None:
@@ -190,7 +191,7 @@ def build_clickbait_recognition_tab() -> None:
         )
 
 
-def build_feedback() -> None:
+def build_feedback_tab() -> None:
     st.header("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
@@ -199,7 +200,7 @@ def build_feedback() -> None:
         st.success("Danke für dein Feedback!")
 
 
-def build_search():
+def build_search_tab():
     st.header("Suche")
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
@@ -245,12 +246,11 @@ def build_search():
                 st.write(video["length"])
 
 
-def build_abobox() -> None:
+def build_abobox_tab() -> None:
     st.header("Abobox")
     st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
     try:
         channelId = load_channel_id()
-
     except:
         st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
         return
@@ -388,17 +388,17 @@ with tabs[2]:
 ####################################
 # Tab 3: Suche
 with tabs[3]:
-    build_search()
+    build_search_tab()
 
 ####################################
 # Tab 4 Abobox
 with tabs[4]:
-    build_abobox()
+    build_abobox_tab()
 
 ####################################
 # Tab 5: Feedback & Wünsche
 with tabs[5]:
-    build_feedback()
+    build_feedback_tab()
 
 if st.button("Dashboard aktualisieren"):
     st.experimental_rerun()
