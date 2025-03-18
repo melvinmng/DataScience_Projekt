@@ -252,7 +252,7 @@ def build_abobox_tab() -> None:
     try:
         channelId = load_channel_id()
     except:
-        st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
+        st.warning("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
         return
     st.write(channelId)
 
@@ -260,7 +260,7 @@ def build_abobox_tab() -> None:
         subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
         st.dataframe(subscriptions)
     except:
-        st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
+        st.warning("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
         return
 
     channel_names_and_description = ", ".join(
@@ -327,8 +327,7 @@ def build_abobox_tab() -> None:
 if "show_spoiler" not in st.session_state:
     st.session_state.show_spoiler = False
 
-
-# Dashboard-Titel
+## Initialization
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
 st.sidebar.header("Einstellungen")
@@ -347,7 +346,6 @@ st.session_state.show_spoiler = st.sidebar.checkbox(
 )
 
 
-# Verwenden von Tabs, um verschiedene Funktionen übersichtlich zu präsentieren
 tabs = st.tabs(
     [
         "Trending Videos",
