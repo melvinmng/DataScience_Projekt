@@ -186,7 +186,6 @@ def build_clickbait_recognition_tab() -> None:
 
 def build_feedback() -> None:
     st.header("Feedback & Wünsche")
-    load_tab("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
     if st.button("Feedback absenden"):
@@ -195,19 +194,9 @@ def build_feedback() -> None:
 
 
 
-## Session States
-if "show_spoiler" not in st.session_state:
-    st.session_state.show_spoiler = False
 
-
-## INITIALIZATION
-def load_tab(tab_name):
-    st.session_state["loaded_tabs"][tab_name] = True
-
-
-def search():
+def build_search():
     st.header("Suche")
-    load_tab("Suche")
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
@@ -253,9 +242,8 @@ def search():
                 st.write(video["length"])
 
 
-def abobox():
+def build_abobox():
     st.header("Abobox")
-    load_tab("Abobox")
     st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
     try:
         channelId = load_channel_id()
@@ -328,6 +316,11 @@ def abobox():
 
 
 ############################### CODE #######################################
+## Session States
+if "show_spoiler" not in st.session_state:
+    st.session_state.show_spoiler = False
+
+
 
 
 if "loaded_tabs" not in st.session_state:
@@ -390,17 +383,17 @@ with tabs[2]:
 ####################################
 # Tab 3: Suche
 with tabs[3]:
-    search()
+    build_search()
 
 ####################################
 # Tab 4 Abobox
 with tabs[4]:
-    abobox()
+    build_abobox()
 
 ####################################
 # Tab 5: Feedback & Wünsche
 with tabs[5]:
     build_feedback()
-    
+
 if st.button("Dashboard aktualisieren"):
     st.experimental_rerun()
