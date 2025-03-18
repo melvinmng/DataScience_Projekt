@@ -58,6 +58,43 @@ def initialize() -> googleapiclient.discovery.Resource | None:
 
     return youtube
 
+def build_trending_videos_tab() -> None:
+    st.header("Trending Videos")
+
+    with st.spinner("Lade Trending Videos..."):
+        df_videos = get_trending_videos(youtube)
+
+    if df_videos.empty:
+        st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
+    else:
+        st.subheader("Alle Trending Videos")
+        for _, video in df_videos.sort_values(by="Platz").iterrows():
+            st.markdown(f"### {video['Platz']}. {video['Titel']}")
+            st.write(f"**Dauer:** {video['Dauer']}")
+            st.write(f"**Kategorie:** {video['Kategorie']}")
+            st.write(f"**Tags:** {video['Tags']}")
+            st.video(video["Video_URL"])
+            st.markdown("---")
+
+        selected_videos = []
+        cumulative_time = 0
+
+        df_videos = df_videos.sort_values(by="Platz")
+        for _, row in df_videos.iterrows():
+            video_duration_seconds = duration_to_seconds(row["Dauer"])
+            if cumulative_time + video_duration_seconds <= length_filter[1]:
+                selected_videos.append(row)
+                cumulative_time += video_duration_seconds
+
+        if selected_videos:
+            st.header("Empfohlene Videos für dein Zeitbudget")
+            for video in selected_videos:
+                st.subheader(f"{video['Platz']}. {video['Titel']}")
+                st.write(f"**Dauer:** {video['Dauer']}")
+                st.write(f"**Kategorie:** {video['Kategorie']}")
+                st.write(f"**Tags:** {video['Tags']}")
+        else:
+            st.write("Kein Video passt in das angegebene Zeitbudget.")
 
 ## BUILD TABS
 def build_recommendation_tab(
@@ -146,6 +183,16 @@ def build_clickbait_recognition_tab() -> None:
         st.warning(
             "Kein Video mit dieser Video-ID gefunden, bitte versuchen Sie es noch einmal"
         )
+
+def build_feedback() -> None:
+    st.header("Feedback & Wünsche")
+    load_tab("Feedback & Wünsche")
+    st.write("Hilf uns, das Dashboard zu verbessern!")
+    feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
+    if st.button("Feedback absenden"):
+        # Sollen wir Feedback speichern?
+        st.success("Danke für dein Feedback!")
+
 
 
 ## Session States
@@ -328,43 +375,8 @@ youtube = initialize()
 ####################################
 # Tab 1: Trending Videos
 with tabs[0]:
-    st.header("Trending Videos")
-
-    with st.spinner("Lade Trending Videos..."):
-        df_videos = get_trending_videos(youtube)
-
-    if df_videos.empty:
-        st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
-    else:
-        st.subheader("Alle Trending Videos")
-        for _, video in df_videos.sort_values(by="Platz").iterrows():
-            st.markdown(f"### {video['Platz']}. {video['Titel']}")
-            st.write(f"**Dauer:** {video['Dauer']}")
-            st.write(f"**Kategorie:** {video['Kategorie']}")
-            st.write(f"**Tags:** {video['Tags']}")
-            st.video(video["Video_URL"])
-            st.markdown("---")
-
-        selected_videos = []
-        cumulative_time = 0
-
-        df_videos = df_videos.sort_values(by="Platz")
-        for _, row in df_videos.iterrows():
-            video_duration_seconds = duration_to_seconds(row["Dauer"])
-            if cumulative_time + video_duration_seconds <= length_filter[1]:
-                selected_videos.append(row)
-                cumulative_time += video_duration_seconds
-
-        if selected_videos:
-            st.header("Empfohlene Videos für dein Zeitbudget")
-            for video in selected_videos:
-                st.subheader(f"{video['Platz']}. {video['Titel']}")
-                st.write(f"**Dauer:** {video['Dauer']}")
-                st.write(f"**Kategorie:** {video['Kategorie']}")
-                st.write(f"**Tags:** {video['Tags']}")
-        else:
-            st.write("Kein Video passt in das angegebene Zeitbudget.")
-
+    build_trending_videos_tab()
+   
 ####################################
 # Tab 2: Personalisierte Empfehlungen
 with tabs[1]:
@@ -372,10 +384,8 @@ with tabs[1]:
 
 ####################################
 # Tab 3: Clickbait Analyse
-
 with tabs[2]:
     build_clickbait_recognition_tab()
-
 
 ####################################
 # Tab 3: Suche
@@ -390,13 +400,7 @@ with tabs[4]:
 ####################################
 # Tab 5: Feedback & Wünsche
 with tabs[5]:
-    st.header("Feedback & Wünsche")
-    load_tab("Feedback & Wünsche")
-    st.write("Hilf uns, das Dashboard zu verbessern!")
-    feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
-    if st.button("Feedback absenden"):
-        # Sollen wir Feedback speichern?
-        st.success("Danke für dein Feedback!")
-
+    build_feedback()
+    
 if st.button("Dashboard aktualisieren"):
     st.experimental_rerun()
