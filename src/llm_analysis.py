@@ -7,7 +7,6 @@ from .settings import (
     languages,
 )
 from .youtube_transcript import get_transcript
-import googleapiclient
 from pandas import DataFrame
 import re
 

@@ -38,11 +38,18 @@ from src.llm_analysis import (
 
 ## HELPERS
 def duration_to_seconds(duration_str: str) -> int:
+    """
+    Converts a duration in "MM:SS" format to seconds.
+
+    Args:
+        duration_str (str): The duration in "MM:SS" format.
+
+    Returns:
+        int: The duration in seconds.
+    """
     try:
-        parts = duration_str.split(":")
-        if len(parts) == 2:
-            minutes, seconds = parts
-            return int(minutes) * 60 + int(seconds)
+        minutes, seconds = map(int, duration_str.split(":"))
+        return minutes * 60 + seconds
     except Exception as e:
         st.error(f"Fehler beim Parsen der Dauer: {e}")
     return 0
@@ -58,6 +65,8 @@ def initialize() -> googleapiclient.discovery.Resource | None:
 
     return youtube
 
+
+## BUILD TABS
 def build_trending_videos_tab() -> None:
     st.header("Trending Videos")
 
@@ -82,7 +91,7 @@ def build_trending_videos_tab() -> None:
         df_videos = df_videos.sort_values(by="Platz")
         for _, row in df_videos.iterrows():
             video_duration_seconds = duration_to_seconds(row["Dauer"])
-            if cumulative_time + video_duration_seconds <= length_filter[1]:
+            if cumulative_time + video_duration_seconds <= length_filter[1] * 60:
                 selected_videos.append(row)
                 cumulative_time += video_duration_seconds
 
@@ -96,7 +105,7 @@ def build_trending_videos_tab() -> None:
         else:
             st.write("Kein Video passt in das angegebene Zeitbudget.")
 
-## BUILD TABS
+
 def build_recommendation_tab(
     retry_count: int = 0,
     show_spinner: bool = True,
@@ -184,6 +193,7 @@ def build_clickbait_recognition_tab() -> None:
             "Kein Video mit dieser Video-ID gefunden, bitte versuchen Sie es noch einmal"
         )
 
+
 def build_feedback() -> None:
     st.header("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
@@ -191,8 +201,6 @@ def build_feedback() -> None:
     if st.button("Feedback absenden"):
         # Sollen wir Feedback speichern?
         st.success("Danke für dein Feedback!")
-
-
 
 
 def build_search():
@@ -220,7 +228,6 @@ def build_search():
             <= duration_to_seconds(v["length"])
             <= length_filter[1] * 60
         ]
-        # FIlter so konfigurieren, dass Videos mit ensprechender Länge gesucht werden.
         for video in filtered_videos:
             col1, col2 = st.columns([1, 3])
             with col1:
@@ -321,8 +328,6 @@ if "show_spoiler" not in st.session_state:
     st.session_state.show_spoiler = False
 
 
-
-
 if "loaded_tabs" not in st.session_state:
     st.session_state["loaded_tabs"] = {
         "Trending Videos": False,
@@ -369,7 +374,7 @@ youtube = initialize()
 # Tab 1: Trending Videos
 with tabs[0]:
     build_trending_videos_tab()
-   
+
 ####################################
 # Tab 2: Personalisierte Empfehlungen
 with tabs[1]:
