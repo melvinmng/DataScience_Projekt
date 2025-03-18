@@ -194,50 +194,49 @@ youtube = initialize()
 ####################################
 # Tab 1: Trending Videos
 with tabs[0]:
-    if st.button("🔄 Trending Videos laden"):
-        st.header("Trending Videos")
-        load_tab("Trending Videos")
+    st.header("Trending Videos")
+    load_tab("Trending Videos")
+    
+
+    with st.spinner("Lade Trending Videos..."):
+        df_videos = get_trending_videos(youtube)
+
+    if df_videos.empty:
+        st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
+    else:
+        st.subheader("Alle Trending Videos")
+        for _, video in df_videos.sort_values(by="Platz").iterrows():
+            st.markdown(f"### {video['Platz']}. {video['Titel']}")
+            st.write(f"**Dauer:** {video['Dauer']}")
+            st.write(f"**Kategorie:** {video['Kategorie']}")
+            st.write(f"**Tags:** {video['Tags']}")
+            st.video(video["Video_URL"])
+            st.markdown("---")
+
         
+        selected_videos = []
+        cumulative_time = 0
 
-        with st.spinner("Lade Trending Videos..."):
-            df_videos = get_trending_videos(youtube)
+        df_videos = df_videos.sort_values(by="Platz")
+        for _, row in df_videos.iterrows():
+            video_duration_seconds = duration_to_seconds(row["Dauer"])
+            if cumulative_time + video_duration_seconds <= length_filter[1]:
+                selected_videos.append(row)
+                cumulative_time += video_duration_seconds
 
-        if df_videos.empty:
-            st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
-        else:
-            st.subheader("Alle Trending Videos")
-            for _, video in df_videos.sort_values(by="Platz").iterrows():
-                st.markdown(f"### {video['Platz']}. {video['Titel']}")
+        if selected_videos:
+            st.header("Empfohlene Videos für dein Zeitbudget")
+            for video in selected_videos:
+                st.subheader(f"{video['Platz']}. {video['Titel']}")
                 st.write(f"**Dauer:** {video['Dauer']}")
                 st.write(f"**Kategorie:** {video['Kategorie']}")
                 st.write(f"**Tags:** {video['Tags']}")
-                st.video(video["Video_URL"])
-                st.markdown("---")
-
-            
-            selected_videos = []
-            cumulative_time = 0
-
-            df_videos = df_videos.sort_values(by="Platz")
-            for _, row in df_videos.iterrows():
-                video_duration_seconds = duration_to_seconds(row["Dauer"])
-                if cumulative_time + video_duration_seconds <= length_filter[1]:
-                    selected_videos.append(row)
-                    cumulative_time += video_duration_seconds
-
-            if selected_videos:
-                st.header("Empfohlene Videos für dein Zeitbudget")
-                for video in selected_videos:
-                    st.subheader(f"{video['Platz']}. {video['Titel']}")
-                    st.write(f"**Dauer:** {video['Dauer']}")
-                    st.write(f"**Kategorie:** {video['Kategorie']}")
-                    st.write(f"**Tags:** {video['Tags']}")
-                    # Beispiel: Clickbait-Bewertung (hier könnte man später noch differenziertere Ansätze einbinden)
-                    #clickbait_score = evaluate_video_clickbait(video['Titel'])
-                    #st.write(f"**Clickbait-Risiko:** {clickbait_score}")
-                    #st.markdown("---")
-            else:
-                st.write("Kein Video passt in das angegebene Zeitbudget.")
+                # Beispiel: Clickbait-Bewertung (hier könnte man später noch differenziertere Ansätze einbinden)
+                #clickbait_score = evaluate_video_clickbait(video['Titel'])
+                #st.write(f"**Clickbait-Risiko:** {clickbait_score}")
+                #st.markdown("---")
+        else:
+            st.write("Kein Video passt in das angegebene Zeitbudget.")
 
 ####################################
 # Tab 2: Personalisierte Empfehlungen
