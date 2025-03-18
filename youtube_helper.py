@@ -131,3 +131,11 @@ def get_recent_videos_from_subscriptions(
         videos.append(get_video_data(youtube, response)[0])
 
     return videos
+
+
+def extract_video_id_from_url(url: str) -> str | None:
+    pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11})"
+    match = re.search(pattern, url)
+    if match:
+        return match.group(1)
+    return None

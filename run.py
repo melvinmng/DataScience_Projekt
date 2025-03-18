@@ -1,15 +1,30 @@
 from contextlib import nullcontext
-from logging import warn
+import re
 import streamlit as st
 import pandas as pd
+import googleapiclient
+
+# Eigene Module
 import src.config_env
+import src.settings
+
 from src.youtube_transcript import get_transcript
-from youtube_helper import get_video_data, extract_video_id_from_url
+from youtube_helper import (
+    get_video_data,
+    extract_video_id_from_url,
+    get_subscriptions,
+    get_recent_videos_from_subscriptions,
+)
+
 from src.key_management.youtube_api_key_management import (
     load_api_key,
     create_api_client,
 )
+from src.key_management.gemini_api_key_management import get_api_key
+from src.key_management.youtube_channel_id import load_channel_id
+
 from src.youtube_trend_analysis import get_trending_videos
+
 from src.llm_analysis import (
     extract_video_id_title_and_reason,
     get_summary,
@@ -17,33 +32,8 @@ from src.llm_analysis import (
     get_recommendation,
     combine_video_id_title_and_transcript,
     check_for_clickbait,
-)
-import re
-
-# Konfiguration und API-Initialisierung
-import src.config_env  # Lädt die .env-Date
-from youtube_helper import (
-    get_video_data,
-    get_subscriptions,
-    get_recent_videos_from_subscriptions,
-)
-from src.key_management.youtube_api_key_management import (
-    load_api_key,
-    create_api_client,
-)
-from src.key_management.gemini_api_key_management import get_api_key
-from src.key_management.youtube_channel_id import load_channel_id
-from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import (
-    get_summary,
-    get_summary_without_spoiler,
-    get_recommendation,
-    combine_video_id_title_and_transcript,
     get_subscriptions_based_on_interests,
-)  # check_for_clickbait sind noch Platzhalter
-import src.settings
-import googleapiclient
-from typing import Optional
+)
 
 
 # HELPERS
