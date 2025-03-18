@@ -6,8 +6,6 @@ import googleapiclient
 
 # Own Modules
 import src.config_env
-import src.settings
-
 from src.youtube_transcript import get_transcript
 from src.youtube_helper import (
     get_video_data,
@@ -15,12 +13,9 @@ from src.youtube_helper import (
     get_subscriptions,
     get_recent_videos_from_subscriptions,
 )
-
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
-
 from src.youtube_trend_analysis import get_trending_videos
-
 from src.gemini_helper import (
     extract_video_id_title_and_reason,
     get_summary,
