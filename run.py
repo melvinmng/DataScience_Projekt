@@ -1,9 +1,16 @@
 import streamlit as st
 import pandas as pd
 from src.key_management.api_key_management import get_api_key, create_youtube_client
-from src.youtube_helper import get_video_data  # Wiederverwendet die Funktion für Videodaten
+from src.youtube_helper import (
+    get_video_data,
+)  # Wiederverwendet die Funktion für Videodaten
 from src.youtube_trend_analysis import get_trending_videos
-from src.llm_analysis import get_recommendation, combine_video_id_title_and_transcript, get_summary, get_summary_without_spoiler
+from src.llm_analysis import (
+    get_recommendation,
+    combine_video_id_title_and_transcript,
+    get_summary,
+    get_summary_without_spoiler,
+)
 import src.settings
 from typing import Optional, List, Dict
 import googleapiclient
@@ -44,9 +51,9 @@ def get_personalized_recommendations(interests: str) -> pd.DataFrame:
         "Dauer": ["04:30", "05:15"],
         "Beschreibung": [
             "Ein Video, das zu deinen Interessen passt.",
-            "Noch ein Video, das du dir anschauen könntest."
+            "Noch ein Video, das du dir anschauen könntest.",
         ],
-        "Clickbait": ["Niedrig", "Mittel"]
+        "Clickbait": ["Niedrig", "Mittel"],
     }
     return pd.DataFrame(data)
 
@@ -65,14 +72,9 @@ def initialize() -> Optional[googleapiclient.discovery.Resource]:
     except Exception as e:
         st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
         st.stop()
-    
+
     return youtube
 
-# Logo anzeigen
-st.image("your-time-logo.JPG", width=100)
-
-# Dashboard-Titel
-st.title("YourTime")
 
 # Sidebar: Grundlegende Einstellungen
 st.sidebar.header("Einstellungen")
@@ -83,13 +85,17 @@ length_filter = st.sidebar.slider(
     min_value=0,
     max_value=180,
     value=(0, 60),
-    help="Wähle dein verfügbares Zeitbudget in Minuten."
+    help="Wähle dein verfügbares Zeitbudget in Minuten.",
 )
 
-user_interests = st.sidebar.text_input("Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests)
+user_interests = st.sidebar.text_input(
+    "Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests
+)
 
 # Verwenden von Tabs, um verschiedene Funktionen übersichtlich zu präsentieren
-tabs = st.tabs(["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche", "Feedback"])
+tabs = st.tabs(
+    ["Trending Videos", "Empfehlungen", "Clickbait Analyse", "Suche", "Feedback"]
+)
 
 
 ####################################
@@ -140,17 +146,26 @@ with tabs[1]:
     st.header("Personalisierte Empfehlungen")
     with st.spinner("Lade Empfehlungen..."):
         df_videos = get_trending_videos(youtube)
-        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(df_videos)
-        recommendations = get_recommendation(video_ids_titles_and_transcripts=video_ids_titles_and_transcripts, interests=user_interests)
+        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
+            df_videos
+        )
+        recommendations = get_recommendation(
+            video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
+            interests=user_interests,
+        )
 
     st.write(recommendations["Titel"])
     st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
     st.write("## Begründung:")
     st.write(recommendations["Begründung"])
-    st.write("## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)")
+    st.write(
+        "## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr!!!)"
+    )
     st.write(get_summary(recommendations["Video-ID"]))
 
-    st.info("Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen.")
+    st.info(
+        "Diese Funktion wird in Zukunft erweitert, um noch besser auf deine Präferenzen einzugehen."
+    )
 
 
 ####################################
@@ -163,10 +178,7 @@ with tabs[3]:
     youtube = initialize()
 
     request = youtube.search().list(
-        part="snippet",
-        q=query,
-        type="video",
-        maxResults=10
+        part="snippet", q=query, type="video", maxResults=10
     )
 
     if st.button("🔍 Suchen"):
@@ -177,17 +189,25 @@ with tabs[3]:
     if "videos" in st.session_state:
         videos = st.session_state["videos"]
 
-        filtered_videos = [v for v in videos if length_filter[0] * 60 <= duration_to_seconds(v["length"]) <= length_filter[1] * 60]
+        filtered_videos = [
+            v
+            for v in videos
+            if length_filter[0] * 60
+            <= duration_to_seconds(v["length"])
+            <= length_filter[1] * 60
+        ]
         for video in filtered_videos:
             col1, col2 = st.columns([1, 3])
             with col1:
                 st.image(video["thumbnail"], use_container_width=True)
             with col2:
                 st.subheader(video["title"])
-                st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
+                st.write(
+                    f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})"
+                )
 
                 with st.expander("📜 Zusammenfassung"):
-                    st.write('Hier kommt GEMINI Zusammenfassung hin')
+                    st.write("Hier kommt GEMINI Zusammenfassung hin")
 
                 st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
                 st.write(video["length"])
