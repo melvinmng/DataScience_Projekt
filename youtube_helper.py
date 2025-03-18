@@ -58,13 +58,13 @@ def get_video_data(youtube, response: dict) -> list:
     return videos
 
 
-def get_subscriptions(channel_Id: str, YOUTUBE) -> pd.DataFrame:
+def get_subscriptions(channel_Id: str, youtube) -> pd.DataFrame:
     """
     Retrieves all YouTube channel subscriptions for a given channel ID.
 
     Args:
         channel_Id (str): The YouTube channel ID.
-        YOUTUBE (str): Youtube API Client.
+        youtube (str): Youtube API Client.
 
     Returns:
         pd.DataFrame: A DataFrame containing subscription details.
@@ -73,7 +73,7 @@ def get_subscriptions(channel_Id: str, YOUTUBE) -> pd.DataFrame:
     next_page_token = None
 
     while True:
-        request = YOUTUBE.subscriptions().list(
+        request = youtube.subscriptions().list(
             part="snippet,contentDetails",
             channelId=channel_Id,
             maxResults=50,  # Maximum pro Anfrage

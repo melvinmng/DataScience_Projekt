@@ -4,7 +4,7 @@ import streamlit as st
 import pandas as pd
 import googleapiclient
 
-# Eigene Module
+# Own Modules
 import src.config_env
 import src.settings
 
@@ -36,7 +36,7 @@ from src.llm_analysis import (
 )
 
 
-# HELPERS
+## HELPERS
 def duration_to_seconds(duration_str: str) -> int:
     try:
         parts = duration_str.split(":")
@@ -154,8 +154,6 @@ if "show_spoiler" not in st.session_state:
 
 
 ## INITIALIZATION
-
-
 def load_tab(tab_name):
     st.session_state["loaded_tabs"][tab_name] = True
 
@@ -169,7 +167,7 @@ def search():
     request = youtube.search().list(
         part="snippet", q=query, type="video", maxResults=10
     )
-    ###YOUTUBE REQUEST###
+    ###youtube REQUEST###
     response = request.execute()
 
     if st.button("🔍 Suchen"):
@@ -218,7 +216,7 @@ def abobox():
         st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
     st.write(channelId)
     try:
-        Subs = get_subscriptions(channel_Id=channelId, YOUTUBE=youtube)
+        Subs = get_subscriptions(channel_Id=channelId, youtube=youtube)
         st.dataframe(Subs)
     except:
         st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
