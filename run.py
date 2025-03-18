@@ -3,10 +3,12 @@ import re
 import streamlit as st
 import pandas as pd
 import googleapiclient
+import os
+from dotenv import load_dotenv, set_key, dotenv_values
 
 # Own Modules
 import src.config_env
-import src.settings
+
 
 from src.youtube_transcript import get_transcript
 from src.youtube_helper import (
@@ -20,16 +22,6 @@ from src.key_management.api_key_management import get_api_key, create_youtube_cl
 from src.key_management.youtube_channel_id import load_channel_id
 
 from src.youtube_trend_analysis import get_trending_videos
-
-from src.llm_analysis import (
-    extract_video_id_title_and_reason,
-    get_summary,
-    get_summary_without_spoiler,
-    get_recommendation,
-    combine_video_id_title_and_transcript,
-    check_for_clickbait,
-    get_subscriptions_based_on_interests,
-)
 
 
 ## HELPERS
@@ -51,15 +43,7 @@ def duration_to_seconds(duration_str: str) -> int:
     return 0
 
 
-def initialize() -> googleapiclient.discovery.Resource | None:
-    try:
-        YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
-        youtube: object = create_youtube_client(YT_API_KEY)
-    except Exception as e:
-        st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
-        st.stop()
 
-    return youtube
 
 
 ## BUILD TABS
@@ -322,25 +306,118 @@ def build_abobox_tab() -> None:
             st.write(video["length"])
 
 
+def build_settings_pop_up() -> None:
+    """Einstellungen als pseudo-modales Fenster mit st.session_state"""
+    env_path = ".env"
+    load_dotenv()
+
+    # Falls die .env Datei nicht existiert, erstelle sie
+    if not os.path.exists(env_path):
+        with open(env_path, "w") as f:
+            f.write("# API Keys\n")
+
+    # Lade vorhandene API-Keys
+    current_env = dotenv_values(env_path)
+    youtube_api_key = current_env.get("YOUTUBE_API_KEY", "")
+    openai_api_key = current_env.get("TOKEN_GOOGLEAPI", "")
+    channel_id = current_env.get("CHANNEL_ID", "") 
+
+    # Eingabefelder für API-Keys
+    youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
+    openai_key = st.text_input("🤖 OpenAI API Key", openai_api_key, type="password")
+    channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
+
+    # Speichern-Button
+    if st.button("💾 Speichern"):
+        if youtube_key:
+            set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
+        if openai_key:
+            set_key(env_path, "TOKEN_GOOGLEAPI", openai_key)
+        if channel_id:
+            set_key(env_path, "CHANNEL_ID", channel_id)
+
+        # 🔄 API-Keys erneut aus der Datei laden
+        updated_env = dotenv_values(env_path)
+
+        # Prüfen, ob die Werte gespeichert wurden
+        if (updated_env.get("YOUTUBE_API_KEY") == youtube_key and 
+            updated_env.get("TOKEN_GOOGLEAPI") == openai_key and
+            updated_env.get("CHANNEL_ID") == channel_id):
+
+            st.success("✅ API-Keys wurden gespeichert!")
+            st.session_state.show_settings = False  # Schließt das "Pop-up"
+            st.rerun()
+            initialize()  # YouTube-Client neu initialisieren
+        else:
+            st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
+
+def build_settings_tab() -> None:
+    """Tab für API-Key Einstellungen"""
+    st.header("⚙️ Einstellungen")
+
+    # Lade vorhandene .env-Datei oder erstelle sie
+    env_path = ".env"
+    load_dotenv()
+    if not os.path.exists(env_path):
+        with open(env_path, "w") as f:
+            f.write("# API Keys\n")
+
+    # Vorhandene API-Keys abrufen
+    youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
+    openai_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
+
+    # Eingabefelder für API-Keys
+    youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
+    openai_key = st.text_input("🤖 OpenAI API Key", openai_api_key, type="password")
+
+    # API-Keys speichern
+    if st.button("💾 Speichern"):
+        if youtube_key:
+            set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
+        if openai_key:
+            set_key(env_path, "TOKEN_GOOGLEAPI", openai_key)
+        st.success("✅ API-Keys wurden gespeichert!")
+        st.session_state["Trending Videos"] = 0
+        st.rerun()
+
+
+
+def initialize() -> googleapiclient.discovery.Resource | None:
+    try:
+        YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
+        youtube: object = create_youtube_client(YT_API_KEY)
+
+        return youtube
+    except Exception as e:
+        build_settings_pop_up()
+        st.stop()
+
+    
+
 ############################### CODE #######################################
 ## Session States
 if "show_spoiler" not in st.session_state:
     st.session_state.show_spoiler = False
 
 
-if "loaded_tabs" not in st.session_state:
-    st.session_state["loaded_tabs"] = {
-        "Trending Videos": False,
-        "Empfehlungen": False,
-        "Clickbait Analyse": False,
-        "Suche": False,
-        "Abobox": False,
-        "Feedback": False,
-    }
-
 # Dashboard-Titel
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
+youtube = initialize()
+###----------------------------------###
+import src.settings
+
+from src.llm_analysis import (
+    extract_video_id_title_and_reason,
+    get_summary,
+    get_summary_without_spoiler,
+    get_recommendation,
+    combine_video_id_title_and_transcript,
+    check_for_clickbait,
+    get_subscriptions_based_on_interests,
+)
+
+###----------------------------------###
 st.sidebar.header("Einstellungen")
 length_filter = st.sidebar.slider(
     "Wie viele Minuten hast du heute für YouTube?",
@@ -366,24 +443,28 @@ tabs = st.tabs(
         "Suche",
         "Abobox",
         "Feedback",
+        "Einstellungen"
     ]
 )
 
-youtube = initialize()
+
 ####################################
 # Tab 1: Trending Videos
 with tabs[0]:
-    build_trending_videos_tab()
+    if st.button("🔄 Trending Videos laden"):
+        build_trending_videos_tab()
 
 ####################################
 # Tab 2: Personalisierte Empfehlungen
 with tabs[1]:
-    build_recommendation_tab()
+    if st.button("🔄 Empfehlungen laden"):
+        build_recommendation_tab()
 
 ####################################
 # Tab 3: Clickbait Analyse
 with tabs[2]:
-    build_clickbait_recognition_tab()
+    if st.button("🔄 Clickbait Analyse laden"):
+        build_clickbait_recognition_tab()
 
 ####################################
 # Tab 3: Suche
@@ -393,12 +474,18 @@ with tabs[3]:
 ####################################
 # Tab 4 Abobox
 with tabs[4]:
-    build_abobox_tab()
+    if st.button("🔄 Abobox laden"):
+        build_abobox_tab()
 
 ####################################
 # Tab 5: Feedback & Wünsche
 with tabs[5]:
     build_feedback_tab()
+
+####################################
+# Tab 6: Einstellungen
+with tabs[6]:
+    build_settings_tab()
 
 if st.button("Dashboard aktualisieren"):
     st.experimental_rerun()
