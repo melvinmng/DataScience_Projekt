@@ -379,6 +379,7 @@ def build_settings_tab() -> None:
         st.success("✅ API-Keys wurden gespeichert!")
         st.session_state["Trending Videos"] = 0
         st.rerun()
+        initialize()
 
 
 
