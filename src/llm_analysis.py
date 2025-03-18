@@ -161,3 +161,30 @@ def live_conversation() -> str:
     print(response.text)
 
     return response.text
+
+
+def get_subscriptions_based_on_interests(
+    subscriptions: str, interests: str, number_of_channels: int
+) -> list:
+    prompt = (
+        f"Du erhälts einen String an Kanalnamen und ihrer zugehörigen beschreibung die ich mit meinem Youtube Account abonniert habe.\n"
+        f"Hier ein Bespiel: 'channel_1:description_1,channel_2:description_2,....'"
+        f"Zudem übergebe ich dir meine aktuellen Interessen.\n"
+        f"Anschließend sollt du bassierend auf meinen Interessen aus dieser Liste {number_of_channels} Youtube Kanäle filtern, die zu meinen aktuellen Interessen passen. Es dürfen ausschließlich nur Kanäle sein, die in meiner Liste stehen. Falls du in dieser Liste keine {number_of_channels} Kanäle findest die zu meinen Interessen passen, dann wähle aus meiner Liste Kanäle aus, die nah verwandt mit meinen Interessen sind.\n"
+        f"Um die richtigen Kanäle aus der Liste auszuwählen, solltest du dir zu jedem Kanal in meiner Liste eine Kanalbeschreibung beschaffen."
+        f"Gebe mir auschließlich nur einen String zurück mit den {number_of_channels} von dir ausgwählten Kanälen. Nur die Liste. Keine Beschreibung, warum du die Kanäle ausgewählt hast, etc. Die Kanäle müssen hintereinander geschrieben werden.\n"
+        f"Der Kanalname muss zudem exakt so geschrieben sein, wie er im string heißt. ALso nichts am Namen verändern."
+        "Hier ist ein Bepsiel für den String: 'Kanal1, Kanal2,...'\n"
+        f"Hier ist die Liste an Youtube Kanälen die ich abonniert habe: {subscriptions}\n"
+        f"Hier sind meine Interessen: {interests}"
+    )
+
+    response = ai_client.models.generate_content(
+        model=ai_model, config=ai_generate_content_config, contents=prompt
+    )
+
+    return response.text
+
+
+if __name__ == "__main__":
+    get_recommendation()
