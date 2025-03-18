@@ -9,18 +9,14 @@ import src.config_env
 import src.settings
 
 from src.youtube_transcript import get_transcript
-from youtube_helper import (
+from src.youtube_helper import (
     get_video_data,
     extract_video_id_from_url,
     get_subscriptions,
     get_recent_videos_from_subscriptions,
 )
 
-from src.key_management.youtube_api_key_management import (
-    load_api_key,
-    create_api_client,
-)
-from src.key_management.gemini_api_key_management import get_api_key
+from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
 
 from src.youtube_trend_analysis import get_trending_videos
@@ -57,8 +53,8 @@ def duration_to_seconds(duration_str: str) -> int:
 
 def initialize() -> googleapiclient.discovery.Resource | None:
     try:
-        YT_API_KEY = load_api_key()
-        youtube = create_api_client(YT_API_KEY)
+        YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
+        youtube: object = create_youtube_client(YT_API_KEY)
     except Exception as e:
         st.error(f"Fehler beim Initialisieren des YouTube-Clients: {e}")
         st.stop()
@@ -254,9 +250,9 @@ def build_abobox():
     st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
     try:
         channelId = load_channel_id()
+        st.write(channelId)
     except:
         st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
-    st.write(channelId)
     try:
         Subs = get_subscriptions(channel_Id=channelId, youtube=youtube)
         st.dataframe(Subs)
