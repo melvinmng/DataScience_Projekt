@@ -245,22 +245,26 @@ def build_search():
                 st.write(video["length"])
 
 
-def build_abobox():
+def build_abobox() -> None:
     st.header("Abobox")
     st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
     try:
         channelId = load_channel_id()
-        st.write(channelId)
+
     except:
         st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
+        return
+    st.write(channelId)
+
     try:
-        Subs = get_subscriptions(channel_Id=channelId, youtube=youtube)
-        st.dataframe(Subs)
+        subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
+        st.dataframe(subscriptions)
     except:
         st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
+        return
 
     channel_names_and_description = ", ".join(
-        Subs[Subs["description"].str.strip() != ""].apply(
+        subscriptions[subscriptions["description"].str.strip() != ""].apply(
             lambda row: f"{row['channel_name']}:{row['description']}", axis=1
         )
     )
@@ -277,9 +281,9 @@ def build_abobox():
         # Kanalnamen normalisieren (entfernt Leerzeichen & Sonderzeichen)
         normalized_channel = re.sub(r"\W+", "", channel.lower())
 
-        # Filtert Kanäle aus Subs mit flexiblerem Regex-Match
-        match = Subs[
-            Subs["channel_name"]
+        # Filtert Kanäle aus subscriptions mit flexiblerem Regex-Match
+        match = subscriptions[
+            subscriptions["channel_name"]
             .str.lower()
             .str.replace(r"\W+", "", regex=True)
             .str.contains(normalized_channel, na=False)
