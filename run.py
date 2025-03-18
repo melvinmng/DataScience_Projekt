@@ -21,7 +21,7 @@ from src.key_management.youtube_channel_id import load_channel_id
 
 from src.youtube_trend_analysis import get_trending_videos
 
-from src.llm_analysis import (
+from src.gemini_helper import (
     extract_video_id_title_and_reason,
     get_summary,
     get_summary_without_spoiler,
@@ -328,16 +328,6 @@ if "show_spoiler" not in st.session_state:
     st.session_state.show_spoiler = False
 
 
-if "loaded_tabs" not in st.session_state:
-    st.session_state["loaded_tabs"] = {
-        "Trending Videos": False,
-        "Empfehlungen": False,
-        "Clickbait Analyse": False,
-        "Suche": False,
-        "Abobox": False,
-        "Feedback": False,
-    }
-
 # Dashboard-Titel
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
@@ -350,7 +340,7 @@ length_filter = st.sidebar.slider(
     help="Wähle dein verfügbares Zeitbudget in Minuten.",
 )
 user_interests = st.sidebar.text_input(
-    "Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests
+    "Deine Interessensgebiete (kommagetrennt)", value="DM"
 )
 st.session_state.show_spoiler = st.sidebar.checkbox(
     "Spoiler anzeigen", value=st.session_state.show_spoiler

@@ -1,14 +1,39 @@
 from typing import Callable
-from .settings import (
-    ai_client,
-    ai_model,
-    ai_generate_content_config,
-    interests,
-    languages,
-)
-from .youtube_transcript import get_transcript
+from google import genai
+from google.genai import types
 from pandas import DataFrame
 import re
+from .youtube_transcript import get_transcript
+from .key_management.api_key_management import get_api_key
+
+################# Initialization ###############################
+try:
+    ai_client = genai.Client(api_key=get_api_key("TOKEN_GOOGLEAPI"))
+except:
+    raise ValueError("Kein API_KEY gefunden.")
+else:
+    print("API_KEY gefunden")
+
+ai_model = "gemini-2.0-flash"
+ai_generate_content_config = types.GenerateContentConfig(
+    temperature=1,
+    top_p=0.95,
+    top_k=40,
+    max_output_tokens=8192,
+    response_mime_type="text/plain",
+    system_instruction=[
+        types.Part.from_text(
+            text="""Du bist ein Experte im Bereich Datenanalyse und For-You-Pages. 
+            Im Folgenden wirst du immer wieder YouTube-Videos und ihre Transkripte
+            zugeschickt bekommen und ausgehend von diesen Inhalte zusammenfassen, 
+            Clickbait erkennen und ausgehend von der verbleibenden Zeit des Users, 
+            Vorschläge machen, welche der Videos er sich am ehesten anschauen sollte 
+            (kein Clickbait, seinen Interessen entsprechend)."""
+        ),
+    ],
+)
+
+################ Code #######################
 
 
 def get_summary(transcript: str) -> str | None:
@@ -56,7 +81,7 @@ def get_summary_without_spoiler(transcript: str) -> str | None:
 
 def get_recommendation(
     video_ids_titles_and_transcripts: list[str],
-    interests: str | None = interests,
+    interests: str | None = None,
     todays_free_time: float | None = None,
     abonnements: DataFrame | None = None,
 ) -> str | None:
