@@ -405,6 +405,7 @@ if "show_spoiler" not in st.session_state:
 st.title("Dein personalisiertes YouTube-FY-Dashboard")
 
 youtube = initialize()
+
 ###----------------------------------###
 import src.settings
 
@@ -417,8 +418,8 @@ from src.llm_analysis import (
     check_for_clickbait,
     get_subscriptions_based_on_interests,
 )
-
 ###----------------------------------###
+
 st.sidebar.header("Einstellungen")
 length_filter = st.sidebar.slider(
     "Wie viele Minuten hast du heute für YouTube?",
