@@ -2,10 +2,11 @@ import re
 import isodate
 from googleapiclient.discovery import build
 import pandas as pd
-import datetime as dt
+from datetime import datetime
 import streamlit as st
 from typing import List, Dict
-
+import feedparser
+import yt_dlp
 
 def parse_duration(duration: str) -> str:
     """
@@ -52,6 +53,60 @@ def get_video_length(youtube: object, video_id: str) -> str:
     duration = response["items"][0]["contentDetails"]["duration"]
     return parse_duration(duration)
 
+def get_video_length_dlp(video_id: str) -> str: #Checked
+    """
+    Holt die Dauer eines YouTube-Videos ohne API, basierend auf der Video-ID.
+
+    Args:
+        video_id (str): Die YouTube-Video-ID.
+
+    Returns:
+        str: Die Videodauer im Format "MM:SS".
+    """
+    video_url = f"https://www.youtube.com/watch?v={video_id}"
+    ydl_opts = {"quiet": True, "skip_download": True, "force_generic_extractor": True, 'no_warnings': True}
+    
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=False)
+            duration = info.get("duration")  # Dauer in Sekunden
+            
+            if duration:
+                return f"{duration // 60:02}:{duration % 60:02}"
+            else:
+                return "00:00"  # Falls keine Dauer gefunden wurde
+    except Exception as e:
+        print(f"Fehler beim Abrufen der Videolänge für {video_id}: {e}")
+        return "00:00"
+
+
+
+
+def get_video_data_dlp(video_id) -> list:
+    ydl_opts = {'quiet': True, 'noplaylist': True, 'no_warnings': True}
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        try:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            length_str = f"{info.get('duration', 0) // 60:02}:{info.get('duration', 0) % 60:02}"
+            upload_date = info.get("upload_date", "")
+            formatted_date = datetime.strptime(upload_date, "%Y%m%d") if upload_date else None
+            
+            video_dict = {
+                "video_id": video_id,
+                "title": info.get("title", "Unbekannter Titel"),
+                "tags": ", ".join(info.get("tags", [])) if info.get("tags") else "Keine Tags",
+                "thumbnail": info.get("thumbnail", "Keine Thumbnail-URL"),
+                "length": length_str,
+                "upload_date": formatted_date,
+                "channel_name": info.get("uploader", "Unbekannter Kanal"),
+            }
+        except Exception:
+            print("Fehler beim Abrufen der Video-Metadaten")
+              
+
+    return video_dict
+
 
 def get_video_data(youtube: object, response: Dict) -> List[Dict[str, str]]:
     """
@@ -87,6 +142,48 @@ def get_video_data(youtube: object, response: Dict) -> List[Dict[str, str]]:
 
     return videos
 
+
+def search_videos_dlp(query: str, max_results: int = 100) -> list: #Checked
+    """
+    Führt eine YouTube-Suche ohne API durch und gibt eine Liste mit Video-Metadaten zurück.
+    
+    Args:
+        query (str): Suchbegriff.
+        max_results (int): Anzahl der gewünschten Ergebnisse (max. 1000).
+
+    Returns:
+        list: Eine Liste von Dictionaries mit Videodaten.
+    """
+    max_results = min(max_results, 1000)  # Begrenze auf max. 1000
+    ydl_opts = {
+        "quiet": True,
+        "skip_download": True,
+        "default_search": "ytsearch",  
+        "noplaylist": True,
+        "extract_flat": True,
+        "no_warnings": True,
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        search_results = ydl.extract_info(f"ytsearch{max_results}:{query}", download=False)
+
+    videos = []
+    if "entries" in search_results:
+        for index, entry in enumerate(search_results["entries"], start=1):
+            upload_date = entry.get("upload_date", "")
+            formatted_date = datetime.strptime(upload_date, "%Y%m%d") if upload_date else None
+            videos.append({
+                "place": index,
+                "title": entry.get("title", "Unbekannter Titel"),
+                "video_id": entry.get("id"),
+                "thumbnail": entry.get("thumbnail"),
+                "channel_name": entry.get("uploader", "Unbekannter Kanal"),
+                "length": f"{int(entry.get('duration', 0)) // 60:02}:{int(entry.get('duration', 0)) % 60:02}",
+                "tags": ", ".join(entry.get("tags", [])) if entry.get("tags") else "Keine Tags",
+                "upload_date": formatted_date,
+            })
+
+    return sorted(videos, key=lambda v: v["upload_date"] or datetime.min, reverse=True)
 
 def get_category_name(youtube: object, category_id: str) -> str:
     """
@@ -191,6 +288,42 @@ def get_recent_videos_from_subscriptions(
     return videos
 
 
+import streamlit as st
+import feedparser
+import re
+import yt_dlp
+import time
+
+def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
+    videos = []
+    progress_bar = st.progress(0)  
+    total_channels = len(channel_ids)
+
+    for i, channel_id in enumerate(channel_ids):
+        try:
+            feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
+            feed = feedparser.parse(feed_url)
+            video_urls = [entry.link for entry in feed.entries[:max_videos]]
+
+            for video in video_urls:
+                match = re.search(r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', video)
+                if match:
+                    video_id = match.group(1)
+                    print(video_id)
+                    videos.append(get_video_data_dlp(video_id))
+
+            # Ladebalken aktualisieren
+            progress_bar.progress((i + 1) / total_channels)
+            time.sleep(0.1)  # Kleiner Delay für bessere visuelle Darstellung
+
+        except Exception as e:
+            st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
+
+    progress_bar.empty() # Ladebalken entfernen, wenn fertig
+    videos.sort(key=lambda v: v.get("upload_date", datetime.min), reverse=True)
+    return videos
+    
+
 def extract_video_id_from_url(url: str) -> str | None:
     """
     Extract the video ID from a YouTube URL.
@@ -206,3 +339,29 @@ def extract_video_id_from_url(url: str) -> str | None:
     if match:
         return match.group(1)
     return None
+
+
+def create_youtube_client(api_key: str) -> object:
+    api_service_name = "youtube"
+    api_version = "v3"
+    return build(api_service_name, api_version, developerKey=api_key)
+'''
+youtube = create_youtube_client("AIzaSyB7DvFs_Yqq9GpFM2hUyEvWfgYv7jJ20xs")
+
+request = youtube.search().list(
+        part="snippet", q='Python', type="video", maxResults=10
+    )
+    ###youtube REQUEST###
+search_response = request.execute()
+'''
+
+#print(get_video_length_dlp("D9YV-ykMfEA"))
+#print(get_video_length(youtube, "D9YV-ykMfEA"))
+"""
+print(search_videos_dlp("Python", 10))
+print('\n-------------------------------------------------------\n')
+print(get_video_data(youtube, search_response))
+print('\n-------------------------------------------------------\n')
+print(get_video_data_dlp(["D9YV-ykMfEA", "D9YV-ykMfEA"]))
+"""
+#print(get_recent_videos_from_channels_RSS(["UC8butISFwT-Wl7EV0hUK0BQ","UC1uEIIdQo0F6wLV-XSMCSvQ"], 1))

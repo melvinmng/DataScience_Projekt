@@ -16,6 +16,8 @@ from src.youtube_helper import (
     extract_video_id_from_url,
     get_subscriptions,
     get_recent_videos_from_subscriptions,
+    search_videos_dlp,
+    get_recent_videos_from_channels_RSS,
 )
 
 from src.key_management.api_key_management import get_api_key, create_youtube_client
@@ -184,125 +186,156 @@ def build_feedback_tab() -> None:
         st.success("Danke für dein Feedback!")
 
 
+import streamlit as st
+
 def build_search_tab():
     st.header("Suche")
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
+    
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
-    request = youtube.search().list(
-        part="snippet", q=query, type="video", maxResults=10
-    )
-    ###youtube REQUEST###
-    response = request.execute()
+    # Auswahl der Suchmethode
+    search_method = st.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
+
+    # Falls yt-dlp gewählt wurde, zeige einen Slider für die Anzahl der Ergebnisse
+    max_results = 10  
+    if search_method == "yt-dlp(Experimentell)":
+        max_results = st.slider("Anzahl der Videos", min_value=1, max_value=50, value=10)
 
     if st.button("🔍 Suchen"):
-        videos = get_video_data(youtube, response)
+        if search_method == "YouTube API":
+            request = youtube.search().list(
+                part="snippet", q=query, type="video", maxResults=10
+            )
+            response = request.execute()
+            videos = get_video_data(youtube, response)
+        else:
+            videos = search_videos_dlp(query, max_results=max_results)
+
         st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
 
     if "videos" in st.session_state:
         videos = st.session_state["videos"]
 
         filtered_videos = [
-            v
-            for v in videos
-            if length_filter[0] * 60
-            <= duration_to_seconds(v["length"])
-            <= length_filter[1] * 60
+            v for v in videos if length_filter[0] * 60 <= duration_to_seconds(v["length"]) <= length_filter[1] * 60
         ]
+
         for video in filtered_videos:
-            col1, col2 = st.columns([1, 3])
-            with col1:
-                st.image(video["thumbnail"], use_container_width=True)
-            with col2:
-                st.subheader(video["title"])
-                st.write(video["channel_name"])
+            st.subheader(video["title"])
+            st.write(video["channel_name"])
 
-                st.write(
-                    f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})"
-                )
+            st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
 
-                # 🟢 **Zusammenfassung anzeigen**
-                with st.expander("📜 Zusammenfassung"):
-                    st.write("Hier kommt GEMINI Zusammenfassung hin")
+            # 🟢 **Zusammenfassung anzeigen**
+            try:
+                transcript = get_transcript(video["video_id"])
+                summary = get_summary(transcript)
+            except:
+                summary = "Keine Zusammenfassung verfügbar."
+            with st.expander("📜 Zusammenfassung"):
+                st.write(summary)
 
-                # 🎬 **YouTube-Video einbetten**
-                st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-                st.write(video["length"])
+            # 🎬 **YouTube-Video einbetten**
+            st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+            st.write(video["length"])
+
 
 
 def build_abobox_tab() -> None:
     st.header("Abobox")
     st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
+    abo_search_method = st.radio("Abo-Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
+
+    if abo_search_method == "YouTube API":
+            max_results = st.slider("Anzahl der Videos pro Kanal", min_value=1, max_value=10, value=4)
+    else:
+            max_results = st.slider("Anzahl der Videos pro Kanal(yt_dlp)", min_value=1, max_value=100, value=10)
+    
     try:
         channelId = load_channel_id()
     except:
         st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
         return
-    st.write(channelId)
+    #st.write(channelId)
 
     try:
         subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
-        st.dataframe(subscriptions)
+        #st.dataframe(subscriptions)
     except:
         st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
         return
 
-    channel_names_and_description = ", ".join(
+    
+
+    if st.button("🔄 Abobox laden"):
+        channel_names_and_description = ", ".join(
         subscriptions[subscriptions["description"].str.strip() != ""].apply(
             lambda row: f"{row['channel_name']}:{row['description']}", axis=1
+            )
         )
-    )
 
-    channel_string = get_subscriptions_based_on_interests(
-        channel_names_and_description, user_interests, 10
-    )
+        channel_string = get_subscriptions_based_on_interests(
+            channel_names_and_description, user_interests, 10
+        )
 
-    channel_list = channel_string.split(",")
+        channel_list = channel_string.split(",")
 
-    matched_ids = []
+        matched_ids = []
 
-    for channel in channel_list:
-        # Kanalnamen normalisieren (entfernt Leerzeichen & Sonderzeichen)
-        normalized_channel = re.sub(r"\W+", "", channel.lower())
+        for channel in channel_list:
+            # Kanalnamen normalisieren (entfernt Leerzeichen & Sonderzeichen)
+            normalized_channel = re.sub(r"\W+", "", channel.lower())
 
-        # Filtert Kanäle aus subscriptions mit flexiblerem Regex-Match
-        match = subscriptions[
-            subscriptions["channel_name"]
-            .str.lower()
-            .str.replace(r"\W+", "", regex=True)
-            .str.contains(normalized_channel, na=False)
+            # Filtert Kanäle aus subscriptions mit flexiblerem Regex-Match
+            match = subscriptions[
+                subscriptions["channel_name"]
+                .str.lower()
+                .str.replace(r"\W+", "", regex=True)
+                .str.contains(normalized_channel, na=False)
+            ]
+
+            if not match.empty:
+                matched_ids.append(match.iloc[0]["channel_id"])
+
+
+        if abo_search_method == "YouTube API":  
+            recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, max_results)
+        else:
+            recent_videos = get_recent_videos_from_channels_RSS(matched_ids, max_results)
+    
+        st.session_state["videos"] = recent_videos  # Speichern, damit Filter funktionieren
+
+    if "videos" in st.session_state:
+        recent_videos = st.session_state["videos"]
+        print(recent_videos)
+        filtered_videos = [
+            v
+            for v in recent_videos
+            if length_filter[0] * 60
+            <= duration_to_seconds(v["length"])
+            <= length_filter[1] * 60
         ]
 
-        if not match.empty:
-            matched_ids.append(match.iloc[0]["channel_id"])
-
-    recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, 4)
-    filtered_videos = [
-        v
-        for v in recent_videos
-        if length_filter[0] * 60
-        <= duration_to_seconds(v["length"])
-        <= length_filter[1] * 60
-    ]
-
-    for video in filtered_videos:
-        col1, col2 = st.columns([1, 3])
-        with col1:
-            st.image(video["thumbnail"], use_container_width=True)
-        with col2:
+        for video in filtered_videos:
             st.subheader(video["title"])
             st.write(video["channel_name"])
 
-            st.write(
-                f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})"
-            )
+            st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
 
-            # 🟢 **Zusammenfassung anzeigen**
+  
+            try:
+                transcript = get_transcript(video["video_id"])
+                summary = get_summary(transcript)
+            except:
+                summary = "Keine Zusammenfassung verfügbar."
             with st.expander("📜 Zusammenfassung"):
-                st.write("Hier kommt GEMINI Zusammenfassung hin")
+                st.write(summary)
 
             # 🎬 **YouTube-Video einbetten**
             st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+            if abo_search_method == "yt-dlp(Experimentell)":
+                st.write('Upload_Datum: ' + str(video["upload_date"]))
             st.write(video["length"])
 
 
@@ -393,7 +426,9 @@ def initialize() -> googleapiclient.discovery.Resource | None:
         build_settings_pop_up()
         st.stop()
 
-    
+   
+
+
 
 ############################### CODE #######################################
 ## Session States
@@ -476,8 +511,7 @@ with tabs[3]:
 ####################################
 # Tab 4 Abobox
 with tabs[4]:
-    if st.button("🔄 Abobox laden"):
-        build_abobox_tab()
+    build_abobox_tab()
 
 ####################################
 # Tab 5: Feedback & Wünsche

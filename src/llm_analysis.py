@@ -24,7 +24,7 @@ def get_summary(transcript: str) -> str | None:
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
-        contents=f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein.",
+        contents=f"Fasse mir dieses Video sehr kurz und prägnant zusammen, sodass das Hauptthema des Videos klar wird: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein.",
     )
     if response.text:
         return response.text
