@@ -11,7 +11,7 @@ from pandas import DataFrame
 import re
 
 
-def get_summary(transcript: str) -> str | None:
+def get_summary(transcript: str, title) -> str | None:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers possible.
 
@@ -24,7 +24,7 @@ def get_summary(transcript: str) -> str | None:
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
-        contents=f"Fasse mir dieses Video sehr kurz und prägnant zusammen, sodass das Hauptthema des Videos klar wird: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein.",
+        contents=f"Fasse mir dieses Video unglaublich kurz und prägnant zusammen, sodass nur das Hauptthema des Videos klar wird: {transcript}. Gehe dabei nur auf die Kernaussage ein. Vergleiche zudem den Inhalt des Videos mit dem Titel: {title} und untersuche diesen auf potenziellen Clickbait.",
     )
     if response.text:
         return response.text
@@ -81,15 +81,15 @@ def get_recommendation(
         return None
 
 
-def combine_video_id_title_and_transcript(videos: DataFrame) -> list[str]:
+def combine_video_id_title_and_transcript(videos: list) -> list[str]:
     """
     outsource to youtube_helper.py
     """
     video_id_title_and_transcript = []
 
-    for _, video in videos.iterrows():
-        title = video["Titel"]
-        video_id = video["Video-ID"]
+    for video in videos:
+        title = video["title"]
+        video_id = video["video_id"]
         if video_id:
             transcript = get_transcript(video_id)
 
@@ -128,13 +128,13 @@ def extract_video_id_title_and_reason(
         return None
 
 
-def check_for_clickbait(transcript: str) -> str:
+def check_for_clickbait(transcript: str, title: str) -> str:
 
     if transcript:
         response = ai_client.models.generate_content(
             model=ai_model,
             config=ai_generate_content_config,
-            contents=f"Analysiere dieses Video auf Clickbait-Elemente: {transcript}. Achte darauf, nicht inhaltlich zu spoilern, aber gebe dennoch alle Clickbait-Elemente, die dir auffallen aus.",
+            contents=f"Analysiere dieses Video auf Clickbait-Elemente: {transcript}. Achte darauf, nicht inhaltlich zu spoilern, aber gebe dennoch alle Clickbait-Elemente, die dir auffallen aus und vergleiche den Ihnalt mit dem Titel: {title}.",
         )
 
         if response.text:

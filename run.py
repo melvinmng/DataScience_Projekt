@@ -13,17 +13,17 @@ import src.config_env
 from src.youtube_transcript import get_transcript
 from src.youtube_helper import (
     get_video_data,
+    get_video_data_dlp,
     extract_video_id_from_url,
     get_subscriptions,
     get_recent_videos_from_subscriptions,
     search_videos_dlp,
     get_recent_videos_from_channels_RSS,
+    get_trending_videos
 )
 
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
-
-from src.youtube_trend_analysis import get_trending_videos
 
 
 ## HELPERS
@@ -46,6 +46,41 @@ def duration_to_seconds(duration_str: str) -> int:
 
 
 
+def build_videos_table(incoming_videos: list[dict[str, str]], summarize_button_name,key_name) -> None:
+    videos = incoming_videos
+
+    filtered_videos = [
+        v for v in videos if length_filter[0] * 60 <= duration_to_seconds(v["length"]) <= length_filter[1] * 60
+    ]
+
+    for video in filtered_videos:
+        st.subheader(video["title"])
+        st.write(video["channel_name"])
+        st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
+
+        # 🟢 **Zusammenfassung erst abrufen, wenn Expander geöffnet wird**
+        expander_key = f"expander_{video['video_id']}"
+        if expander_key not in st.session_state:
+            st.session_state[expander_key] = False
+        
+        with st.expander("📜 Zusammenfassung", expanded=st.session_state[expander_key]):
+            if not st.session_state[expander_key]:
+                if st.button(summarize_button_name, key=f"{key_name}_{video['video_id']}"):
+                    st.session_state[expander_key] = True
+                    st.rerun()
+            
+            if st.session_state[expander_key]:
+                try:
+                    transcript = get_transcript(video["video_id"])
+                    summary = get_summary(transcript, video["title"])
+                except:
+                    summary = "Keine Zusammenfassung verfügbar."
+                st.write(summary)
+        
+        # 🎬 **YouTube-Video einbetten**
+        st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+        st.write(video["length"])
+
 
 
 ## BUILD TABS
@@ -53,39 +88,12 @@ def build_trending_videos_tab() -> None:
     st.header("Trending Videos")
 
     with st.spinner("Lade Trending Videos..."):
-        df_videos = get_trending_videos(youtube)
-
-    if df_videos.empty:
+        videos = get_trending_videos(youtube)
+        print(videos)
+    if not videos:
         st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
     else:
-        st.subheader("Alle Trending Videos")
-        for _, video in df_videos.sort_values(by="Platz").iterrows():
-            st.markdown(f"### {video['Platz']}. {video['Titel']}")
-            st.write(f"**Dauer:** {video['Dauer']}")
-            st.write(f"**Kategorie:** {video['Kategorie']}")
-            st.write(f"**Tags:** {video['Tags']}")
-            st.video(video["Video_URL"])
-            st.markdown("---")
-
-        selected_videos = []
-        cumulative_time = 0
-
-        df_videos = df_videos.sort_values(by="Platz")
-        for _, row in df_videos.iterrows():
-            video_duration_seconds = duration_to_seconds(row["Dauer"])
-            if cumulative_time + video_duration_seconds <= length_filter[1] * 60:
-                selected_videos.append(row)
-                cumulative_time += video_duration_seconds
-
-        if selected_videos:
-            st.header("Empfohlene Videos für dein Zeitbudget")
-            for video in selected_videos:
-                st.subheader(f"{video['Platz']}. {video['Titel']}")
-                st.write(f"**Dauer:** {video['Dauer']}")
-                st.write(f"**Kategorie:** {video['Kategorie']}")
-                st.write(f"**Tags:** {video['Tags']}")
-        else:
-            st.write("Kein Video passt in das angegebene Zeitbudget.")
+        build_videos_table(videos, "📜 Zusammenfassung", 'bts')
 
 
 def build_recommendation_tab(
@@ -113,9 +121,9 @@ def build_recommendation_tab(
             loading_time_information.info(
                 "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
             )
-        df_videos = get_trending_videos(youtube)
+        videos = get_trending_videos(youtube)
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
-            df_videos
+            videos
         )
         recommendations_unfiltered = get_recommendation(
             video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
@@ -159,7 +167,8 @@ def build_clickbait_recognition_tab() -> None:
     video_id = extract_video_id_from_url(video_url)
 
     if video_id:
-        clickbait_elements = check_for_clickbait(get_transcript(video_id))
+        video_info = get_video_data_dlp(video_id)
+        clickbait_elements = check_for_clickbait(get_transcript(video_id),video_info['title'])
         if clickbait_elements == "no transcript":
             st.warning(
                 "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuchen Sie es mit einem anderen Video."
@@ -186,7 +195,6 @@ def build_feedback_tab() -> None:
         st.success("Danke für dein Feedback!")
 
 
-import streamlit as st
 
 def build_search_tab():
     st.header("Suche")
@@ -215,30 +223,8 @@ def build_search_tab():
         st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
 
     if "videos" in st.session_state:
-        videos = st.session_state["videos"]
-
-        filtered_videos = [
-            v for v in videos if length_filter[0] * 60 <= duration_to_seconds(v["length"]) <= length_filter[1] * 60
-        ]
-
-        for video in filtered_videos:
-            st.subheader(video["title"])
-            st.write(video["channel_name"])
-
-            st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
-
-            # 🟢 **Zusammenfassung anzeigen**
-            try:
-                transcript = get_transcript(video["video_id"])
-                summary = get_summary(transcript)
-            except:
-                summary = "Keine Zusammenfassung verfügbar."
-            with st.expander("📜 Zusammenfassung"):
-                st.write(summary)
-
-            # 🎬 **YouTube-Video einbetten**
-            st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-            st.write(video["length"])
+        build_videos_table(st.session_state["videos"], "📜 Zusammenfassung", 'btn')
+        
 
 
 
@@ -307,37 +293,7 @@ def build_abobox_tab() -> None:
         st.session_state["videos"] = recent_videos  # Speichern, damit Filter funktionieren
 
     if "videos" in st.session_state:
-        recent_videos = st.session_state["videos"]
-        print(recent_videos)
-        filtered_videos = [
-            v
-            for v in recent_videos
-            if length_filter[0] * 60
-            <= duration_to_seconds(v["length"])
-            <= length_filter[1] * 60
-        ]
-
-        for video in filtered_videos:
-            st.subheader(video["title"])
-            st.write(video["channel_name"])
-
-            st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
-
-  
-            try:
-                transcript = get_transcript(video["video_id"])
-                summary = get_summary(transcript)
-            except:
-                summary = "Keine Zusammenfassung verfügbar."
-            with st.expander("📜 Zusammenfassung"):
-                st.write(summary)
-
-            # 🎬 **YouTube-Video einbetten**
-            st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-            if abo_search_method == "yt-dlp(Experimentell)":
-                st.write('Upload_Datum: ' + str(video["upload_date"]))
-            st.write(video["length"])
-
+        build_videos_table(st.session_state["videos"], "📜 Video Zusammenfassung", 'btb')
 
 def build_settings_pop_up() -> None:
     """Einstellungen als pseudo-modales Fenster mit st.session_state"""

@@ -108,7 +108,7 @@ def get_video_data_dlp(video_id) -> list:
     return video_dict
 
 
-def get_video_data(youtube: object, response: Dict) -> List[Dict[str, str]]:
+def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str, str]]:
     """
     Extract video data from a YouTube API response.
 
@@ -121,7 +121,10 @@ def get_video_data(youtube: object, response: Dict) -> List[Dict[str, str]]:
     """
     videos = []
     for index, item in enumerate(response["items"], start=1):
-        video_id = item["id"]["videoId"]
+        if mode == "trends":
+            video_id = item["id"]
+        else:
+            video_id = item["id"]["videoId"]
         title = item["snippet"]["title"]
         channel_name = item["snippet"]["channelTitle"]
         tags = item["snippet"].get("tags", [])
@@ -345,6 +348,44 @@ def create_youtube_client(api_key: str) -> object:
     api_service_name = "youtube"
     api_version = "v3"
     return build(api_service_name, api_version, developerKey=api_key)
+
+
+
+def get_trending_videos(youtube: object) -> pd.DataFrame:
+    """
+    Retrieves trending videos from YouTube and formats them into a DataFrame.
+
+    Args:
+        youtube (object): The authenticated YouTube API client.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing trending video data.
+    """
+    request = youtube.videos().list(
+        part="snippet,contentDetails",
+        chart="mostPopular",
+        regionCode="DE",
+        maxResults=50,
+    )
+
+    response = request.execute()
+
+    return get_video_data(youtube, response,'trends')
+
+
+def get_trending_videos_stats(df: pd.DataFrame) -> None:
+    """
+    Analyzes and prints statistics about the trending videos.
+
+    Args:
+        df (pd.DataFrame): The DataFrame containing trending video data.
+    """
+    category_counts = df["Kategorie"].value_counts().reset_index()
+    category_counts.columns = ["Kategorie", "Anzahl"]
+
+    print("\nHäufigste Kategorien:")
+    print(category_counts)
+
 '''
 youtube = create_youtube_client("AIzaSyB7DvFs_Yqq9GpFM2hUyEvWfgYv7jJ20xs")
 
