@@ -351,7 +351,7 @@ def create_youtube_client(api_key: str) -> object:
 
 
 
-def get_trending_videos(youtube: object) -> pd.DataFrame:
+def get_trending_videos(youtube: object, region_code) -> pd.DataFrame:
     """
     Retrieves trending videos from YouTube and formats them into a DataFrame.
 
@@ -364,7 +364,7 @@ def get_trending_videos(youtube: object) -> pd.DataFrame:
     request = youtube.videos().list(
         part="snippet,contentDetails",
         chart="mostPopular",
-        regionCode="DE",
+        regionCode=region_code,
         maxResults=50,
     )
 
@@ -372,19 +372,54 @@ def get_trending_videos(youtube: object) -> pd.DataFrame:
 
     return get_video_data(youtube, response,'trends')
 
+import yt_dlp
 
-def get_trending_videos_stats(df: pd.DataFrame) -> None:
+def get_trending_videos_dlp(region_code="DE", max_results=50):
     """
-    Analyzes and prints statistics about the trending videos.
+    Retrieves the trending video IDs from YouTube using yt-dlp.
 
     Args:
-        df (pd.DataFrame): The DataFrame containing trending video data.
-    """
-    category_counts = df["Kategorie"].value_counts().reset_index()
-    category_counts.columns = ["Kategorie", "Anzahl"]
+        region_code (str): The region code to get the trending videos for. Default is "DE" for Germany.
+        max_results (int): The maximum number of video IDs to retrieve.
 
-    print("\nHäufigste Kategorien:")
-    print(category_counts)
+    Returns:
+        list: A list of trending video IDs.
+    """
+    # Define the URL for the YouTube trending page of the specified region
+    url = f"https://www.youtube.com/feed/trending?gl={region_code}"
+
+    # Setup yt-dlp options
+    ydl_opts = {
+        'quiet': True,
+        'extract_flat': True,  # To get video IDs without downloading the video
+        'force_generic_extractor': True,  # Use a generic extractor for the page
+    }
+
+    # Use yt-dlp to extract the video information
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info_dict = ydl.extract_info(url, download=False)
+        # Print the structure of the info_dict to understand the data format
+
+    # Extract video IDs from the trending videos
+    trending_video_ids = []
+    for entry in info_dict.get('entries', []):  # Using .get() to prevent KeyError
+        # Check the structure of the entry dictionary, and use the correct key for video ID
+        video_id = entry.get('id')  # 'id' is usually the key for YouTube video ID
+        
+        if video_id:
+            trending_video_ids.append(video_id)
+
+        # Stop if we've reached the max_results limit
+        if len(trending_video_ids) >= max_results:
+            break
+    videos = []
+    if trending_video_ids:
+        for video_id in trending_video_ids:
+            videos.append(get_video_data_dlp(video_id))
+    else:
+        print("No trending video IDs found.")
+    return videos
+
 
 '''
 youtube = create_youtube_client("AIzaSyB7DvFs_Yqq9GpFM2hUyEvWfgYv7jJ20xs")
@@ -405,4 +440,4 @@ print(get_video_data(youtube, search_response))
 print('\n-------------------------------------------------------\n')
 print(get_video_data_dlp(["D9YV-ykMfEA", "D9YV-ykMfEA"]))
 """
-#print(get_recent_videos_from_channels_RSS(["UC8butISFwT-Wl7EV0hUK0BQ","UC1uEIIdQo0F6wLV-XSMCSvQ"], 1))
+#print(get_recent_videos_from_channels_RSS(["UC8butISFwT-Wl7EV0hUK0BQ","UC1uEIIdQo0F6wLV-XSMCSvQ"], 1)

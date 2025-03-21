@@ -19,7 +19,8 @@ from src.youtube_helper import (
     get_recent_videos_from_subscriptions,
     search_videos_dlp,
     get_recent_videos_from_channels_RSS,
-    get_trending_videos
+    get_trending_videos, 
+    get_trending_videos_dlp
 )
 
 from src.key_management.api_key_management import get_api_key, create_youtube_client
@@ -86,14 +87,21 @@ def build_videos_table(incoming_videos: list[dict[str, str]], summarize_button_n
 ## BUILD TABS
 def build_trending_videos_tab() -> None:
     st.header("Trending Videos")
-
-    with st.spinner("Lade Trending Videos..."):
-        videos = get_trending_videos(youtube)
-        print(videos)
-    if not videos:
-        st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
-    else:
-        build_videos_table(videos, "📜 Zusammenfassung", 'bts')
+    search_method = st.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"), key="trending_videos")
+    
+    region_code = st.radio("Region wählen:", ("DE", "US", "GB"))
+    
+    if st.button("🔄 Trending Videos laden"):
+        with st.spinner("Lade Trending Videos..."):
+            if search_method == "YouTube API":
+                videos = get_trending_videos(youtube, region_code)
+            else:
+                videos = get_trending_videos_dlp(region_code)
+            print(videos)
+        if not videos:
+            st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
+        else:
+            build_videos_table(videos, "📜 Zusammenfassung", 'bts')
 
 
 def build_recommendation_tab(
@@ -444,7 +452,6 @@ tabs = st.tabs(
 ####################################
 # Tab 1: Trending Videos
 with tabs[0]:
-    if st.button("🔄 Trending Videos laden"):
         build_trending_videos_tab()
 
 ####################################
@@ -478,6 +485,3 @@ with tabs[5]:
 # Tab 6: Einstellungen
 with tabs[6]:
     build_settings_tab()
-
-if st.button("Dashboard aktualisieren"):
-    st.experimental_rerun()
