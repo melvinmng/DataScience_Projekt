@@ -3,6 +3,9 @@ import re
 import streamlit as st
 import pandas as pd
 import googleapiclient
+import os
+import csv
+from datetime import datetime
 
 # Own Modules
 import src.config_env
@@ -25,6 +28,9 @@ from src.gemini_helper import (
     check_for_clickbait,
     get_subscriptions_based_on_interests,
 )
+
+
+FEEDBACK_FILE = "feedback.csv"
 
 
 ## HELPERS
@@ -186,13 +192,62 @@ def build_clickbait_recognition_tab() -> None:
         )
 
 
+def save_feedback(feedback_text: str) -> None:
+    """
+    Speichert das Feedback in einer CSV-Datei mit Datum und Uhrzeit.
+
+    Falls die Datei nicht existiert, wird sie mit den entsprechenden Spalten erstellt.
+
+    Args:
+        feedback_text (str): Der eingegebene Feedback-Text.
+    """
+
+    # Daten vorbereiten
+    now = datetime.now()
+    date = now.strftime("%Y-%m-%d")
+    time = now.strftime("%H:%M:%S")
+    feedback_data = [date, time, feedback_text]
+
+    # Prüfen, ob die Datei existiert, falls nicht, erstellen wir sie mit Header
+    file_exists = os.path.exists(FEEDBACK_FILE)
+
+    with open(FEEDBACK_FILE, mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        if not file_exists:
+            writer.writerow(["Datum", "Uhrzeit", "Feedback"])  # Header schreiben
+        writer.writerow(feedback_data)
+
+    # Erfolgsnachricht anzeigen und Textfeld zurücksetzen
+    st.session_state["feedback_submitted"] = True  # Setzt einen Status, dass Feedback gesendet wurde
+    st.session_state["feedback_text"] = ""  # Leert das Textfeld
+    st.rerun()  # Lädt die Seite neu
+
+
 def build_feedback_tab() -> None:
+    """
+    Erstellt das Feedback-Tab im Streamlit-Dashboard.
+    """
     st.header("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
+
+    if "feedback_text" not in st.session_state:
+        st.session_state["feedback_text"] = ""
+
+    if "feedback_submitted" not in st.session_state:
+        st.session_state["feedback_submitted"] = False  # Status, ob Feedback abgegeben wurde
+
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
+
+    # Feedback erfolgreich abgegeben
+    if st.session_state["feedback_submitted"]:
+        st.session_state["feedback_submitted"] = False  # Setzt den Status zurück
+        st.success("Vielen Dank für dein Feedback!")
+
     if st.button("Feedback absenden"):
-        # Sollen wir Feedback speichern?
-        st.success("Danke für dein Feedback!")
+        if feedback.strip():  # Verhindert Absenden leerer Nachrichten
+            save_feedback(feedback)
+        else:
+            st.warning("Bitte gib ein Feedback ein, bevor du es absendest.")
 
 
 def build_search_tab():
@@ -384,4 +439,4 @@ with tabs[5]:
     build_feedback_tab()
 
 if st.button("Dashboard aktualisieren"):
-    st.experimental_rerun()
+    st.rerun()
