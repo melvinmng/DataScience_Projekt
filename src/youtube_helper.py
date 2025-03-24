@@ -8,6 +8,8 @@ from typing import List, Dict
 import feedparser
 import yt_dlp
 
+from concurrent.futures import ThreadPoolExecutor
+import multiprocessing
 def parse_duration(duration: str) -> str:
     """
     Parse a YouTube video duration string into a human-readable format (MM:SS).
@@ -83,6 +85,7 @@ def get_video_length_dlp(video_id: str) -> str: #Checked
 
 
 def get_video_data_dlp(video_id) -> list:
+    global result 
     ydl_opts = {'quiet': True, 'noplaylist': True, 'no_warnings': True}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -291,39 +294,56 @@ def get_recent_videos_from_subscriptions(
     return videos
 
 
-import streamlit as st
-import feedparser
-import re
-import yt_dlp
-import time
+
 
 def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
     videos = []
-    progress_bar = st.progress(0)  
-    total_channels = len(channel_ids)
 
-    for i, channel_id in enumerate(channel_ids):
+    num_channels = len(channel_ids)
+    num_threads = min(num_channels, multiprocessing.cpu_count() * 2) 
+    print(f"Num_threads: {num_threads}") # Maximal doppelte CPU-Kerne
+
+    def fetch_videos(channel_id):
+        """Holt die neuesten Videos für einen einzelnen Kanal"""
         try:
             feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
             feed = feedparser.parse(feed_url)
             video_urls = [entry.link for entry in feed.entries[:max_videos]]
-
+            
+            video_ids = []
             for video in video_urls:
                 match = re.search(r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', video)
                 if match:
-                    video_id = match.group(1)
-                    print(video_id)
-                    videos.append(get_video_data_dlp(video_id))
+                    video_ids.append(match.group(1))
 
-            # Ladebalken aktualisieren
-            progress_bar.progress((i + 1) / total_channels)
-            time.sleep(0.1)  # Kleiner Delay für bessere visuelle Darstellung
-
+            return video_ids
         except Exception as e:
             st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
+            return []
 
-    progress_bar.empty() # Ladebalken entfernen, wenn fertig
-    videos.sort(key=lambda v: v.get("upload_date", datetime.min), reverse=True)
+    # 1️⃣ Parallel Videos von allen Kanälen abrufen
+    video_id_lists = []
+    with ThreadPoolExecutor(max_workers= num_threads) as executor:
+        future_to_channel = {executor.submit(fetch_videos, channel): channel for channel in channel_ids}
+        for future in future_to_channel:
+            video_id_lists.append(future.result()) 
+
+    # Flach in eine Liste konvertieren
+    video_ids = [video_id for sublist in video_id_lists for video_id in sublist]
+
+    # 2️⃣ Parallel Video-Metadaten abrufen
+    video_data_list = []
+    with ThreadPoolExecutor(max_workers= num_threads) as executor:
+        future_to_video = {executor.submit(get_video_data_dlp, video_id): video_id for video_id in video_ids}
+        for future in future_to_video:
+            video_data_list.append(future.result())
+  
+            
+
+    # Sortieren nach Upload-Datum
+    videos = sorted(video_data_list, key=lambda v: v.get("upload_date", datetime.min), reverse=True)
+
+
     return videos
     
 

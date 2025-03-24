@@ -5,7 +5,7 @@ import pandas as pd
 import googleapiclient
 import os
 from dotenv import load_dotenv, set_key, dotenv_values
-
+import threading
 # Own Modules
 import src.config_env
 
@@ -26,7 +26,7 @@ from src.youtube_helper import (
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
 
-
+result = None
 ## HELPERS
 def duration_to_seconds(duration_str: str) -> int:
     """
@@ -101,7 +101,7 @@ def build_trending_videos_tab() -> None:
         if not videos:
             st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
         else:
-            build_videos_table(videos, "📜 Zusammenfassung", 'bts')
+            build_videos_table(videos, "Zusammenfassung", 'bts')
 
 
 def build_recommendation_tab(
@@ -225,6 +225,7 @@ def build_search_tab():
             )
             response = request.execute()
             videos = get_video_data(youtube, response)
+    
         else:
             videos = search_videos_dlp(query, max_results=max_results)
 
