@@ -9,6 +9,9 @@ from .settings import (
 from .youtube_transcript import get_transcript
 from pandas import DataFrame
 import re
+import concurrent.futures
+import multiprocessing
+import json
 
 
 def get_summary(transcript: str, title) -> str | None:
@@ -63,9 +66,8 @@ def get_recommendation(
     prompt = (
         f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
         f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
-        f"Bitte wähle aus dieser Liste genau ein Video als Empfehlung aus, das am besten zu meinen Interessen passt: {interests}.\n"
-        f"Antworte ausschließlich mit einer Python-Liste, die genau ein Element enthält, das genau folgende Struktur einhalten muss (achte vor allem auf die Keywords 'Titel', 'Video-ID' und 'Begründung' - sie müssen enthalten und richtig geschrieben sein) "
-        f"z.B. [('Titel': 'Titelx'\n'Video-ID': 'Video-IDx'\n'Begründung': 'Begründungx wieso diese Video von dir empfohlen wird')].\n"
+        f"Bitte wähle aus dieser Liste genau ein Video als Empfehlung aus, das am besten zu meinen Interessen passt: {interests}. Falls kein Video zu meinen Interessen passt, wähle eins aus, welches am ehesten passen würde.\n"
+        f"Deine Antowrt muss folgendermaßen sturkturiert sein: 'video_id': 'video_id'\n'Begründung': 'Begründung wieso diese Video von dir empfohlen wird'(achte vor allem auf die Keywords 'video_id' und 'Begründung' - sie müssen enthalten und richtig geschrieben sein)\n"
         f"Hier ist die Liste der Videos: {video_ids_titles_and_transcripts}"
     )
 
@@ -75,57 +77,69 @@ def get_recommendation(
         contents=prompt,
     )
 
+    print(f"\n{response.text}\n")
+
     if response.text:
         return response.text
     else:
         return None
 
 
+
+def get_transcript_safe(video_id):
+    """ Wrapper-Funktion, um Fehler bei einzelnen Videos zu vermeiden. """
+    try:
+        return get_transcript(video_id)
+    except Exception as e:
+        return f"Fehler beim Abrufen des Transkripts: {e}"
+
 def combine_video_id_title_and_transcript(videos: list) -> list[str]:
     """
-    outsource to youtube_helper.py
+    Holt die Transkripte parallel mit Threads.
     """
+    num_videos = len(videos)
+    num_threads = min(num_videos, multiprocessing.cpu_count() * 2) 
     video_id_title_and_transcript = []
 
-    for video in videos:
-        title = video["title"]
-        video_id = video["video_id"]
-        if video_id:
-            transcript = get_transcript(video_id)
+    # Mapping von Video-IDs auf Titel
+    video_map = {video["video_id"]: video["title"] for video in videos if "video_id" in video}
 
-            if transcript != "":
+    with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+        future_to_video_id = {
+            executor.submit(get_transcript_safe, video_id): video_id
+            for video_id in video_map
+        }
+
+        for future in concurrent.futures.as_completed(future_to_video_id):
+            video_id = future_to_video_id[future]
+            title = video_map[video_id]
+            transcript = future.result()
+
+            if transcript and transcript.strip():
                 video_id_title_and_transcript.append(
                     f"Titel: {title}\nTranskript: {transcript}\nVideo-ID: {video_id}\n"
                 )
-        else:
-            raise KeyError("Keine Video-ID gefunden")
 
     return video_id_title_and_transcript
 
 
-def extract_video_id_title_and_reason(
-    text: str, on_fail: Callable | None = None
-) -> dict[str, str] | None:
-    """
-    could be outsourced to a gemini_helper.py but as it's the only funtion it seems not to make sense
-    """
 
+def extract_video_id_and_reason(text: str, on_fail: Callable ):
     def extract_field(fieldname: str, text: str) -> str | None:
-        pattern = rf"'?{fieldname}'?:\s*(?P<q>['\"])(.+?)(?P=q)"
-        match = re.search(pattern, text, re.DOTALL)
-        return match.group(2).strip() if match else None
+        pattern = rf'"{fieldname}":\s*"(.*?)"'
+        match = re.search(pattern, text)
+        return match.group(1).strip() if match else None
 
-    # Einzelne Felder extrahieren
-    title = extract_field("Titel", text)
-    video_id = extract_field("Video-ID", text)
+    video_id = extract_field("video_id", text)
     reason = extract_field("Begründung", text)
 
-    if title and video_id and reason:
-        return {"Titel": title, "Video-ID": video_id, "Begründung": reason}
+    if video_id and reason:
+        return {"video_id": video_id, "Begründung": reason}
     else:
         if on_fail:
             on_fail()
         return None
+
 
 
 def check_for_clickbait(transcript: str, title: str) -> str:

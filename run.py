@@ -7,7 +7,7 @@ import os
 from dotenv import load_dotenv, set_key, dotenv_values
 # Own Modules
 import src.config_env
-import random as r
+
 
 from src.youtube_transcript import get_transcript
 from src.youtube_helper import (
@@ -44,52 +44,93 @@ def duration_to_seconds(duration_str: str) -> int:
         st.error(f"Fehler beim Parsen der Dauer: {e}")
     return 0
 
+@st.fragment
+def lazy_expander(
+    title: str,
+    key: str,
+    on_expand,
+    expanded: bool = False,
+    callback_kwargs: dict = None
+):
+    """
+    A 'lazy' expander that only loads/renders content on expand.
 
+    Args:
+        title (str): Title to show beside the arrow.
+        key (str): Unique key for storing expanded state in st.session_state.
+        on_expand (callable): A function that takes a container (and optional kwargs)
+                              to fill with content *only* after expanding.
+        expanded (bool): Initial state (collapsed=False by default).
+        callback_kwargs (dict): Extra kwargs for on_expand() if needed.
+    """
+    if callback_kwargs is None:
+        callback_kwargs = {}
 
+    # Initialize session state in the first run
+    if key not in st.session_state or st.session_state[key] is None:
+        st.session_state[key] = bool(expanded)
 
-def build_videos_table(incoming_videos: list[dict[str, str]], summarize_button_name, key_name) -> None:
-    if not incoming_videos:  
-        st.warning("Keine Videos gefunden.")
-        return
+    outer_container = st.container(border=True)
 
+    arrows = ["▼", "▲"]  # down, up
+    arrow_keys = ["down", "up"]
+
+    with outer_container:
+        col1, col2 = st.columns([0.9, 0.1])
+        col1.write(f"**{title}**")
+
+        if col2.button(
+            arrows[int(st.session_state[key])],
+            key=f"{key}_arrow_{arrow_keys[int(st.session_state[key])]}"
+        ):
+            # If currently collapsed -> expand and call on_expand
+            if not st.session_state[key]:
+                st.session_state[key] = True
+                on_expand(outer_container, **callback_kwargs)
+
+            # If currently expanded -> collapse (force a rerun)
+            else:
+                st.session_state[key] = False
+                st.rerun()
+
+def build_video_list(incoming_videos, key_id: str):
     for video in incoming_videos:
         st.subheader(video["title"])
         st.write(video["channel_name"])
         st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
-        st.write(video["video_id"])
 
-        expander_key = f"summary_{video['video_id']}"
-
-        # Falls noch nicht im Session State → auf None setzen
+        expander_key = f"summary_{video['video_id']}_{key_id}"
         if expander_key not in st.session_state:
-            st.session_state[expander_key] = None  
+            st.session_state[expander_key] = None
 
-        with st.expander("📜 Zusammenfassung"):
-            if st.session_state[expander_key] is None:
-                if st.button(summarize_button_name, key=f"{key_name}_{video['video_id']}"):
-                    with st.spinner("Lade Zusammenfassung... ⏳"):
-                        try:
-                            transcript = get_transcript(video["video_id"])
-                            summary = get_summary(transcript, video["title"])
-                            st.session_state[expander_key] = summary  # Speichern für später
-                            st.experimental_rerun()  # UI neu laden, um die Zusammenfassung anzuzeigen
-                        except Exception as e:
-                            st.session_state[expander_key] = f"⚠️ Fehler: {e}"
-                            st.experimental_rerun()  # Auch hier neu laden, um Fehler auszugeben
+        def load_summary(container, video_id, title):
+            """
+            Callback-Funktion, um die Zusammenfassung nur bei Expander-Öffnung zu laden.
+            """
+            try:
+                transcript = get_transcript(video_id)
+                summary = get_summary(transcript, title)
+            except:
+                summary = "Keine Zusammenfassung verfügbar."
 
-            if st.session_state[expander_key] is not None:
-                st.write(st.session_state[expander_key])
+            st.session_state[expander_key] = summary
+            with container:
+                st.write(summary)
+
+        # Lazy Expander verwenden
+        lazy_expander(
+            title="📜 Zusammenfassung",
+            key=expander_key,
+            on_expand=load_summary,
+            callback_kwargs={"video_id": video["video_id"], "title": video["title"]},
+        )
 
         st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-        st.write(video["length"])
-
 
 
 ## BUILD TABS
 def build_trending_videos_tab() -> None:
     st.header("Trending Videos")
-    search_method = st.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"), key="trending_videos")
-    
     region_code = st.radio("Region wählen:", ("DE", "US", "GB"))
     
     if st.button("🔄 Trending Videos laden"):
@@ -102,7 +143,7 @@ def build_trending_videos_tab() -> None:
         if not videos:
             st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
         else:
-            build_videos_table(videos, "Zusammenfassung", 'bts')
+            build_video_list(videos, key_id="trending_videos")
 
 
 def build_recommendation_tab(
@@ -130,16 +171,22 @@ def build_recommendation_tab(
             loading_time_information.info(
                 "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
             )
-        videos = get_trending_videos(youtube)
+        if search_method == "YouTube API":
+            videos = get_trending_videos(youtube, region_code="DE")
+        else:   
+            videos = get_trending_videos_dlp(region_code="DE")
+
+        st.write('done1')
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
             videos
         )
+        st.write('done2')
         recommendations_unfiltered = get_recommendation(
             video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
             interests=user_interests,
         )
         if recommendations_unfiltered:
-            recommendations = extract_video_id_title_and_reason(
+            recommendations = extract_video_id_and_reason(
                 recommendations_unfiltered,
                 on_fail=lambda: build_recommendation_tab(
                     retry_count=retry_count + 1,
@@ -150,19 +197,13 @@ def build_recommendation_tab(
         if loading_time_information:
             loading_time_information.empty()
     if recommendations:
-        st.write(recommendations["Titel"])
-        st.video(f"https://www.youtube.com/watch?v={recommendations['Video-ID']}")
-        st.write("## Begründung:")
-        st.write(recommendations["Begründung"])
-        st.write(
-            "## Für die Interessierten: Hier die Kurzfassung (Achtung: Spoilergefahr je nach Einstellung in Sidebar!!!)"
-        )
-        if st.session_state.show_spoiler == True:
-            st.write(get_summary(get_transcript(recommendations["Video-ID"])))
+        if search_method == "YouTube API":
+            video_data = get_video_data(youtube, recommendations["video_id"])
         else:
-            st.write(
-                get_summary_without_spoiler(get_transcript(recommendations["Video-ID"]))
-            )
+            video_data = get_video_data_dlp(recommendations["video_id"])
+        build_video_list([video_data], key_id="recommendation")
+        st.write('## Begründung:')
+        st.write(recommendations["Begründung"])
 
 
 def build_clickbait_recognition_tab() -> None:
@@ -205,11 +246,10 @@ def build_feedback_tab() -> None:
 
 
 
-
 def build_search_tab():
-    st.session_state["active_tab"] = "search"  # 🟢 Tab-Status setzen
+    st.session_state["active_tab"] = "search"
 
-    # ❌ Falls vorherige Ergebnisse aus einem anderen Tab stammen → Session State leeren
+
     if "videos" in st.session_state and st.session_state.get("last_tab") != "search":
         st.session_state["videos"] = []
 
@@ -217,8 +257,6 @@ def build_search_tab():
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
-
-    search_method = st.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
 
     max_results = 10  
     if search_method == "yt-dlp(Experimentell)":
@@ -234,11 +272,11 @@ def build_search_tab():
         else:
             videos = search_videos_dlp(query, max_results=max_results)
 
-        st.session_state["videos"] = videos  # ✅ Speichern für diesen Tab
+        st.session_state["videos"] = videos 
         st.session_state["last_tab"] = "search"  # Tab-Wechsel speichern
 
     if st.session_state.get("videos"):
-        build_videos_table(st.session_state["videos"], "📜 Zusammenfassung", "btn")
+        build_video_list(st.session_state["videos"], key_id="search")
         
         
 
@@ -247,16 +285,15 @@ def build_search_tab():
 def build_abobox_tab():
     st.session_state["active_tab"] = "abobox"
 
-    # ❌ Falls vorherige Ergebnisse aus einem anderen Tab stammen → Session State leeren
+    
     if "videos" in st.session_state and st.session_state.get("last_tab") != "abobox":
         st.session_state["videos"] = []
 
     st.header("Abobox")
     st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
     
-    abo_search_method = st.radio("Abo-Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
 
-    if abo_search_method == "YouTube API":
+    if search_method == "YouTube API":
         max_results = st.slider("Anzahl der Videos pro Kanal", min_value=1, max_value=5, value=2)
         max_abos = st.slider("Anzahl der Kanäle", min_value=1, max_value=20, value=10)
     else:
@@ -298,16 +335,16 @@ def build_abobox_tab():
             if not match.empty:
                 matched_ids.append(match.iloc[0]["channel_id"])
 
-        if abo_search_method == "YouTube API":  
+        if search_method == "YouTube API":  
             recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, max_results)
         else:
             recent_videos = get_recent_videos_from_channels_RSS(matched_ids, max_results)
     
-        st.session_state["videos"] = recent_videos  # ✅ Speichern für diesen Tab
+        st.session_state["videos"] = recent_videos  
         st.session_state["last_tab"] = "abobox"  # Tab-Wechsel speichern
 
     if st.session_state.get("videos"):
-        build_videos_table(st.session_state["videos"], "📜 Video Zusammenfassung", "btb")
+        build_video_list(st.session_state["videos"], key_id="abobox")
       
 
 def build_settings_pop_up() -> None:
@@ -341,7 +378,7 @@ def build_settings_pop_up() -> None:
         if channel_id:
             set_key(env_path, "CHANNEL_ID", channel_id)
 
-        # 🔄 API-Keys erneut aus der Datei laden
+        # API-Keys erneut aus der Datei laden
         updated_env = dotenv_values(env_path)
 
         # Prüfen, ob die Werte gespeichert wurden
@@ -398,9 +435,6 @@ def initialize() -> googleapiclient.discovery.Resource | None:
         build_settings_pop_up()
         st.stop()
 
-   
-
-
 
 ############################### CODE #######################################
 ## Session States
@@ -417,7 +451,7 @@ youtube = initialize()
 import src.settings
 
 from src.llm_analysis import (
-    extract_video_id_title_and_reason,
+    extract_video_id_and_reason,
     get_summary,
     get_summary_without_spoiler,
     get_recommendation,
@@ -438,6 +472,8 @@ length_filter = st.sidebar.slider(
 user_interests = st.sidebar.text_input(
     "Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests
 )
+search_method = st.sidebar.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
+
 st.session_state.show_spoiler = st.sidebar.checkbox(
     "Spoiler anzeigen", value=st.session_state.show_spoiler
 )

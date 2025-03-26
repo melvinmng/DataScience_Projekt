@@ -315,7 +315,7 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
                 if match:
                     video_ids.append(match.group(1))
 
-            return video_ids
+            return List(set(video_ids))
         except Exception as e:
             st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
             return []
@@ -392,51 +392,75 @@ def get_trending_videos(youtube: object, region_code) -> pd.DataFrame:
     return get_video_data(youtube, response,'trends')
 
 
-@st.cache_data(ttl=3600) 
+import concurrent.futures
+
 def get_trending_videos_dlp(region_code="DE", max_results=50):
-    """
-    Retrieves the trending video IDs from YouTube using yt-dlp.
-
-    Args:
-        region_code (str): The region code to get the trending videos for. Default is "DE" for Germany.
-        max_results (int): The maximum number of video IDs to retrieve.
-
-    Returns:
-        list: A list of trending video IDs.
-    """
-    # Define the URL for the YouTube trending page of the specified region
     url = f"https://www.youtube.com/feed/trending?gl={region_code}"
 
-    # Setup yt-dlp options
     ydl_opts = {
         'quiet': True,
-        'extract_flat': True,  # To get video IDs without downloading the video
-        'force_generic_extractor': True,  # Use a generic extractor for the page
+        'extract_flat': True,
+        'force_generic_extractor': True,
     }
 
-    # Use yt-dlp to extract the video information
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info_dict = ydl.extract_info(url, download=False)
-        # Print the structure of the info_dict to understand the data format
 
-    # Extract video IDs from the trending videos
-    trending_video_ids = []
-    for entry in info_dict.get('entries', []):  # Using .get() to prevent KeyError
-        # Check the structure of the entry dictionary, and use the correct key for video ID
-        video_id = entry.get('id')  # 'id' is usually the key for YouTube video ID
-        
-        if video_id:
-            trending_video_ids.append(video_id)
+    trending_video_ids = [
+        entry.get('id') for entry in info_dict.get('entries', []) if entry.get('id')
+    ][:max_results]
 
-        # Stop if we've reached the max_results limit
-        if len(trending_video_ids) >= max_results:
-            break
+    if not trending_video_ids:
+        print("Keine Trend-Videos gefunden.")
+        return []
+
     videos = []
-    if trending_video_ids:
-        for video_id in trending_video_ids:
-            videos.append(get_video_data_dlp(video_id))
-    else:
-        print("No trending video IDs found.")
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_video_id = {
+            executor.submit(get_video_data_dlp, video_id): video_id
+            for video_id in trending_video_ids
+        }
+
+        for future in concurrent.futures.as_completed(future_to_video_id):
+            try:
+                videos.append(future.result())
+            except Exception as e:
+                print(f"Fehler beim Abrufen von Videodaten: {e}")
+
+    return videos
+def get_trending_videos_dlp(region_code="DE", max_results=50):
+    url = f"https://www.youtube.com/feed/trending?gl={region_code}"
+
+    ydl_opts = {
+        'quiet': True,
+        'extract_flat': True,
+        'force_generic_extractor': True,
+    }
+
+    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+        info_dict = ydl.extract_info(url, download=False)
+
+    trending_video_ids = [
+        entry.get('id') for entry in info_dict.get('entries', []) if entry.get('id')
+    ][:max_results]
+
+    if not trending_video_ids:
+        print("Keine Trend-Videos gefunden.")
+        return []
+
+    videos = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+        future_to_video_id = {
+            executor.submit(get_video_data_dlp, video_id): video_id
+            for video_id in trending_video_ids
+        }
+
+        for future in concurrent.futures.as_completed(future_to_video_id):
+            try:
+                videos.append(future.result())
+            except Exception as e:
+                print(f"Fehler beim Abrufen von Videodaten: {e}")
+
     return videos
 
 
