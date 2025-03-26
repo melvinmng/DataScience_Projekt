@@ -83,7 +83,6 @@ def get_video_length_dlp(video_id: str) -> str: #Checked
 
 
 
-
 def get_video_data_dlp(video_id) -> list:
     global result 
     ydl_opts = {'quiet': True, 'noplaylist': True, 'no_warnings': True}
@@ -110,7 +109,7 @@ def get_video_data_dlp(video_id) -> list:
 
     return video_dict
 
-
+ 
 def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str, str]]:
     """
     Extract video data from a YouTube API response.
@@ -148,7 +147,7 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
 
     return videos
 
-
+@st.cache_data(ttl=3600) 
 def search_videos_dlp(query: str, max_results: int = 100) -> list: #Checked
     """
     Führt eine YouTube-Suche ohne API durch und gibt eine Liste mit Video-Metadaten zurück.
@@ -295,7 +294,7 @@ def get_recent_videos_from_subscriptions(
 
 
 
-
+@st.cache_data(ttl=3600) 
 def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
     videos = []
 
@@ -392,8 +391,8 @@ def get_trending_videos(youtube: object, region_code) -> pd.DataFrame:
 
     return get_video_data(youtube, response,'trends')
 
-import yt_dlp
 
+@st.cache_data(ttl=3600) 
 def get_trending_videos_dlp(region_code="DE", max_results=50):
     """
     Retrieves the trending video IDs from YouTube using yt-dlp.

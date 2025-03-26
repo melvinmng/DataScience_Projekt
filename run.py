@@ -5,10 +5,9 @@ import pandas as pd
 import googleapiclient
 import os
 from dotenv import load_dotenv, set_key, dotenv_values
-import threading
 # Own Modules
 import src.config_env
-
+import random as r
 
 from src.youtube_transcript import get_transcript
 from src.youtube_helper import (
@@ -47,38 +46,40 @@ def duration_to_seconds(duration_str: str) -> int:
 
 
 
-def build_videos_table(incoming_videos: list[dict[str, str]], summarize_button_name,key_name) -> None:
-    videos = incoming_videos
 
-    filtered_videos = [
-        v for v in videos if length_filter[0] * 60 <= duration_to_seconds(v["length"]) <= length_filter[1] * 60
-    ]
+def build_videos_table(incoming_videos: list[dict[str, str]], summarize_button_name, key_name) -> None:
+    if not incoming_videos:  
+        st.warning("Keine Videos gefunden.")
+        return
 
-    for video in filtered_videos:
+    for video in incoming_videos:
         st.subheader(video["title"])
         st.write(video["channel_name"])
         st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
+        st.write(video["video_id"])
 
-        # 🟢 **Zusammenfassung erst abrufen, wenn Expander geöffnet wird**
-        expander_key = f"expander_{video['video_id']}"
+        expander_key = f"summary_{video['video_id']}"
+
+        # Falls noch nicht im Session State → auf None setzen
         if expander_key not in st.session_state:
-            st.session_state[expander_key] = False
-        
-        with st.expander("📜 Zusammenfassung", expanded=st.session_state[expander_key]):
-            if not st.session_state[expander_key]:
+            st.session_state[expander_key] = None  
+
+        with st.expander("📜 Zusammenfassung"):
+            if st.session_state[expander_key] is None:
                 if st.button(summarize_button_name, key=f"{key_name}_{video['video_id']}"):
-                    st.session_state[expander_key] = True
-                    st.rerun()
-            
-            if st.session_state[expander_key]:
-                try:
-                    transcript = get_transcript(video["video_id"])
-                    summary = get_summary(transcript, video["title"])
-                except:
-                    summary = "Keine Zusammenfassung verfügbar."
-                st.write(summary)
-        
-        # 🎬 **YouTube-Video einbetten**
+                    with st.spinner("Lade Zusammenfassung... ⏳"):
+                        try:
+                            transcript = get_transcript(video["video_id"])
+                            summary = get_summary(transcript, video["title"])
+                            st.session_state[expander_key] = summary  # Speichern für später
+                            st.experimental_rerun()  # UI neu laden, um die Zusammenfassung anzuzeigen
+                        except Exception as e:
+                            st.session_state[expander_key] = f"⚠️ Fehler: {e}"
+                            st.experimental_rerun()  # Auch hier neu laden, um Fehler auszugeben
+
+            if st.session_state[expander_key] is not None:
+                st.write(st.session_state[expander_key])
+
         st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
         st.write(video["length"])
 
@@ -204,16 +205,21 @@ def build_feedback_tab() -> None:
 
 
 
+
 def build_search_tab():
+    st.session_state["active_tab"] = "search"  # 🟢 Tab-Status setzen
+
+    # ❌ Falls vorherige Ergebnisse aus einem anderen Tab stammen → Session State leeren
+    if "videos" in st.session_state and st.session_state.get("last_tab") != "search":
+        st.session_state["videos"] = []
+
     st.header("Suche")
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
     
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
-    # Auswahl der Suchmethode
     search_method = st.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
 
-    # Falls yt-dlp gewählt wurde, zeige einen Slider für die Anzahl der Ergebnisse
     max_results = 10  
     if search_method == "yt-dlp(Experimentell)":
         max_results = st.slider("Anzahl der Videos", min_value=1, max_value=50, value=10)
@@ -225,87 +231,88 @@ def build_search_tab():
             )
             response = request.execute()
             videos = get_video_data(youtube, response)
-    
         else:
             videos = search_videos_dlp(query, max_results=max_results)
 
-        st.session_state["videos"] = videos  # Speichern, damit Filter funktionieren
+        st.session_state["videos"] = videos  # ✅ Speichern für diesen Tab
+        st.session_state["last_tab"] = "search"  # Tab-Wechsel speichern
 
-    if "videos" in st.session_state:
-        build_videos_table(st.session_state["videos"], "📜 Zusammenfassung", 'btn')
+    if st.session_state.get("videos"):
+        build_videos_table(st.session_state["videos"], "📜 Zusammenfassung", "btn")
+        
         
 
 
 
-def build_abobox_tab() -> None:
+def build_abobox_tab():
+    st.session_state["active_tab"] = "abobox"
+
+    # ❌ Falls vorherige Ergebnisse aus einem anderen Tab stammen → Session State leeren
+    if "videos" in st.session_state and st.session_state.get("last_tab") != "abobox":
+        st.session_state["videos"] = []
+
     st.header("Abobox")
     st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
+    
     abo_search_method = st.radio("Abo-Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
 
     if abo_search_method == "YouTube API":
-            max_results = st.slider("Anzahl der Videos pro Kanal", min_value=1, max_value=10, value=4)
+        max_results = st.slider("Anzahl der Videos pro Kanal", min_value=1, max_value=5, value=2)
+        max_abos = st.slider("Anzahl der Kanäle", min_value=1, max_value=20, value=10)
     else:
-            max_results = st.slider("Anzahl der Videos pro Kanal(yt_dlp)", min_value=1, max_value=100, value=10)
+        max_results = st.slider("Anzahl der Videos pro Kanal (yt_dlp)", min_value=1, max_value=10, value=5)
+        max_abos = st.slider("Anzahl der Kanäle (yt_dlp)", min_value=1, max_value=30, value=10)
     
     try:
         channelId = load_channel_id()
     except:
         st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
-        return
-    #st.write(channelId)
 
     try:
         subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
-        #st.dataframe(subscriptions)
     except:
         st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
-        return
-
     
-
     if st.button("🔄 Abobox laden"):
         channel_names_and_description = ", ".join(
-        subscriptions[subscriptions["description"].str.strip() != ""].apply(
-            lambda row: f"{row['channel_name']}:{row['description']}", axis=1
+            subscriptions[subscriptions["description"].str.strip() != ""].apply(
+                lambda row: f"{row['channel_name']}:{row['description']}", axis=1
             )
         )
 
         channel_string = get_subscriptions_based_on_interests(
-            channel_names_and_description, user_interests, 10
+            channel_names_and_description, user_interests, max_abos
         )
 
         channel_list = channel_string.split(",")
 
         matched_ids = []
-
         for channel in channel_list:
-            # Kanalnamen normalisieren (entfernt Leerzeichen & Sonderzeichen)
             normalized_channel = re.sub(r"\W+", "", channel.lower())
-
-            # Filtert Kanäle aus subscriptions mit flexiblerem Regex-Match
             match = subscriptions[
                 subscriptions["channel_name"]
                 .str.lower()
                 .str.replace(r"\W+", "", regex=True)
                 .str.contains(normalized_channel, na=False)
             ]
-
             if not match.empty:
                 matched_ids.append(match.iloc[0]["channel_id"])
-
 
         if abo_search_method == "YouTube API":  
             recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, max_results)
         else:
             recent_videos = get_recent_videos_from_channels_RSS(matched_ids, max_results)
     
-        st.session_state["videos"] = recent_videos  # Speichern, damit Filter funktionieren
+        st.session_state["videos"] = recent_videos  # ✅ Speichern für diesen Tab
+        st.session_state["last_tab"] = "abobox"  # Tab-Wechsel speichern
 
-    if "videos" in st.session_state:
-        build_videos_table(st.session_state["videos"], "📜 Video Zusammenfassung", 'btb')
+    if st.session_state.get("videos"):
+        build_videos_table(st.session_state["videos"], "📜 Video Zusammenfassung", "btb")
+      
 
 def build_settings_pop_up() -> None:
-    """Einstellungen als pseudo-modales Fenster mit st.session_state"""
+
+
     env_path = ".env"
     load_dotenv()
 
@@ -486,3 +493,5 @@ with tabs[5]:
 # Tab 6: Einstellungen
 with tabs[6]:
     build_settings_tab()
+
+
