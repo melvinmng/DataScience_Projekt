@@ -124,14 +124,14 @@ def combine_video_id_title_and_transcript(videos: list) -> list[str]:
 
 
 
-def extract_video_id_and_reason(text: str, on_fail: Callable ):
+def extract_video_id_and_reason(json_str: str, on_fail: Callable):
     def extract_field(fieldname: str, text: str) -> str | None:
-        pattern = rf'"{fieldname}":\s*"(.*?)"'
-        match = re.search(pattern, text)
+        pattern = rf'"{fieldname}":\s*"((?:\\.|[^"\\])*)"'  # Erfasst Zeichen inklusive Escape-Sequenzen
+        match = re.search(pattern, text, re.DOTALL)
         return match.group(1).strip() if match else None
 
-    video_id = extract_field("video_id", text)
-    reason = extract_field("Begründung", text)
+    video_id = extract_field("video_id", json_str)
+    reason = extract_field("Begründung", json_str)
 
     if video_id and reason:
         return {"video_id": video_id, "Begründung": reason}

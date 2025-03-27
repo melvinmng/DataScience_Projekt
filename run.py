@@ -3,6 +3,7 @@ import re
 import streamlit as st
 import googleapiclient
 import os
+import csv
 from dotenv import load_dotenv, set_key, dotenv_values
 # Own Modules
 import src.config_env
@@ -41,6 +42,20 @@ def duration_to_seconds(duration_str: str) -> int:
     except Exception as e:
         st.error(f"Fehler beim Parsen der Dauer: {e}")
     return 0
+
+
+def read_csv_to_list(filename):
+    """
+    Liest eine CSV-Datei aus und speichert jede Zeile als Dictionary in einer Liste.
+    """
+    data = []
+    
+    with open(filename, mode="r", encoding="utf-8") as file:
+        reader = csv.DictReader(file)  # Liest die CSV als Dict
+        for row in reader:
+            data.append(dict(row))  # Jede Zeile als Dict speichern
+    
+    return data
 
 @st.fragment
 def lazy_expander(
@@ -89,9 +104,117 @@ def lazy_expander(
             # If currently expanded -> collapse (force a rerun)
             else:
                 st.session_state[key] = False
-                
+
+@st.fragment
+def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
+    """
+    A 'lazy' button that stores its state in st.session_state and doesn't trigger a full rerun.
+
+    Args:
+        label (str): Button label.
+        key (str): Unique session state key.
+        on_click (callable): Function to call when the button is clicked.
+        callback_kwargs (dict): Extra kwargs for on_click() if needed.
+    """
+    if callback_kwargs is None:
+        callback_kwargs = {}
+
+    # Initialisiere den Zustand, falls noch nicht gesetzt
+    if key not in st.session_state:
+        st.session_state[key] = False
+
+    # Zeige den Button
+    if st.button(label, key=f"{key}_btn"):
+        st.session_state[key] = True
+        on_click(**callback_kwargs)
+
+    # Falls der Button-Status True ist, Erfolgsmeldung anzeigen
+    if st.session_state[key]:
+        st.success("✅") 
+        if label == "🚮delete from list":
+            st.rerun()
+
+def save_video_to_csv(video, filename="watch_later.csv", gitignore_path=".gitignore"):
+    file_exists = os.path.isfile(filename)
+    # CSV-Datei schreiben
+    with open(filename, mode="a", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=["title", "channel_name", "video_id", "video_url"])
+        
+        if not file_exists:
+            writer.writeheader()
+
+        writer.writerow({
+            "title": video["title"],
+            "channel_name": video["channel_name"],
+            "video_id": video["video_id"],
+            "video_url": f"https://www.youtube.com/watch?v={video['video_id']}"
+        })
+
+    # .gitignore aktualisieren
+    if os.path.exists(gitignore_path):
+        with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
+            lines = gitignore_file.readlines()
+            if filename not in [line.strip() for line in lines]:
+                gitignore_file.write(f"\n{filename}\n")
+    else:
+        with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
+            gitignore_file.write(f"{filename}\n")
+
+    # .gitignore aktualisieren
+    if os.path.exists(gitignore_path):
+        with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
+            lines = gitignore_file.readlines()
+            if filename not in [line.strip() for line in lines]:
+                gitignore_file.write(f"\n{filename}\n")
+    else:
+        with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
+            gitignore_file.write(f"{filename}\n")
+
+
+
+def delete_video_by_id(video, filename='watch_later.csv'):
+    """
+    Löscht den Eintrag mit der angegebenen `video_id` aus der CSV-Datei.
+    """
+    # Liste der Zeilen (als Dictionaries) aus der CSV lesen
+    videos = []
+    video_id = video['video_id']
+    with open(filename, mode="r", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            videos.append(row)
+    
+    # Finde und lösche den Eintrag mit der gewünschten video_id
+    videos_to_keep = [video for video in videos if video["video_id"] != video_id]
+
+    # Schreibe die aktualisierte Liste zurück in die CSV-Datei
+    with open(filename, mode="w", newline="", encoding="utf-8") as file:
+        fieldnames = ["title", "channel_name", "video_id", "video_url"]
+        writer = csv.DictWriter(file, fieldnames=fieldnames)
+        
+        writer.writeheader()
+        for video in videos_to_keep:
+            writer.writerow(video) 
+
+    print(f"Das Video mit der video_id {video_id} wurde erfolgreich gelöscht.")
+
 
 def build_video_list(incoming_videos, key_id: str):
+    filename = 'watch_later.csv'
+    if os.path.exists(filename):
+        saved_video_ids = []
+    
+        # Öffne die CSV-Datei zum Lesen
+        with open(filename, mode="r", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+            
+            # Gehe jede Zeile durch und extrahiere den Wert der angegebenen Spalte
+            for row in reader:
+                if 'video_id' in row:
+                    saved_video_ids.append(row['video_id'])
+                else:
+                    print(f"Spalte '{'video_id'}' nicht gefunden.")
+
     for video in incoming_videos:
         st.subheader(video["title"])
         st.write(video["channel_name"])
@@ -102,20 +225,16 @@ def build_video_list(incoming_videos, key_id: str):
             st.session_state[expander_key] = None
 
         def load_summary(container, video_id, title):
-            """
-            Callback-Funktion, um die Zusammenfassung nur bei Expander-Öffnung zu laden.
-            """
             try:
                 transcript = get_transcript(video_id)
-                summary = get_summary(transcript, title)
+                summary = get_summary(transcript, title) if transcript else "Keine Zusammenfassung verfügbar."
             except:
-                summary = "Keine Zusammenfassung verfügbar."
+                summary = "Fehler beim Laden der Zusammenfassung."
 
             st.session_state[expander_key] = summary
             with container:
                 st.write(summary)
 
-        # Lazy Expander verwenden
         lazy_expander(
             title="📜 Zusammenfassung",
             key=expander_key,
@@ -124,6 +243,28 @@ def build_video_list(incoming_videos, key_id: str):
         )
 
         st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+
+        if key_id =='watch_later':
+            # Nutze den Lazy Button
+            lazy_button(
+                label="🚮delete from list",
+                key=f"del_{video['video_id']}",
+                on_click=delete_video_by_id,
+                callback_kwargs={"video": video}
+            )
+            
+        else:
+            if video['video_id'] not in saved_video_ids:
+                lazy_button(
+                    label="➕add to watch list",
+                    key=f"save_{video['video_id']}",
+                    on_click=save_video_to_csv,
+                    callback_kwargs={"video": video}
+                )            
+            
+            
+
+
 
 
 ## BUILD TABS
@@ -255,9 +396,9 @@ def build_feedback_tab() -> None:
 def build_search_tab():
     st.session_state["active_tab"] = "search"
 
-
-    if "videos" in st.session_state and st.session_state.get("last_tab") != "search":
+    if "videos" not in st.session_state or (st.session_state.get("new_search", False)):
         st.session_state["videos"] = []
+        st.session_state["new_search"] = False  # Reset des Flags nach dem Setzen
 
     st.header("Suche")
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
@@ -269,6 +410,7 @@ def build_search_tab():
         max_results = st.slider("Anzahl der Videos", min_value=1, max_value=50, value=10)
 
     if st.button("🔍 Suchen"):
+        st.session_state["new_search"] = True  # Neue Suche starten
         if search_method == "YouTube API":
             request = youtube.search().list(
                 part="snippet", q=query, type="video", maxResults=10
@@ -278,8 +420,8 @@ def build_search_tab():
         else:
             videos = search_videos_dlp(query, max_results=max_results)
 
-        st.session_state["videos"] = videos 
-        st.session_state["last_tab"] = "search"  # Tab-Wechsel speichern
+        st.session_state["videos"] = videos  # Ergebnisse speichern
+        st.session_state["last_tab"] = "search" # Tab-Wechsel speichern
 
     if st.session_state.get("videos"):
         build_video_list(st.session_state["videos"], key_id="search")
@@ -351,7 +493,20 @@ def build_abobox_tab():
 
     if st.session_state.get("videos"):
         build_video_list(st.session_state["videos"], key_id="abobox")
-      
+
+
+def build_watch_later_tab():
+    st.session_state["active_tab"] = "view_later"
+
+    if "videos" in st.session_state and st.session_state.get("last_tab") != "view_later":
+        st.session_state["videos"] = []
+
+    videos = read_csv_to_list('watch_later.csv')
+
+    st.header("Watch list")
+
+    build_video_list(videos, key_id="watch_later")
+
 
 def build_settings_pop_up() -> None:
 
@@ -493,6 +648,7 @@ tabs = st.tabs(
         "Clickbait Analyse",
         "Suche",
         "Abobox",
+        "Watch Later",  
         "Feedback",
         "Einstellungen"
     ]
@@ -526,13 +682,16 @@ with tabs[4]:
     build_abobox_tab()
 
 ####################################
-# Tab 5: Feedback & Wünsche
 with tabs[5]:
+    build_watch_later_tab()
+    
+####################################
+with tabs[6]:
     build_feedback_tab()
 
 ####################################
 # Tab 6: Einstellungen
-with tabs[6]:
+with tabs[7]:
     build_settings_tab()
 
 

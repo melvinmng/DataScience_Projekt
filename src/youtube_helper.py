@@ -348,8 +348,7 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
 
     videos = sorted(video_data_list, key=lambda v: v.get("upload_date", datetime.min), reverse=True)
 
-    return videos
-    
+    return videos  
 
 def extract_video_id_from_url(url: str) -> str | None:
     """
