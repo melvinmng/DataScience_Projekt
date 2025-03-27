@@ -47,15 +47,28 @@ def duration_to_seconds(duration_str: str) -> int:
 def read_csv_to_list(filename):
     """
     Liest eine CSV-Datei aus und speichert jede Zeile als Dictionary in einer Liste.
+    Entfernt am Ende doppelte Einträge.
     """
     data = []
     
+    # CSV-Datei lesen
     with open(filename, mode="r", encoding="utf-8") as file:
-        reader = csv.DictReader(file)  # Liest die CSV als Dict
+        reader = csv.DictReader(file)
+        
         for row in reader:
-            data.append(dict(row))  # Jede Zeile als Dict speichern
+            data.append(dict(row)) 
     
-    return data
+    seen = set()
+    unique_data = []
+    
+    for row in data:
+        row_tuple = tuple(row.items())
+        
+        if row_tuple not in seen:
+            seen.add(row_tuple)
+            unique_data.append(row)
+    
+    return unique_data
 
 @st.fragment
 def lazy_expander(
