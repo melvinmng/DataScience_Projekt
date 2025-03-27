@@ -7,7 +7,7 @@ import streamlit as st
 from typing import List, Dict
 import feedparser
 import yt_dlp
-
+from streamlit.runtime.scriptrunner import get_script_run_ctx
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 def parse_duration(duration: str) -> str:
@@ -297,51 +297,56 @@ def get_recent_videos_from_subscriptions(
 @st.cache_data(ttl=3600) 
 def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
     videos = []
+    num_threads = min(len(channel_ids), multiprocessing.cpu_count() * 2) 
 
-    num_channels = len(channel_ids)
-    num_threads = min(num_channels, multiprocessing.cpu_count() * 2) 
-    print(f"Num_threads: {num_threads}") # Maximal doppelte CPU-Kerne
+    ctx = get_script_run_ctx()  # 🔥 Streamlit-Thread-Kontext sichern
 
     def fetch_videos(channel_id):
-        """Holt die neuesten Videos für einen einzelnen Kanal"""
+        """Holt die neuesten Videos für einen Kanal."""
         try:
             feed_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
             feed = feedparser.parse(feed_url)
             video_urls = [entry.link for entry in feed.entries[:max_videos]]
-            
+
             video_ids = []
             for video in video_urls:
                 match = re.search(r'(?:https?://)?(?:www\.)?youtube\.com/watch\?v=([a-zA-Z0-9_-]+)', video)
                 if match:
                     video_ids.append(match.group(1))
 
-            return List(set(video_ids))
+            return list(set(video_ids))
+
         except Exception as e:
-            st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
+            if ctx:  # 🔥 Hier den richtigen Streamlit-Kontext setzen!
+                with ctx:
+                    st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
             return []
 
-    # 1️⃣ Parallel Videos von allen Kanälen abrufen
     video_id_lists = []
-    with ThreadPoolExecutor(max_workers= num_threads) as executor:
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
         future_to_channel = {executor.submit(fetch_videos, channel): channel for channel in channel_ids}
         for future in future_to_channel:
             video_id_lists.append(future.result()) 
 
-    # Flach in eine Liste konvertieren
     video_ids = [video_id for sublist in video_id_lists for video_id in sublist]
 
-    # 2️⃣ Parallel Video-Metadaten abrufen
+    def fetch_video_data(video_id):
+        """Holt die Metadaten eines Videos."""
+        try:
+            return get_video_data_dlp(video_id)
+        except Exception as e:
+            if ctx:  
+                with ctx:
+                    st.warning(f"Fehler beim Abrufen der Metadaten für Video {video_id}: {e}")
+            return {}
+
     video_data_list = []
-    with ThreadPoolExecutor(max_workers= num_threads) as executor:
-        future_to_video = {executor.submit(get_video_data_dlp, video_id): video_id for video_id in video_ids}
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        future_to_video = {executor.submit(fetch_video_data, video_id): video_id for video_id in video_ids}
         for future in future_to_video:
             video_data_list.append(future.result())
-  
-            
 
-    # Sortieren nach Upload-Datum
     videos = sorted(video_data_list, key=lambda v: v.get("upload_date", datetime.min), reverse=True)
-
 
     return videos
     

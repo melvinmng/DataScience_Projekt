@@ -1,13 +1,11 @@
 from contextlib import nullcontext
 import re
 import streamlit as st
-import pandas as pd
 import googleapiclient
 import os
 from dotenv import load_dotenv, set_key, dotenv_values
 # Own Modules
 import src.config_env
-
 
 from src.youtube_transcript import get_transcript
 from src.youtube_helper import (
@@ -91,7 +89,7 @@ def lazy_expander(
             # If currently expanded -> collapse (force a rerun)
             else:
                 st.session_state[key] = False
-                st.rerun()
+                
 
 def build_video_list(incoming_videos, key_id: str):
     for video in incoming_videos:
@@ -198,10 +196,17 @@ def build_recommendation_tab(
             loading_time_information.empty()
     if recommendations:
         if search_method == "YouTube API":
-            video_data = get_video_data(youtube, recommendations["video_id"])
+            request = youtube.videos().list(
+                part="snippet", 
+                id=recommendations["video_id"]      
+            )
+            response = request.execute()
+            video_data = get_video_data(youtube, response,'trends')
+            print(video_data)
+            build_video_list(video_data, key_id="recommendation")
         else:
             video_data = get_video_data_dlp(recommendations["video_id"])
-        build_video_list([video_data], key_id="recommendation")
+            build_video_list([video_data], key_id="recommendation")
         st.write('## Begründung:')
         st.write(recommendations["Begründung"])
 
@@ -214,26 +219,27 @@ def build_clickbait_recognition_tab() -> None:
         "🔎 Welches Video möchtest du prüfen? Gib hier die Video-Url ein!",
         "https://www.youtube.com/watch?v=onE9aPkSmlw",
     )
-    video_id = extract_video_id_from_url(video_url)
+    if st.button("🔄 Clickbait Analyse laden"):
+        video_id = extract_video_id_from_url(video_url)
 
-    if video_id:
-        video_info = get_video_data_dlp(video_id)
-        clickbait_elements = check_for_clickbait(get_transcript(video_id),video_info['title'])
-        if clickbait_elements == "no transcript":
-            st.warning(
-                "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuchen Sie es mit einem anderen Video."
-            )
-        elif clickbait_elements == "no response":
-            st.warning(
-                "Es gab leider ein Problem mit Gemini. Bitte versuchen Sie es später noch einmal."
-            )
+        if video_id:
+            video_info = get_video_data_dlp(video_id)
+            clickbait_elements = check_for_clickbait(get_transcript(video_id),video_info['title'])
+            if clickbait_elements == "no transcript":
+                st.warning(
+                    "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuchen Sie es mit einem anderen Video."
+                )
+            elif clickbait_elements == "no response":
+                st.warning(
+                    "Es gab leider ein Problem mit Gemini. Bitte versuchen Sie es später noch einmal."
+                )
+            else:
+                st.video(f"https://www.youtube.com/watch?v={video_id}")
+                st.write(clickbait_elements)
         else:
-            st.video(f"https://www.youtube.com/watch?v={video_id}")
-            st.write(clickbait_elements)
-    else:
-        st.warning(
-            "Kein Video mit dieser Video-ID gefunden, bitte versuchen Sie es noch einmal"
-        )
+            st.warning(
+                "Kein Video mit dieser Video-ID gefunden, bitte versuchen Sie es noch einmal"
+            )
 
 
 def build_feedback_tab() -> None:
@@ -507,8 +513,7 @@ with tabs[1]:
 ####################################
 # Tab 3: Clickbait Analyse
 with tabs[2]:
-    if st.button("🔄 Clickbait Analyse laden"):
-        build_clickbait_recognition_tab()
+    build_clickbait_recognition_tab()
 
 ####################################
 # Tab 3: Suche
