@@ -28,6 +28,16 @@ def get_short_summary_for_watch_list(transcript, title, channel):
     except:
         return transcript
 
+def get_channel_recommondations(history, channels):
+    response = ai_client.models.generate_content(
+            model=ai_model,
+            config=ai_generate_content_config,
+            contents=f"Gebe mir anhand meiner Video History {channels} Kanalvorschläge die mir auch gefalle könnten. Gebe mir nur die Namen der Kanäle zurück."
+        )
+    if response.text:
+            return response.text
+    else:
+            return None
 
 def get_summary(transcript: str, title) -> str | None:
     """

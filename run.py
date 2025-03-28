@@ -718,7 +718,8 @@ from src.llm_analysis import (
     combine_video_id_title_and_transcript,
     check_for_clickbait,
     get_subscriptions_based_on_interests,
-    get_short_summary_for_watch_list
+    get_short_summary_for_watch_list,
+    get_channel_recommondations
 )
 ###----------------------------------###
 
