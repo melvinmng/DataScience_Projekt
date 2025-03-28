@@ -5,6 +5,7 @@ import googleapiclient
 import os
 import csv
 from dotenv import load_dotenv, set_key, dotenv_values
+import shutil
 # Own Modules
 import src.config_env
 
@@ -24,7 +25,9 @@ from src.youtube_helper import (
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
 
+watch_later_history = 'watch_later_history.csv'
 watch_later_csv = 'watch_later.csv'
+gitignore ='.gitignore'
 
 result = None
 ## HELPERS
@@ -149,7 +152,73 @@ def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
         if label == "🚮delete from list":
             st.rerun()
 
-def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=".gitignore"):
+
+
+def update_history_csv(source_file: str = watch_later_csv, history_file: str = watch_later_history, gitignore_path: str = gitignore):
+    """
+    Fügt neue Einträge aus source_file in history_file ein, falls sie dort noch nicht existieren.
+    Falls history_file noch nicht existiert, wird sie erstellt und zur .gitignore hinzugefügt.
+
+    Args:
+        source_file (str): Pfad zur aktuellen CSV-Datei.
+        history_file (str): Pfad zur History-CSV-Datei (Standard: "history.csv").
+        gitignore_path (str): Pfad zur .gitignore-Datei (Standard: ".gitignore").
+    """
+
+    # Prüfen, ob die Quell-CSV existiert und nicht leer ist
+    if not os.path.exists(source_file) or os.stat(source_file).st_size == 0:
+        print("Die Quell-CSV ist leer oder existiert nicht. Keine neuen Einträge.")
+        return
+
+    # Falls die History-Datei nicht existiert, sie erstellen und zur .gitignore hinzufügen
+    if not os.path.exists(history_file):
+        with open(history_file, mode="w", encoding="utf-8") as file:
+            pass  # Leere Datei erstellen
+        print(f"{history_file} wurde erstellt.")
+
+        # In .gitignore eintragen, falls nicht bereits vorhanden
+        if os.path.exists(gitignore_path):
+            with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
+                lines = gitignore_file.readlines()
+                if history_file + "\n" not in lines and history_file not in lines:
+                    gitignore_file.write("\n" + history_file + "\n")
+                    print(f"{history_file} wurde zur .gitignore hinzugefügt.")
+        else:
+            with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
+                gitignore_file.write(history_file + "\n")
+                print(f".gitignore wurde erstellt und {history_file} hinzugefügt.")
+
+    # Bestehende History-Daten einlesen
+    history_data = set()
+    if os.stat(history_file).st_size > 0:
+        with open(history_file, mode="r", encoding="utf-8") as file:
+            reader = csv.reader(file)
+            header = next(reader, None)  # Header lesen
+            for row in reader:
+                history_data.add(tuple(row))
+
+    # Neue Daten aus der Quell-CSV einlesen
+    new_data = []
+    with open(source_file, mode="r", encoding="utf-8") as file:
+        reader = csv.reader(file)
+        header = next(reader, None)  # Header lesen
+        for row in reader:
+            if tuple(row) not in history_data:
+                new_data.append(row)
+
+    # Falls es neue Einträge gibt, in die History-CSV speichern
+    if new_data:
+        with open(history_file, mode="a", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            if not history_data:  # Falls die Datei gerade erst erstellt wurde, Header schreiben
+                writer.writerow(header)
+            writer.writerows(new_data)
+        print(f"{len(new_data)} neue Einträge zur History hinzugefügt.")
+    else:
+        print("Keine neuen Einträge für die History gefunden.")
+
+
+def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=gitignore):
     file_exists = os.path.isfile(filename)
     # CSV-Datei schreiben
     with open(filename, mode="a", newline="", encoding="utf-8") as file:
@@ -186,6 +255,8 @@ def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=".gitignor
     else:
         with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
             gitignore_file.write(f"{filename}\n")
+
+    update_history_csv()
 
 
 
@@ -523,8 +594,11 @@ def build_watch_later_tab():
 
     if os.path.exists(watch_later_csv):
         videos = read_csv_to_list(watch_later_csv)
-        st.header("Watch list")
-        build_video_list(videos, key_id="watch_later")
+        if len(videos) != 0:
+            st.header("Watch list")
+            build_video_list(videos, key_id="watch_later")
+        else:
+            st.error('Es wurden noch keine Videos zur Watchlist hinzugefügt')
     else:
         st.error('Es wurden noch keine Videos zur Watchlist hinzugefügt')
 
