@@ -5,7 +5,7 @@ import googleapiclient
 import os
 import csv
 from dotenv import load_dotenv, set_key, dotenv_values
-import shutil
+import pandas as pd
 # Own Modules
 import src.config_env
 
@@ -372,16 +372,9 @@ def build_trending_videos_tab() -> None:
         else:
             build_video_list(videos, key_id="trending_videos")
 
-
-def build_recommendation_tab(
-    retry_count: int = 0,
-    show_spinner: bool = True,
-    show_loading_time_information: bool = True,
-) -> None:
+def build_trend_recommondations(retry_count: int = 0, show_spinner: bool = True, show_loading_time_information: bool = True,):
     loading_time_information = None
     max_retries = 3
-    if retry_count == 0:
-        st.header("Personalisierte Empfehlungen")
 
     if retry_count >= max_retries:
         st.error(
@@ -398,31 +391,33 @@ def build_recommendation_tab(
             loading_time_information.info(
                 "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
             )
+
         if search_method == "YouTube API":
             videos = get_trending_videos(youtube, region_code="DE")
         else:   
             videos = get_trending_videos_dlp(region_code="DE")
 
-        st.write('done1')
         video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
             videos
         )
-        st.write('done2')
         recommendations_unfiltered = get_recommendation(
             video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
             interests=user_interests,
         )
+
         if recommendations_unfiltered:
             recommendations = extract_video_id_and_reason(
                 recommendations_unfiltered,
-                on_fail=lambda: build_recommendation_tab(
+                on_fail=lambda: build_trend_recommondations(
                     retry_count=retry_count + 1,
                     show_spinner=False,
                     show_loading_time_information=False,
                 ),
             )
+
         if loading_time_information:
             loading_time_information.empty()
+
     if recommendations:
         if search_method == "YouTube API":
             request = youtube.videos().list(
@@ -431,13 +426,75 @@ def build_recommendation_tab(
             )
             response = request.execute()
             video_data = get_video_data(youtube, response,'trends')
-            print(video_data)
             build_video_list(video_data, key_id="recommendation")
         else:
             video_data = get_video_data_dlp(recommendations["video_id"])
             build_video_list([video_data], key_id="recommendation")
+
         st.write('## Begründung:')
         st.write(recommendations["Begründung"])
+
+def build_gemini_recommondations(history_path):
+    recommended_videos=[]
+    try:
+        channelId = load_channel_id()
+    except:
+        st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
+
+    if search_method == "YouTube API":
+        max_results = st.slider("Videoanzahl pro Kanal", min_value=1, max_value=5, value=2)
+        max_abos = st.slider("Kanalanzahl", min_value=1, max_value=20, value=10)
+    else:
+        max_results = st.slider("Videoanzahl pro Kanal(yt_dlp)", min_value=1, max_value=10, value=5)
+        max_abos = st.slider("Kanalanzahl (yt-dlp)", min_value=1, max_value=30, value=10)
+
+
+    subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
+    if os.path.exists(history_path):
+        history = read_csv_to_list(history_path)
+        if len(history) != 0:
+            if st.button("🔄 Gemini Recommendation laden"): 
+                recommended_channels = get_channel_recommondations(history,subscriptions ,max_abos, user_interests)
+                for channel in recommended_channels:
+                    print(channel)
+                    print('response:_______________________________')
+                    if search_method == "YouTube API":
+                        request = youtube.search().list(
+                            part="snippet", q=channel, type="video", maxResults=max_results
+                        )
+                        response = request.execute()
+                        print(response)
+                        videos = get_video_data(youtube, response)
+                    else:
+                        videos = search_videos_dlp(channel, max_results=max_results)
+
+                    for video in videos:
+                        recommended_videos.append(video)
+
+                build_video_list(recommended_videos, 'gemini_rec')
+        else:
+            st.error('Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf.')
+    else:
+        st.error('Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf.')
+
+def build_recommendation_tab(
+    retry_count: int = 0,
+    show_spinner: bool = True,
+    show_loading_time_information: bool = True,
+) -> None:
+    st.header("Personalisierte Empfehlungen")
+
+    # Erstelle die Tabs
+    tab1, tab2 = st.tabs(["Trends Recommendation", " Gemini Recommendation"])
+
+
+    with tab1:
+        if st.button("🔄 Trend Recommendation laden"):
+            build_trend_recommondations(retry_count, show_spinner, show_loading_time_information)
+
+    with tab2:
+        build_gemini_recommondations('watch_later_history.csv')      
+
 
 
 def build_clickbait_recognition_tab() -> None:
@@ -504,6 +561,7 @@ def build_search_tab():
                 part="snippet", q=query, type="video", maxResults=10
             )
             response = request.execute()
+            print(response)
             videos = get_video_data(youtube, response)
         else:
             videos = search_videos_dlp(query, max_results=max_results)
@@ -543,6 +601,9 @@ def build_abobox_tab():
 
     try:
         subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
+        if len(subscriptions)==0:
+            st.error('APi key aufgebraucht oder Abos nicht auf öffentlich')
+
     except:
         st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
     
@@ -626,7 +687,7 @@ def build_settings_pop_up() -> None:
 
     # Eingabefelder für API-Keys
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
-    openai_key = st.text_input("🤖 OpenAI API Key", openai_api_key, type="password")
+    openai_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
     # Speichern-Button
@@ -672,6 +733,18 @@ def build_settings_tab() -> None:
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
     openai_key = st.text_input("🤖 OpenAI API Key", openai_api_key, type="password")
 
+    if st.button("🗑️Watch List history löschen"):
+        history = watch_later_history
+        
+        # CSV einlesen
+        df = pd.read_csv(history)
+        df1 = pd.read_csv(watch_later_csv)
+
+        # Nur die Header behalten und Datei neu schreiben
+        df.iloc[0:0].to_csv(history, index=False)
+        df1.iloc[0:0].to_csv(watch_later_csv, index=False)
+
+        st.success('Erfolgreich gelöscht')
     # API-Keys speichern
     if st.button("💾 Speichern"):
         if youtube_key:
@@ -758,12 +831,11 @@ tabs = st.tabs(
 
 ####################################
 with tabs[0]:
-        build_trending_videos_tab()
+    build_trending_videos_tab()
 
 ####################################
 with tabs[1]:
-    if st.button("🔄 Empfehlungen laden"):
-        build_recommendation_tab()
+    build_recommendation_tab()
 
 ####################################
 with tabs[2]:

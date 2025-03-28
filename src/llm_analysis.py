@@ -28,16 +28,24 @@ def get_short_summary_for_watch_list(transcript, title, channel):
     except:
         return transcript
 
-def get_channel_recommondations(history, channels):
+def get_channel_recommondations(history, channels, Anzahl, interests):
     response = ai_client.models.generate_content(
             model=ai_model,
             config=ai_generate_content_config,
-            contents=f"Gebe mir anhand meiner Video History {channels} Kanalvorschläge die mir auch gefalle könnten. Gebe mir nur die Namen der Kanäle zurück."
+            contents =(
+                f"Gebe mir anhand meiner Video History {history} genau {Anzahl} Kanalvorschläge die mir gefallen könnten. DIE KANÄLE DIE DU MIR VORSCHLÄGST MÜSSEN NEUE KANÄLE SEIN. SIE DÜRFEN NICHT IN MEINER HISTORY STEHEN. Gebe mir AUSSCHLIESLICH nur die Namen der Kanäle in reiner Textform und Kommagetrent zurück.\n"
+                f"Zusätzlich erhälts du meine Abos umd noch genauere Empfehlungen zu geben. Abos: {channels}. Deine Empfehlungen müssen Kanäle sein, die ich noch nicht abonniert habe.\n"
+                f"Berücksichtige außerdem noch meine aktuellen Interessen: {interests} und gewichte diese besonders in deiner Auswahl. Es sollte für jede Interesse ein Kanal in deiner Auswahl dabei sein."
+                f"Gebe wirklich außschließlich nur die Kanäle kommagetrennt zurück. Bsp: Kanal1, Kanal2, Kanal3, etc...WIRKLICH NUR DIE KANÄLE NICHTS ANDERES."
+            )
+
+
         )
     if response.text:
-            return response.text
+            print(response.text)
+            return response.text.split(",")
     else:
-            return None
+            return 'Fehler'
 
 def get_summary(transcript: str, title) -> str | None:
     """
@@ -73,7 +81,11 @@ def get_summary_without_spoiler(transcript: str) -> str | None:
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
-        contents=f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein und achte darauf, keinen Inhalt zu spoilern.",
+        contents=(
+            f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein und achte darauf, keinen Inhalt zu spoilern."
+            
+        )
+
     )
 
     if response.text:

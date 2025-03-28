@@ -10,6 +10,7 @@ import yt_dlp
 from streamlit.runtime.scriptrunner import get_script_run_ctx
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
+import os
 def parse_duration(duration: str) -> str:
     """
     Parse a YouTube video duration string into a human-readable format (MM:SS).
@@ -117,22 +118,40 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
     Args:
         youtube (object): The YouTube API client.
         response (dict): The response from a YouTube API search query.
+        mode (str, optional): Mode to determine parsing behavior (e.g., "trends").
 
     Returns:
         list: A list of dictionaries containing video metadata such as title, tags, video ID, etc.
     """
     videos = []
-    for index, item in enumerate(response["items"], start=1):
-        if mode == "trends":
-            video_id = item["id"]
-        else:
-            video_id = item["id"]["videoId"]
-        title = item["snippet"]["title"]
-        channel_name = item["snippet"]["channelTitle"]
-        tags = item["snippet"].get("tags", [])
-        thumbnail = item["snippet"]["thumbnails"]["medium"]["url"]
-        length = get_video_length(youtube, video_id)
+    
+    for index, item in enumerate(response.get("items", []), start=1):
+        try:
+            # Primäre Methode zur Extraktion
+            if item["id"]["kind"] != "youtube#video":
+                continue  # Überspringe Nicht-Video-Ergebnisse
 
+            video_id = item["id"]["videoId"]
+            title = item["snippet"]["title"]
+            channel_name = item["snippet"]["channelTitle"]
+            tags = item["snippet"].get("tags", [])
+            thumbnail = item["snippet"]["thumbnails"]["medium"]["url"]
+            length = get_video_length(youtube, video_id)
+        
+        except KeyError:
+            # Alternative Methode zur Verarbeitung
+            print(f"Warnung: Unerwartete API-Struktur für Item {index}, alternative Verarbeitung wird versucht.")
+            try:
+                video_id = item.get("id", {}).get("videoId", "Unknown")
+                title = item.get("snippet", {}).get("title", "Unknown Title")
+                channel_name = item.get("snippet", {}).get("channelTitle", "Unknown Channel")
+                tags = item.get("snippet", {}).get("tags", [])
+                thumbnail = item.get("snippet", {}).get("thumbnails", {}).get("medium", {}).get("url", "")
+                length = "Unknown"
+            except Exception as e:
+                print(f"Fehler beim Verarbeiten des Items {index}: {e}")
+                continue  # Falls auch die alternative Methode fehlschlägt, überspringe das Item
+        
         videos.append(
             {
                 "place": index,
@@ -210,34 +229,45 @@ def get_category_name(youtube: object, category_id: str) -> str:
     return categories.get(category_id, "Unbekannte Kategorie")
 
 
-def get_subscriptions(channel_Id: str, youtube: object) -> pd.DataFrame:
+def get_subscriptions(channel_Id: str, youtube: object, csv_filename="subscriptions.csv", gitignore_path=".gitignore") -> pd.DataFrame:
     """
-    Retrieves all YouTube channel subscriptions for a given channel ID.
+    Holt YouTube-Abonnements für eine gegebene Kanal-ID.
+    Falls die CSV-Datei existiert, werden die Daten aus der Datei gelesen.
+    Falls nicht, werden die Daten von der API abgerufen und gespeichert.
 
     Args:
-        channel_Id (str): The YouTube channel ID.
-        youtube (str): Youtube API Client.
+        channel_Id (str): Die YouTube-Kanal-ID.
+        youtube (object): YouTube API Client.
+        csv_filename (str): Name der CSV-Datei zum Speichern.
+        gitignore_path (str): Pfad zur .gitignore-Datei.
 
     Returns:
-        pd.DataFrame: A DataFrame containing subscription details.
+        pd.DataFrame: Ein DataFrame mit den Abonnementdetails.
     """
+    # Falls CSV existiert, lese Daten daraus und returne
+    if os.path.isfile(csv_filename):
+        return pd.read_csv(csv_filename)
+
     subscriptions = []
     next_page_token = None
 
     while True:
-        request = youtube.subscriptions().list(
-            part="snippet,contentDetails",
-            channelId=channel_Id,
-            maxResults=50,  # Maximum pro Anfrage
-            pageToken=next_page_token,
-        )
-        response = request.execute()
+        try:
+            request = youtube.subscriptions().list(
+                part="snippet,contentDetails",
+                channelId=channel_Id,
+                maxResults=50,
+                pageToken=next_page_token,
+            )
+            response = request.execute()
+        except Exception as e:
+            st.write("API Tokens aufgebraucht oder Fehler aufgetreten:", str(e))
+            return pd.DataFrame()  # Leeres DataFrame zurückgeben
 
-        subscriptions.extend(response["items"])
-
+        subscriptions.extend(response.get("items", []))
         next_page_token = response.get("nextPageToken")
         if not next_page_token:
-            break  # Keine weiteren Seiten → Beende die Schleife
+            break
 
     channels = []
     for item in subscriptions:
@@ -259,6 +289,22 @@ def get_subscriptions(channel_Id: str, youtube: object) -> pd.DataFrame:
 
     # DataFrame erstellen
     subs = pd.DataFrame(channels)
+
+    # Daten in CSV speichern
+    subs.to_csv(csv_filename, index=False, encoding="utf-8")
+
+    # Falls die .gitignore existiert, prüfen ob die CSV bereits eingetragen ist
+    if os.path.isfile(gitignore_path):
+        with open(gitignore_path, "r", encoding="utf-8") as gitignore_file:
+            gitignore_content = gitignore_file.readlines()
+        
+        if csv_filename not in [line.strip() for line in gitignore_content]:
+            with open(gitignore_path, "a", encoding="utf-8") as gitignore_file:
+                gitignore_file.write(f"\n{csv_filename}\n")
+    else:
+        # Falls .gitignore nicht existiert, erstelle sie und füge die Datei hinzu
+        with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
+            gitignore_file.write(f"{csv_filename}\n")
 
     return subs
 
