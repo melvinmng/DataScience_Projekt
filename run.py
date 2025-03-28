@@ -24,6 +24,8 @@ from src.youtube_helper import (
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
 
+watch_later_csv = 'watch_later.csv'
+
 result = None
 ## HELPERS
 def duration_to_seconds(duration_str: str) -> int:
@@ -147,11 +149,11 @@ def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
         if label == "🚮delete from list":
             st.rerun()
 
-def save_video_to_csv(video, filename="watch_later.csv", gitignore_path=".gitignore"):
+def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=".gitignore"):
     file_exists = os.path.isfile(filename)
     # CSV-Datei schreiben
     with open(filename, mode="a", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=["title", "channel_name", "video_id", "video_url"])
+        writer = csv.DictWriter(file, fieldnames=["title", "channel_name", "video_id", "video_url", "length", "transcript"])
         
         if not file_exists:
             writer.writeheader()
@@ -160,7 +162,9 @@ def save_video_to_csv(video, filename="watch_later.csv", gitignore_path=".gitign
             "title": video["title"],
             "channel_name": video["channel_name"],
             "video_id": video["video_id"],
-            "video_url": f"https://www.youtube.com/watch?v={video['video_id']}"
+            "video_url": f"https://www.youtube.com/watch?v={video['video_id']}",
+            "length": video["length"],
+            "transcript": get_transcript(video['video_id'])
         })
 
     # .gitignore aktualisieren
@@ -185,7 +189,7 @@ def save_video_to_csv(video, filename="watch_later.csv", gitignore_path=".gitign
 
 
 
-def delete_video_by_id(video, filename='watch_later.csv'):
+def delete_video_by_id(video, filename=watch_later_csv):
     """
     Löscht den Eintrag mit der angegebenen `video_id` aus der CSV-Datei.
     """
@@ -202,7 +206,7 @@ def delete_video_by_id(video, filename='watch_later.csv'):
 
     # Schreibe die aktualisierte Liste zurück in die CSV-Datei
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
-        fieldnames = ["title", "channel_name", "video_id", "video_url"]
+        fieldnames = ["title", "channel_name", "video_id", "video_url", "length", "transcript"]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         
         writer.writeheader()
@@ -213,10 +217,9 @@ def delete_video_by_id(video, filename='watch_later.csv'):
 
 
 def build_video_list(incoming_videos, key_id: str):
-    filename = 'watch_later.csv'
+    saved_video_ids = []
+    filename = watch_later_csv
     if os.path.exists(filename):
-        saved_video_ids = []
-    
         # Öffne die CSV-Datei zum Lesen
         with open(filename, mode="r", encoding="utf-8") as file:
             reader = csv.DictReader(file)
@@ -256,6 +259,7 @@ def build_video_list(incoming_videos, key_id: str):
         )
 
         st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
+        st.write(video['length'])
 
         if key_id =='watch_later':
             # Nutze den Lazy Button
@@ -514,11 +518,19 @@ def build_watch_later_tab():
     if "videos" in st.session_state and st.session_state.get("last_tab") != "view_later":
         st.session_state["videos"] = []
 
-    videos = read_csv_to_list('watch_later.csv')
+    if st.button('neu laden'):
+        st.rerun()
+        
+    if os.path.exists(watch_later_csv):
+        videos = read_csv_to_list(watch_later_csv)
+        st.header("Watch list")
+        build_video_list(videos, key_id="watch_later")
+    else:
+        st.error('Es wurden noch keine Videos zur Watchlist hinzugefügt')
 
-    st.header("Watch list")
+    
 
-    build_video_list(videos, key_id="watch_later")
+    
 
 
 def build_settings_pop_up() -> None:
