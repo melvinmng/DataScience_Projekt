@@ -222,7 +222,7 @@ def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=gitignore)
     file_exists = os.path.isfile(filename)
     # CSV-Datei schreiben
     with open(filename, mode="a", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=["title", "channel_name", "video_id", "video_url", "length", "transcript"])
+        writer = csv.DictWriter(file, fieldnames=["title", "channel_name", "video_id", "video_url", "length", "summarized_transcript"])
         
         if not file_exists:
             writer.writeheader()
@@ -233,7 +233,7 @@ def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=gitignore)
             "video_id": video["video_id"],
             "video_url": f"https://www.youtube.com/watch?v={video['video_id']}",
             "length": video["length"],
-            "transcript": get_transcript(video['video_id'])
+            "summarized_transcript": get_short_summary_for_watch_list(get_transcript(video['video_id']),video['title'],video["channel_name"]),
         })
 
     # .gitignore aktualisieren
@@ -277,7 +277,7 @@ def delete_video_by_id(video, filename=watch_later_csv):
 
     # Schreibe die aktualisierte Liste zurück in die CSV-Datei
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
-        fieldnames = ["title", "channel_name", "video_id", "video_url", "length", "transcript"]
+        fieldnames = ["title", "channel_name", "video_id", "video_url", "length", "summarized_transcript"]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         
         writer.writeheader()
@@ -718,6 +718,7 @@ from src.llm_analysis import (
     combine_video_id_title_and_transcript,
     check_for_clickbait,
     get_subscriptions_based_on_interests,
+    get_short_summary_for_watch_list
 )
 ###----------------------------------###
 

@@ -14,6 +14,21 @@ import multiprocessing
 import json
 
 
+def get_short_summary_for_watch_list(transcript, title, channel):
+    try:
+        response = ai_client.models.generate_content(
+            model=ai_model,
+            config=ai_generate_content_config,
+            contents=f"Fasse mir dieses Video unglaublich kurz und prägnant zusammen,sodass nur das Hauptthema des Videos klar wird. Transkript: {transcript}. Zusätzlich gebe ich dir noch den Titel des Videos und den Kanalnamen. Titel:{title}, Channel:{channel}. Gebe mir zudem nur die Zusammenfassung zurück. Keine Überschriften etc.",
+        )
+        if response.text:
+            return response.text
+        else:
+            return None
+    except:
+        return transcript
+
+
 def get_summary(transcript: str, title) -> str | None:
     """
     Offers a summary of a YouTube video using its transcript. Spoilers possible.
