@@ -520,7 +520,7 @@ def build_watch_later_tab():
 
     if st.button('neu laden'):
         st.rerun()
-        
+
     if os.path.exists(watch_later_csv):
         videos = read_csv_to_list(watch_later_csv)
         st.header("Watch list")
@@ -681,28 +681,23 @@ tabs = st.tabs(
 
 
 ####################################
-# Tab 1: Trending Videos
 with tabs[0]:
         build_trending_videos_tab()
 
 ####################################
-# Tab 2: Personalisierte Empfehlungen
 with tabs[1]:
     if st.button("🔄 Empfehlungen laden"):
         build_recommendation_tab()
 
 ####################################
-# Tab 3: Clickbait Analyse
 with tabs[2]:
     build_clickbait_recognition_tab()
 
 ####################################
-# Tab 3: Suche
 with tabs[3]:
     build_search_tab()
 
 ####################################
-# Tab 4 Abobox
 with tabs[4]:
     build_abobox_tab()
 
@@ -715,8 +710,7 @@ with tabs[6]:
     build_feedback_tab()
 
 ####################################
-# Tab 6: Einstellungen
 with tabs[7]:
     build_settings_tab()
 
-
+####################################
