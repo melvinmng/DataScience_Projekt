@@ -28,6 +28,7 @@ from src.key_management.youtube_channel_id import load_channel_id
 watch_later_history = 'watch_later_history.csv'
 watch_later_csv = 'watch_later.csv'
 gitignore ='.gitignore'
+Interests_file = "interests.txt"  # Speicherdatei für die Interessen
 
 result = None
 ## HELPERS
@@ -47,33 +48,6 @@ def duration_to_seconds(duration_str: str) -> int:
     except Exception as e:
         st.error(f"Fehler beim Parsen der Dauer: {e}")
     return 0
-
-
-def read_csv_to_list(filename):
-    """
-    Liest eine CSV-Datei aus und speichert jede Zeile als Dictionary in einer Liste.
-    Entfernt am Ende doppelte Einträge.
-    """
-    data = []
-    
-    # CSV-Datei lesen
-    with open(filename, mode="r", encoding="utf-8") as file:
-        reader = csv.DictReader(file)
-        
-        for row in reader:
-            data.append(dict(row)) 
-    
-    seen = set()
-    unique_data = []
-    
-    for row in data:
-        row_tuple = tuple(row.items())
-        
-        if row_tuple not in seen:
-            seen.add(row_tuple)
-            unique_data.append(row)
-    
-    return unique_data
 
 @st.fragment
 def lazy_expander(
@@ -153,6 +127,42 @@ def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
             st.rerun()
 
 
+########################## CSV-Functions ##########################
+def write_filename_to_gitignore(gitignore_path, filename):
+    if os.path.exists(gitignore_path):
+            with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
+                lines = gitignore_file.readlines()
+                if filename not in [line.strip() for line in lines]:
+                    gitignore_file.write(f"\n{filename}\n")
+    else:
+        with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
+            gitignore_file.write(f"{filename}\n")
+
+def read_csv_to_list(filename):
+    """
+    Liest eine CSV-Datei aus und speichert jede Zeile als Dictionary in einer Liste.
+    Entfernt am Ende doppelte Einträge.
+    """
+    data = []
+    
+    # CSV-Datei lesen
+    with open(filename, mode="r", encoding="utf-8") as file:
+        reader = csv.DictReader(file)
+        
+        for row in reader:
+            data.append(dict(row)) 
+    
+    seen = set()
+    unique_data = []
+    
+    for row in data:
+        row_tuple = tuple(row.items())
+        
+        if row_tuple not in seen:
+            seen.add(row_tuple)
+            unique_data.append(row)
+    
+    return unique_data
 
 def update_history_csv(source_file: str = watch_later_csv, history_file: str = watch_later_history, gitignore_path: str = gitignore):
     """
@@ -176,17 +186,7 @@ def update_history_csv(source_file: str = watch_later_csv, history_file: str = w
             pass  # Leere Datei erstellen
         print(f"{history_file} wurde erstellt.")
 
-        # In .gitignore eintragen, falls nicht bereits vorhanden
-        if os.path.exists(gitignore_path):
-            with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
-                lines = gitignore_file.readlines()
-                if history_file + "\n" not in lines and history_file not in lines:
-                    gitignore_file.write("\n" + history_file + "\n")
-                    print(f"{history_file} wurde zur .gitignore hinzugefügt.")
-        else:
-            with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
-                gitignore_file.write(history_file + "\n")
-                print(f".gitignore wurde erstellt und {history_file} hinzugefügt.")
+        write_filename_to_gitignore(gitignore_path, history_file)
 
     # Bestehende History-Daten einlesen
     history_data = set()
@@ -222,7 +222,7 @@ def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=gitignore)
     file_exists = os.path.isfile(filename)
     # CSV-Datei schreiben
     with open(filename, mode="a", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=["title", "channel_name", "video_id", "video_url", "length", "summarized_transcript"])
+        writer = csv.DictWriter(file, fieldnames=["title", "channel_name", "video_id", "video_url", "length", "views", "summarized_transcript"])
         
         if not file_exists:
             writer.writeheader()
@@ -233,31 +233,31 @@ def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=gitignore)
             "video_id": video["video_id"],
             "video_url": f"https://www.youtube.com/watch?v={video['video_id']}",
             "length": video["length"],
+            "views": video['views'],
             "summarized_transcript": get_short_summary_for_watch_list(get_transcript(video['video_id']),video['title'],video["channel_name"]),
         })
 
     # .gitignore aktualisieren
-    if os.path.exists(gitignore_path):
-        with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
-            lines = gitignore_file.readlines()
-            if filename not in [line.strip() for line in lines]:
-                gitignore_file.write(f"\n{filename}\n")
-    else:
-        with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
-            gitignore_file.write(f"{filename}\n")
-
-    # .gitignore aktualisieren
-    if os.path.exists(gitignore_path):
-        with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
-            lines = gitignore_file.readlines()
-            if filename not in [line.strip() for line in lines]:
-                gitignore_file.write(f"\n{filename}\n")
-    else:
-        with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
-            gitignore_file.write(f"{filename}\n")
+    write_filename_to_gitignore(gitignore_path, filename)
+    
 
     update_history_csv()
 
+def load_interests():
+    """Lädt die Interessen aus der Datei, falls sie existiert."""
+    if os.path.exists(Interests_file):
+        with open(Interests_file, "r", encoding="utf-8") as file:
+            return file.read().strip()
+    return ""  # Falls die Datei nicht existiert, leere Zeichenkette zurückgeben
+
+def save_interests(interests):
+    """Speichert die Interessen in die Datei, falls sie sich geändert haben."""
+    current_interests = load_interests()
+    if current_interests != interests:  # Speichern nur, wenn es Änderungen gibt
+        with open(Interests_file, "w", encoding="utf-8") as file:
+            file.write(interests)
+
+    write_filename_to_gitignore(filename = Interests_file, gitignore_path = gitignore)
 
 
 def delete_video_by_id(video, filename=watch_later_csv):
@@ -277,7 +277,7 @@ def delete_video_by_id(video, filename=watch_later_csv):
 
     # Schreibe die aktualisierte Liste zurück in die CSV-Datei
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
-        fieldnames = ["title", "channel_name", "video_id", "video_url", "length", "summarized_transcript"]
+        fieldnames = ["title", "channel_name", "video_id", "video_url", "length","views", "summarized_transcript"]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         
         writer.writeheader()
@@ -330,7 +330,8 @@ def build_video_list(incoming_videos, key_id: str):
         )
 
         st.video(f"https://www.youtube.com/watch?v={video['video_id']}")
-        st.write(video['length'])
+        st.write(f"{video['length']} Min.")
+        st.write(f"{video['views']} Views")
 
         if key_id =='watch_later':
             # Nutze den Lazy Button
@@ -805,8 +806,10 @@ length_filter = st.sidebar.slider(
     help="Wähle dein verfügbares Zeitbudget in Minuten.",
 )
 user_interests = st.sidebar.text_input(
-    "Deine Interessensgebiete (kommagetrennt)", value=src.settings.interests
+    "Deine Interessensgebiete (kommagetrennt)", value=load_interests()
 )
+save_interests(user_interests)
+
 search_method = st.sidebar.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
 
 st.session_state.show_spoiler = st.sidebar.checkbox(

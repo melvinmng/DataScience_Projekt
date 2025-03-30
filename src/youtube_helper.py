@@ -85,7 +85,6 @@ def get_video_length_dlp(video_id: str) -> str: #Checked
 
 
 def get_video_data_dlp(video_id) -> list:
-    global result 
     ydl_opts = {'quiet': True, 'noplaylist': True, 'no_warnings': True}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -103,6 +102,7 @@ def get_video_data_dlp(video_id) -> list:
                 "length": length_str,
                 "upload_date": formatted_date,
                 "channel_name": info.get("uploader", "Unbekannter Kanal"),
+                "views": info.get("view_count", 0),
             }
         except Exception:
             print("Fehler beim Abrufen der Video-Metadaten")
@@ -110,10 +110,11 @@ def get_video_data_dlp(video_id) -> list:
 
     return video_dict
 
- 
+
+
 def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str, str]]:
     """
-    Extract video data from a YouTube API response.
+    Extract video data from a YouTube API response, including views.
 
     Args:
         youtube (object): The YouTube API client.
@@ -121,15 +122,33 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
         mode (str, optional): Mode to determine parsing behavior (e.g., "trends").
 
     Returns:
-        list: A list of dictionaries containing video metadata such as title, tags, video ID, etc.
+        list: A list of dictionaries containing video metadata such as title, tags, video ID, views, etc.
     """
     videos = []
-    
+    video_ids = []
+
+    # 1️⃣ Sammle alle Video-IDs für einen Batch-API-Call
+    for item in response.get("items", []):
+        if item["id"]["kind"] == "youtube#video":
+            video_ids.append(item["id"]["videoId"])
+
+    # 2️⃣ API-Call für Video-Details (inkl. ViewCount)
+    video_details_response = youtube.videos().list(
+        part="statistics",
+        id=",".join(video_ids)  # Alle Video-IDs als eine Anfrage senden
+    ).execute()
+
+    # 3️⃣ Mapping von Video-ID zu ViewCount
+    video_views_map = {
+        item["id"]: item["statistics"].get("viewCount", "0")
+        for item in video_details_response.get("items", [])
+    }
+
+    # 4️⃣ Verarbeitung der ursprünglichen API-Antwort
     for index, item in enumerate(response.get("items", []), start=1):
         try:
-            # Primäre Methode zur Extraktion
             if item["id"]["kind"] != "youtube#video":
-                continue  # Überspringe Nicht-Video-Ergebnisse
+                continue  # Nur Videos verarbeiten
 
             video_id = item["id"]["videoId"]
             title = item["snippet"]["title"]
@@ -137,9 +156,10 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
             tags = item["snippet"].get("tags", [])
             thumbnail = item["snippet"]["thumbnails"]["medium"]["url"]
             length = get_video_length(youtube, video_id)
-        
+            views = video_views_map.get(video_id, "0")  # Views aus der vorherigen API-Abfrage
+
         except KeyError:
-            # Alternative Methode zur Verarbeitung
+            # Alternative Methode, falls Struktur abweicht
             print(f"Warnung: Unerwartete API-Struktur für Item {index}, alternative Verarbeitung wird versucht.")
             try:
                 video_id = item.get("id", {}).get("videoId", "Unknown")
@@ -148,9 +168,10 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
                 tags = item.get("snippet", {}).get("tags", [])
                 thumbnail = item.get("snippet", {}).get("thumbnails", {}).get("medium", {}).get("url", "")
                 length = "Unknown"
+                views = "0"
             except Exception as e:
                 print(f"Fehler beim Verarbeiten des Items {index}: {e}")
-                continue  # Falls auch die alternative Methode fehlschlägt, überspringe das Item
+                continue
         
         videos.append(
             {
@@ -161,28 +182,29 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
                 "thumbnail": thumbnail,
                 "length": length,
                 "channel_name": channel_name,
+                "views": views,  # 👈 Views sind jetzt enthalten!
             }
         )
 
     return videos
 
 @st.cache_data(ttl=3600) 
-def search_videos_dlp(query: str, max_results: int = 100) -> list: #Checked
+def search_videos_dlp(query: str, max_results: int = 100) -> list:  # Checked
     """
-    Führt eine YouTube-Suche ohne API durch und gibt eine Liste mit Video-Metadaten zurück.
-    
+    Führt eine YouTube-Suche ohne API durch und gibt eine Liste mit Video-Metadaten zurück, inkl. Views.
+
     Args:
         query (str): Suchbegriff.
         max_results (int): Anzahl der gewünschten Ergebnisse (max. 1000).
 
     Returns:
-        list: Eine Liste von Dictionaries mit Videodaten.
+        list: Eine Liste von Dictionaries mit Videodaten inkl. Views.
     """
     max_results = min(max_results, 1000)  # Begrenze auf max. 1000
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
-        "default_search": "ytsearch",  
+        "default_search": "ytsearch",
         "noplaylist": True,
         "extract_flat": True,
         "no_warnings": True,
@@ -196,6 +218,8 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list: #Checked
         for index, entry in enumerate(search_results["entries"], start=1):
             upload_date = entry.get("upload_date", "")
             formatted_date = datetime.strptime(upload_date, "%Y%m%d") if upload_date else None
+            view_count = entry.get("view_count", 0)  # 👈 Views hinzufügen
+
             videos.append({
                 "place": index,
                 "title": entry.get("title", "Unbekannter Titel"),
@@ -205,6 +229,7 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list: #Checked
                 "length": f"{int(entry.get('duration', 0)) // 60:02}:{int(entry.get('duration', 0)) % 60:02}",
                 "tags": ", ".join(entry.get("tags", [])) if entry.get("tags") else "Keine Tags",
                 "upload_date": formatted_date,
+                "views": view_count,  # ✅ Views integriert!
             })
 
     return sorted(videos, key=lambda v: v["upload_date"] or datetime.min, reverse=True)
@@ -326,15 +351,23 @@ def get_recent_videos_from_subscriptions(
     videos = []
     # API-Anfragen minimieren: 1 Request pro Kanal
     for channel_id in channel_ids:
-        request = youtube.search().list(
-            part="id,snippet",
-            channelId=channel_id,
-            maxResults=number_of_videos,  # Maximal 10 neueste Videos abrufen
-            order="date",  # Neueste zuerst
-            type="video",  # Nur Videos (keine Streams oder Playlists)
-        )
-        response = request.execute()
-        videos.append(get_video_data(youtube, response)[0])
+        try:
+            request = youtube.search().list(
+                part="id,snippet",
+                channelId=channel_id,
+                maxResults=number_of_videos,  # Maximal 10 neueste Videos abrufen
+                order="date",  # Neueste zuerst
+                type="video",  # Nur Videos (keine Streams oder Playlists)
+            )
+            response = request.execute()
+            print()
+            print(channel_id)
+            print(f"------------------\n{response}--------------------\n")
+            video_data = get_video_data(youtube, response)
+            for video in video_data:
+                videos.append(video)
+        except Exception as e:
+            print(e)
 
     return videos
 
