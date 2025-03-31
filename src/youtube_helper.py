@@ -114,7 +114,7 @@ def get_video_data_dlp(video_id) -> list:
 
 def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str, str]]:
     """
-    Extract video data from a YouTube API response, including views.
+    Extract video data from a YouTube API response.
 
     Args:
         youtube (object): The YouTube API client.
@@ -125,41 +125,22 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
         list: A list of dictionaries containing video metadata such as title, tags, video ID, views, etc.
     """
     videos = []
-    video_ids = []
-
-    # 1️⃣ Sammle alle Video-IDs für einen Batch-API-Call
-    for item in response.get("items", []):
-        if item["id"]["kind"] == "youtube#video":
-            video_ids.append(item["id"]["videoId"])
-
-    # 2️⃣ API-Call für Video-Details (inkl. ViewCount)
-    video_details_response = youtube.videos().list(
-        part="statistics",
-        id=",".join(video_ids)  # Alle Video-IDs als eine Anfrage senden
-    ).execute()
-
-    # 3️⃣ Mapping von Video-ID zu ViewCount
-    video_views_map = {
-        item["id"]: item["statistics"].get("viewCount", "0")
-        for item in video_details_response.get("items", [])
-    }
-
-    # 4️⃣ Verarbeitung der ursprünglichen API-Antwort
+    
     for index, item in enumerate(response.get("items", []), start=1):
         try:
-            if item["id"]["kind"] != "youtube#video":
-                continue  # Nur Videos verarbeiten
-
-            video_id = item["id"]["videoId"]
+            if mode == "trends":
+                video_id = item["id"]
+            else:
+                video_id = item["id"]["videoId"]
             title = item["snippet"]["title"]
             channel_name = item["snippet"]["channelTitle"]
             tags = item["snippet"].get("tags", [])
             thumbnail = item["snippet"]["thumbnails"]["medium"]["url"]
             length = get_video_length(youtube, video_id)
-            views = video_views_map.get(video_id, "0")  # Views aus der vorherigen API-Abfrage
-
+            views = item["statistics"]["viewCount"] if "statistics" in item else "Unknown"
+        
         except KeyError:
-            # Alternative Methode, falls Struktur abweicht
+            # Alternative Methode zur Verarbeitung
             print(f"Warnung: Unerwartete API-Struktur für Item {index}, alternative Verarbeitung wird versucht.")
             try:
                 video_id = item.get("id", {}).get("videoId", "Unknown")
@@ -168,10 +149,10 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
                 tags = item.get("snippet", {}).get("tags", [])
                 thumbnail = item.get("snippet", {}).get("thumbnails", {}).get("medium", {}).get("url", "")
                 length = "Unknown"
-                views = "0"
+                views = item.get("statistics", {}).get("viewCount", "Unknown")
             except Exception as e:
                 print(f"Fehler beim Verarbeiten des Items {index}: {e}")
-                continue
+                continue  # Falls auch die alternative Methode fehlschlägt, überspringe das Item
         
         videos.append(
             {
@@ -182,7 +163,7 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
                 "thumbnail": thumbnail,
                 "length": length,
                 "channel_name": channel_name,
-                "views": views,  # 👈 Views sind jetzt enthalten!
+                "views": views,
             }
         )
 
