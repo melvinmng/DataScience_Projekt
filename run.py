@@ -441,42 +441,43 @@ def build_gemini_recommondations(history_path):
         channelId = load_channel_id()
     except:
         st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
-
-    if search_method == "YouTube API":
-        max_results = st.slider("Videoanzahl pro Kanal", min_value=1, max_value=5, value=2)
-        max_abos = st.slider("Kanalanzahl", min_value=1, max_value=20, value=10)
     else:
-        max_results = st.slider("Videoanzahl pro Kanal(yt_dlp)", min_value=1, max_value=10, value=5)
-        max_abos = st.slider("Kanalanzahl (yt-dlp)", min_value=1, max_value=30, value=10)
+
+        if search_method == "YouTube API":
+            max_results = st.slider("Videoanzahl pro Kanal", min_value=1, max_value=5, value=2)
+            max_abos = st.slider("Kanalanzahl", min_value=1, max_value=20, value=10)
+        else:
+            max_results = st.slider("Videoanzahl pro Kanal(yt_dlp)", min_value=1, max_value=10, value=5)
+            max_abos = st.slider("Kanalanzahl (yt-dlp)", min_value=1, max_value=30, value=10)
 
 
-    subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
-    if os.path.exists(history_path):
-        history = read_csv_to_list(history_path)
-        if len(history) != 0:
-            if st.button("🔄 Gemini Recommendation laden"): 
-                recommended_channels = get_channel_recommondations(history,subscriptions ,max_abos, user_interests)
-                for channel in recommended_channels:
-                    print(channel)
-                    print('response:_______________________________')
-                    if search_method == "YouTube API":
-                        request = youtube.search().list(
-                            part="snippet", q=channel, type="video", maxResults=max_results
-                        )
-                        response = request.execute()
-                        print(response)
-                        videos = get_video_data(youtube, response)
-                    else:
-                        videos = search_videos_dlp(channel, max_results=max_results)
+        subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
+        if os.path.exists(history_path):
+            history = read_csv_to_list(history_path)
+            if len(history) != 0:
+                if st.button("🔄 Gemini Recommendation laden"): 
+                    recommended_channels = get_channel_recommondations(history,subscriptions ,max_abos, user_interests)
+                    for channel in recommended_channels:
+                        print(channel)
+                        print('response:_______________________________')
+                        if search_method == "YouTube API":
+                            request = youtube.search().list(
+                                part="snippet", q=channel, type="video", maxResults=max_results
+                            )
+                            response = request.execute()
+                            print(response)
+                            videos = get_video_data(youtube, response)
+                        else:
+                            videos = search_videos_dlp(channel, max_results=max_results)
 
-                    for video in videos:
-                        recommended_videos.append(video)
+                        for video in videos:
+                            recommended_videos.append(video)
 
-                build_video_list(recommended_videos, 'gemini_rec')
+                    build_video_list(recommended_videos, 'gemini_rec')
+            else:
+                st.error('Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf.')
         else:
             st.error('Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf.')
-    else:
-        st.error('Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf.')
 
 def build_recommendation_tab(
     retry_count: int = 0,
@@ -599,50 +600,50 @@ def build_abobox_tab():
         channelId = load_channel_id()
     except:
         st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
+    else:
+        try:
+            subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
+            if len(subscriptions)==0:
+                st.error('APi key aufgebraucht oder Abos nicht auf öffentlich')
 
-    try:
-        subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
-        if len(subscriptions)==0:
-            st.error('APi key aufgebraucht oder Abos nicht auf öffentlich')
-
-    except:
-        st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
-    
-    if st.button("🔄 Abobox laden"):
-        channel_names_and_description = ", ".join(
-            subscriptions[subscriptions["description"].str.strip() != ""].apply(
-                lambda row: f"{row['channel_name']}:{row['description']}", axis=1
-            )
-        )
-
-        channel_string = get_subscriptions_based_on_interests(
-            channel_names_and_description, user_interests, max_abos
-        )
-
-        channel_list = channel_string.split(",")
-
-        matched_ids = []
-        for channel in channel_list:
-            normalized_channel = re.sub(r"\W+", "", channel.lower())
-            match = subscriptions[
-                subscriptions["channel_name"]
-                .str.lower()
-                .str.replace(r"\W+", "", regex=True)
-                .str.contains(normalized_channel, na=False)
-            ]
-            if not match.empty:
-                matched_ids.append(match.iloc[0]["channel_id"])
-
-        if search_method == "YouTube API":  
-            recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, max_results)
+        except:
+            st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
         else:
-            recent_videos = get_recent_videos_from_channels_RSS(matched_ids, max_results)
-    
-        st.session_state["videos"] = recent_videos  
-        st.session_state["last_tab"] = "abobox"  # Tab-Wechsel speichern
+            if st.button("🔄 Abobox laden"):
+                channel_names_and_description = ", ".join(
+                    subscriptions[subscriptions["description"].str.strip() != ""].apply(
+                        lambda row: f"{row['channel_name']}:{row['description']}", axis=1
+                    )
+                )
 
-    if st.session_state.get("videos"):
-        build_video_list(st.session_state["videos"], key_id="abobox")
+                channel_string = get_subscriptions_based_on_interests(
+                    channel_names_and_description, user_interests, max_abos
+                )
+
+                channel_list = channel_string.split(",")
+
+                matched_ids = []
+                for channel in channel_list:
+                    normalized_channel = re.sub(r"\W+", "", channel.lower())
+                    match = subscriptions[
+                        subscriptions["channel_name"]
+                        .str.lower()
+                        .str.replace(r"\W+", "", regex=True)
+                        .str.contains(normalized_channel, na=False)
+                    ]
+                    if not match.empty:
+                        matched_ids.append(match.iloc[0]["channel_id"])
+
+                if search_method == "YouTube API":  
+                    recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, max_results)
+                else:
+                    recent_videos = get_recent_videos_from_channels_RSS(matched_ids, max_results)
+            
+                st.session_state["videos"] = recent_videos  
+                st.session_state["last_tab"] = "abobox"  # Tab-Wechsel speichern
+
+            if st.session_state.get("videos"):
+                build_video_list(st.session_state["videos"], key_id="abobox")
 
 
 def build_watch_later_tab():
