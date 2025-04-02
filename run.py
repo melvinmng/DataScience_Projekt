@@ -439,8 +439,8 @@ def build_gemini_recommondations(history_path):
     recommended_videos=[]
     try:
         channelId = load_channel_id()
-    except:
-        st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
+    except Exception as e:
+        st.error(f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}")
     else:
 
         if search_method == "YouTube API":
@@ -598,8 +598,8 @@ def build_abobox_tab():
     
     try:
         channelId = load_channel_id()
-    except:
-        st.write("Kanal-ID nicht gefunden. Bitte überprüfe deine ID.")
+    except Exception as e:
+        st.error(f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}")
     else:
         try:
             subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
