@@ -5,7 +5,6 @@ from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 from .key_management.api_key_management import get_api_key, create_youtube_client
 from typing import Optional
-from src.youtube_trend_analysis import get_trending_videos, get_trending_videos_stats
 
 SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
@@ -35,9 +34,6 @@ def authenticate() -> Optional[object]:
     try:
         api_key: Optional[str] = get_api_key()
         youtube = create_youtube_client(api_key)
-
-        df = get_trending_videos(youtube)
-        get_trending_videos_stats(df)
 
     except ValueError as e:
         print(f"Fehler: {e}")
