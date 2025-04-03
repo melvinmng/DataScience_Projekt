@@ -1,11 +1,15 @@
 from contextlib import nullcontext
 import re
 import streamlit as st
+st.set_page_config(page_title="YouTube FY Dashboard", layout="wide")
 import googleapiclient
 import os
 import csv
 from dotenv import load_dotenv, set_key, dotenv_values
 import pandas as pd
+from streamlit_extras.switch_page_button import switch_page
+from streamlit_extras.metric_cards import style_metric_cards
+
 # Own Modules
 import src.config_env
 
@@ -364,9 +368,17 @@ def build_trending_videos_tab() -> None:
     if st.button("🔄 Trending Videos laden"):
         with st.spinner("Lade Trending Videos..."):
             if search_method == "YouTube API":
-                videos = get_trending_videos(youtube, region_code)
+                try:
+                    videos = get_trending_videos(youtube, region_code)
+                except Exception as e:
+                    st.error(f"API Suche fehlgeschlage: {e}")
+
             else:
-                videos = get_trending_videos_dlp(region_code)
+                try:
+                    videos = get_trending_videos_dlp(region_code)
+                except Exception as e:
+                    st.error(f"Video Suche fehlgeschlage: {e}")
+
             print(videos)
         if not videos:
             st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
@@ -394,30 +406,40 @@ def build_trend_recommondations(retry_count: int = 0, show_spinner: bool = True,
             )
 
         if search_method == "YouTube API":
-            videos = get_trending_videos(youtube, region_code="DE")
-        else:   
-            videos = get_trending_videos_dlp(region_code="DE")
+            try:
+                videos = get_trending_videos(youtube, region_code="DE")
+            except Exception as e:
+                st.error(f"API Suche fehlgeschlage: {e}")
 
-        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
-            videos
-        )
-        recommendations_unfiltered = get_recommendation(
-            video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
-            interests=user_interests,
-        )
+        else:
+            try:   
+                videos = get_trending_videos_dlp(region_code="DE")
+            except Exception as e:
+                st.error(f"Video Suche fehlgeschlagen: {e}")
 
-        if recommendations_unfiltered:
-            recommendations = extract_video_id_and_reason(
-                recommendations_unfiltered,
-                on_fail=lambda: build_trend_recommondations(
-                    retry_count=retry_count + 1,
-                    show_spinner=False,
-                    show_loading_time_information=False,
-                ),
+        if videos:
+            video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
+                videos
+            )
+            recommendations_unfiltered = get_recommendation(
+                video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
+                interests=user_interests,
             )
 
-        if loading_time_information:
-            loading_time_information.empty()
+            if recommendations_unfiltered:
+                recommendations = extract_video_id_and_reason(
+                    recommendations_unfiltered,
+                    on_fail=lambda: build_trend_recommondations(
+                        retry_count=retry_count + 1,
+                        show_spinner=False,
+                        show_loading_time_information=False,
+                    ),
+                )
+
+            if loading_time_information:
+                loading_time_information.empty()
+        else:
+            st.error("Video Liste leer.")
 
     if recommendations:
         if search_method == "YouTube API":
@@ -559,17 +581,31 @@ def build_search_tab():
     if st.button("🔍 Suchen"):
         st.session_state["new_search"] = True  # Neue Suche starten
         if search_method == "YouTube API":
-            request = youtube.search().list(
-                part="snippet", q=query, type="video", maxResults=10
-            )
-            response = request.execute()
-            print(response)
-            videos = get_video_data(youtube, response)
+            try:
+                request = youtube.search().list(
+                    part="snippet", q=query, type="video", maxResults=10
+                )
+                response = request.execute()
+                print(response)
+            except Exception as e:
+                st.error(f"API Suche fehlgeschlagen: {e}")
+            else:
+                try:
+                    videos = get_video_data(youtube, response)
+                except Exception as e:
+                    st.error(f"Videodatenformatierung fehlgeschlagen: {e}")
+            
         else:
-            videos = search_videos_dlp(query, max_results=max_results)
+            try:
+                videos = search_videos_dlp(query, max_results=max_results)
+            except Exception as e:
+                st.error(f"Videodatenformatierung fehlgeschlagen: {e}")
 
-        st.session_state["videos"] = videos  # Ergebnisse speichern
-        st.session_state["last_tab"] = "search" # Tab-Wechsel speichern
+        if len(videos)!=0:
+            st.session_state["videos"] = videos  # Ergebnisse speichern
+            st.session_state["last_tab"] = "search" # Tab-Wechsel speichern
+        else:
+            st.error("Video Liste ist leer.")
 
     if st.session_state.get("videos"):
         build_video_list(st.session_state["videos"], key_id="search")
@@ -621,29 +657,41 @@ def build_abobox_tab():
                 )
 
                 channel_list = channel_string.split(",")
-
-                matched_ids = []
-                for channel in channel_list:
-                    normalized_channel = re.sub(r"\W+", "", channel.lower())
-                    match = subscriptions[
-                        subscriptions["channel_name"]
-                        .str.lower()
-                        .str.replace(r"\W+", "", regex=True)
-                        .str.contains(normalized_channel, na=False)
-                    ]
-                    if not match.empty:
-                        matched_ids.append(match.iloc[0]["channel_id"])
-
-                if search_method == "YouTube API":  
-                    recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, max_results)
+                print(channel_list)
+                if len(channel_list)!=0:
+                    try:
+                        matched_ids = []
+                        for channel in channel_list:
+                            normalized_channel = re.sub(r"\W+", "", channel.lower())
+                            match = subscriptions[
+                                subscriptions["channel_name"]
+                                .str.lower()
+                                .str.replace(r"\W+", "", regex=True)
+                                .str.contains(normalized_channel, na=False)
+                            ]
+                            print(match)
+                            if not match.empty:
+                                matched_ids.append(match.iloc[0]["channel_id"])
+                        print(matched_ids)
+                        try:
+                            if search_method == "YouTube API":  
+                                recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, max_results)
+                            else:
+                                recent_videos = get_recent_videos_from_channels_RSS(matched_ids, max_results)
+                        except Exception as e:
+                            st.error(f'Laden der Videos fehlgeschlagen: {e}')
+                    except Exception as e :
+                        st.error(f'Laden der Videos fehlgeschlagen: {e}')
+                    else:
+                        st.session_state["videos"] = recent_videos  
+                        st.session_state["last_tab"] = "abobox"  # Tab-Wechsel speichern
+                
                 else:
-                    recent_videos = get_recent_videos_from_channels_RSS(matched_ids, max_results)
-            
-                st.session_state["videos"] = recent_videos  
-                st.session_state["last_tab"] = "abobox"  # Tab-Wechsel speichern
-
+                    st.error('Generierung der Abo-Vorschläge durch Gemini ist schiefgelaufen')
             if st.session_state.get("videos"):
+                print(st.session_state['videos'])
                 build_video_list(st.session_state["videos"], key_id="abobox")
+            
 
 
 def build_watch_later_tab():
@@ -689,15 +737,15 @@ def build_settings_pop_up() -> None:
 
     # Eingabefelder für API-Keys
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
-    openai_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
+    gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
     # Speichern-Button
     if st.button("💾 Speichern"):
         if youtube_key:
             set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
-        if openai_key:
-            set_key(env_path, "TOKEN_GOOGLEAPI", openai_key)
+        if gemini_key:
+            set_key(env_path, "TOKEN_GOOGLEAPI", gemini_key)
         if channel_id:
             set_key(env_path, "CHANNEL_ID", channel_id)
 
@@ -706,7 +754,7 @@ def build_settings_pop_up() -> None:
 
         # Prüfen, ob die Werte gespeichert wurden
         if (updated_env.get("YOUTUBE_API_KEY") == youtube_key and 
-            updated_env.get("TOKEN_GOOGLEAPI") == openai_key and
+            updated_env.get("TOKEN_GOOGLEAPI") == gemini_key and
             updated_env.get("CHANNEL_ID") == channel_id):
 
             st.success("✅ API-Keys wurden gespeichert!")
@@ -730,10 +778,11 @@ def build_settings_tab() -> None:
     # Vorhandene API-Keys abrufen
     youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
     openai_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
-
+    channel_id = os.getenv("CHANNEL_ID", "") 
     # Eingabefelder für API-Keys
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
-    openai_key = st.text_input("🤖 OpenAI API Key", openai_api_key, type="password")
+    gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
+    channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
     if st.button("🗑️Watch List history löschen"):
         history = watch_later_history
@@ -751,12 +800,24 @@ def build_settings_tab() -> None:
     if st.button("💾 Speichern"):
         if youtube_key:
             set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
-        if openai_key:
-            set_key(env_path, "TOKEN_GOOGLEAPI", openai_key)
-        st.success("✅ API-Keys wurden gespeichert!")
+        if gemini_key:
+            set_key(env_path, "TOKEN_GOOGLEAPI", gemini_key)
+        if channel_id:
+            set_key(env_path, "CHANNEL_ID", channel_id)
         st.session_state["Trending Videos"] = 0
-        st.rerun()
-        initialize()
+
+        # API-Keys erneut aus der Datei laden
+        updated_env = dotenv_values(env_path)
+
+        # Prüfen, ob die Werte gespeichert wurden
+        if (updated_env.get("YOUTUBE_API_KEY") == youtube_key and 
+            updated_env.get("TOKEN_GOOGLEAPI") == gemini_key and
+            updated_env.get("CHANNEL_ID") == channel_id):
+
+            st.success("✅ API-Keys wurden gespeichert!")
+            initialize()  # YouTube-Client neu initialisieren
+        else:
+            st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
 
 
 
@@ -772,14 +833,11 @@ def initialize() -> googleapiclient.discovery.Resource | None:
 
 
 ############################### CODE #######################################
+
+
 ## Session States
 if "show_spoiler" not in st.session_state:
     st.session_state.show_spoiler = False
-
-
-# Dashboard-Titel
-st.title("Dein personalisiertes YouTube-FY-Dashboard")
-
 youtube = initialize()
 
 ###----------------------------------###
@@ -798,27 +856,118 @@ from src.llm_analysis import (
 )
 ###----------------------------------###
 
-st.sidebar.header("Einstellungen")
+st.markdown(
+    """
+    <style>
+        /* Allgemeine UI-Anpassungen */
+        body {
+            font-family: 'Arial', sans-serif;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Light Mode (YouTube-inspiriert: Weiß, Rot, Grau) */
+        @media (prefers-color-scheme: light) {
+            body {
+                background: #f9f9f9;
+                color: #0f0f0f;
+            }
+            .stSidebar {
+                background: rgba(255, 255, 255, 0.9);
+                border-right: 2px solid #ddd;
+                border-radius: 10px;
+            }
+            .stButton>button {
+                background-color: #ff0000;
+                color: white;
+                transition: all 0.3s ease-in-out;
+                border-radius: 10px;
+                box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.2);
+            }
+            .stButton>button:hover {
+                background-color: #cc0000;
+                transform: scale(1.05);
+            }
+            .stTabs {
+                background: white;
+                border-radius: 10px;
+                padding: 15px;
+                box-shadow: 2px 2px 12px rgba(0, 0, 0, 0.1);
+            }
+        }
+
+        /* Dark Mode (Sanftes Blau-Grau für moderne Eleganz) */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: #121826;
+                color: #ffffff;
+            }
+            .stSidebar {
+                background: rgba(30, 39, 50, 0.95);
+                border-right: 2px solid #3c4a5f;
+                border-radius: 10px;
+            }
+            .stButton>button {
+                background-color: #ff4d4d;
+                color: white;
+                transition: all 0.3s ease-in-out;
+                border-radius: 10px;
+                box-shadow: 2px 2px 6px rgba(255, 255, 255, 0.1);
+            }
+            .stButton>button:hover {
+                background-color: #d63030;
+                transform: scale(1.05);
+                box-shadow: 4px 4px 12px rgba(255, 255, 255, 0.2);
+            }
+            .stTabs {
+                background: #1c2838;
+                border-radius: 10px;
+                padding: 15px;
+                box-shadow: 2px 2px 12px rgba(255, 255, 255, 0.1);
+            }
+        }
+
+        /* Interaktive Sidebar */
+        .stSidebar {
+            transition: all 0.3s ease-in-out;
+        }
+        .stSidebar:hover {
+            transform: scale(1.02);
+        }
+
+        /* Tabs mit Hover-Animation */
+        .stTabs {
+            transition: all 0.3s ease-in-out;
+        }
+        .stTabs:hover {
+            transform: scale(1.01);
+        }
+
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
+# Header
+st.title("YouTube FY Dashboard 🎬")
+st.subheader("Intelligent. Modern. Interaktiv.")
+
+# Sidebar-Einstellungen
+st.sidebar.header("Präferenzen")
 length_filter = st.sidebar.slider(
-    "Wie viele Minuten hast du heute für YouTube?",
+    "Wie lange möchtest du YouTube schauen?",
     min_value=0,
     max_value=180,
     value=(0, 60),
-    help="Wähle dein verfügbares Zeitbudget in Minuten.",
 )
-user_interests = st.sidebar.text_input(
-    "Deine Interessensgebiete (kommagetrennt)", value=load_interests()
-)
+
+user_interests = st.sidebar.text_input("Deine Interessen", value=load_interests())
 save_interests(user_interests)
 
-search_method = st.sidebar.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
+search_method = st.sidebar.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp (Experimentell)"))
 
-st.session_state.show_spoiler = st.sidebar.checkbox(
-    "Spoiler anzeigen", value=st.session_state.show_spoiler
-)
+st.session_state.show_spoiler = st.sidebar.checkbox("Spoiler anzeigen", value=st.session_state.show_spoiler)
 
-
-# Verwenden von Tabs, um verschiedene Funktionen übersichtlich zu präsentieren
+# Tabs für verschiedene Funktionen
 tabs = st.tabs(
     [
         "Trending Videos",
@@ -826,43 +975,18 @@ tabs = st.tabs(
         "Clickbait Analyse",
         "Suche",
         "Abobox",
-        "Watch Later",  
+        "Watch Later",
         "Feedback",
-        "Einstellungen"
+        "Einstellungen",
     ]
 )
 
-
-####################################
-with tabs[0]:
-    build_trending_videos_tab()
-
-####################################
-with tabs[1]:
-    build_recommendation_tab()
-
-####################################
-with tabs[2]:
-    build_clickbait_recognition_tab()
-
-####################################
-with tabs[3]:
-    build_search_tab()
-
-####################################
-with tabs[4]:
-    build_abobox_tab()
-
-####################################
-with tabs[5]:
-    build_watch_later_tab()
-    
-####################################
-with tabs[6]:
-    build_feedback_tab()
-
-####################################
-with tabs[7]:
-    build_settings_tab()
-
-####################################
+# Inhalte der Tabs
+with tabs[0]: build_trending_videos_tab()
+with tabs[1]: build_recommendation_tab()
+with tabs[2]: build_clickbait_recognition_tab()
+with tabs[3]: build_search_tab()
+with tabs[4]: build_abobox_tab()
+with tabs[5]: build_watch_later_tab()
+with tabs[6]: build_feedback_tab()
+with tabs[7]: build_settings_tab()

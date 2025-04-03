@@ -1,5 +1,4 @@
 import re
-import isodate
 from googleapiclient.discovery import build
 import pandas as pd
 from datetime import datetime
@@ -11,15 +10,21 @@ from streamlit.runtime.scriptrunner import get_script_run_ctx
 from concurrent.futures import ThreadPoolExecutor
 import multiprocessing
 import os
+from typing import Optional, Dict, Any
+import concurrent.futures
+
+
 def parse_duration(duration: str) -> str:
     """
-    Parse a YouTube video duration string into a human-readable format (MM:SS).
+    Wandelt eine YouTube-Videodauer (ISO 8601 Format) in ein lesbares Format (MM:SS) um.
 
     Args:
-        duration (str): The ISO 8601 duration string (e.g., "PT5M10S").
+        duration (str): Die ISO 8601-Dauerzeichenkette (z. B. "PT5M10S").
 
     Returns:
-        str: The formatted duration in the format "MM:SS".
+        str: Die formatierte Dauer im Format "MM:SS".
+    
+    Falls keine Minuten oder Sekunden angegeben sind, wird "00:00" zurückgegeben.
     """
     pattern = re.compile(r"PT(\d+M)?(\d+S)?")
     match = pattern.match(duration)
@@ -38,14 +43,16 @@ def parse_duration(duration: str) -> str:
 
 def get_video_length(youtube: object, video_id: str) -> str:
     """
-    Get the duration of a YouTube video.
+    Ruft die Dauer eines YouTube-Videos ab.
 
     Args:
-        youtube (object): The YouTube API client.
-        video_id (str): The YouTube video ID.
+        youtube (object): Der YouTube API-Client.
+        video_id (str): Die ID des YouTube-Videos.
 
     Returns:
-        str: The formatted video duration in the format "MM:SS".
+        str: Die formatierte Videodauer im Format "MM:SS".
+
+    Falls das Video nicht gefunden wird oder ein Fehler auftritt, wird "00:00" zurückgegeben.
     """
     request = youtube.videos().list(part="snippet,contentDetails", id=video_id)
     response = request.execute()
@@ -56,7 +63,7 @@ def get_video_length(youtube: object, video_id: str) -> str:
     duration = response["items"][0]["contentDetails"]["duration"]
     return parse_duration(duration)
 
-def get_video_length_dlp(video_id: str) -> str: #Checked
+def get_video_length_dlp(video_id: str) -> str:
     """
     Holt die Dauer eines YouTube-Videos ohne API, basierend auf der Video-ID.
 
@@ -84,7 +91,26 @@ def get_video_length_dlp(video_id: str) -> str: #Checked
 
 
 
-def get_video_data_dlp(video_id) -> list:
+def get_video_data_dlp(video_id: str) -> Dict[str, Any]:
+    """
+    Ruft Metadaten zu einem YouTube-Video mit yt-dlp ab.
+
+    Args:
+        video_id (str): Die ID des YouTube-Videos.
+
+    Returns:
+        Dict[str, Any]: Ein Dictionary mit folgenden Video-Informationen:
+            - video_id (str): Die ID des Videos.
+            - title (str): Der Titel des Videos.
+            - tags (str): Eine durch Komma getrennte Liste von Tags oder "Keine Tags".
+            - thumbnail (str): Die URL des Thumbnails oder "Keine Thumbnail-URL".
+            - length (str): Die Videolänge im Format MM:SS.
+            - upload_date (Optional[datetime]): Das Upload-Datum oder None, falls unbekannt.
+            - channel_name (str): Der Name des Kanals oder "Unbekannter Kanal".
+            - views (int): Die Anzahl der Aufrufe.
+    
+    Falls ein Fehler auftritt, wird ein leeres Dictionary zurückgegeben.
+    """
     ydl_opts = {'quiet': True, 'noplaylist': True, 'no_warnings': True}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -112,18 +138,48 @@ def get_video_data_dlp(video_id) -> list:
 
 
 
-def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str, str]]:
+def get_video_data(youtube: object, response: Dict[str, Any], mode: Optional[str] = None) -> List[Dict[str, Any]]:
     """
-    Extract video data from a YouTube API response.
+    Extrahiert Videodaten aus einer YouTube API-Antwort und zieht zusätzlich die Views mit yt-dlp.
 
     Args:
-        youtube (object): The YouTube API client.
-        response (dict): The response from a YouTube API search query.
-        mode (str, optional): Mode to determine parsing behavior (e.g., "trends").
+        youtube (Resource): Der YouTube API-Client.
+        response (Dict[str, Any]): Die Antwort einer YouTube API-Suchanfrage.
+        mode (Optional[str]): Bestimmt das Parsing-Verhalten (z. B. "trends" für Trend-Videos).
 
     Returns:
-        list: A list of dictionaries containing video metadata such as title, tags, video ID, views, etc.
+        List[Dict[str, Any]]: Eine Liste mit Video-Metadaten, inkl.:
+            - place (int): Position des Videos in der Ergebnisliste.
+            - title (str): Titel des Videos.
+            - tags (str): Komma-separierte Liste von Tags oder "Keine Tags".
+            - video_id (str): Die eindeutige ID des Videos.
+            - thumbnail (str): URL des Thumbnails oder ein leerer String, falls nicht verfügbar.
+            - length (str): Länge des Videos oder "Unknown", falls nicht abrufbar.
+            - channel_name (str): Name des Kanals oder "Unknown Channel".
+            - views (Union[str, int]): Anzahl der Aufrufe oder "Unknown", falls nicht abrufbar.
+            - upload_date (Optional[str]): Das Upload-Datum im Format "YYYY-MM-DD" oder "Unknown", falls nicht verfügbar.
+
+    Falls ein unerwartetes API-Response-Format erkannt wird, wird eine alternative Verarbeitung versucht.
     """
+    def get_views_with_youtube_api(youtube: object, video_id: str) -> str:
+        """
+        Verwendet die YouTube API, um die Views eines Videos zu extrahieren.
+        """
+        try:
+            # Anfrage an die YouTube API, um Video-Daten abzurufen
+            request = youtube.videos().list(
+                part="statistics",  # Nur Statistiken (einschließlich Views)
+                id=video_id
+            )
+            response = request.execute()
+            
+            # Die Anzahl der Aufrufe aus der Antwort extrahieren
+            view_count = response["items"][0]["statistics"].get("viewCount", "Unknown")
+            return view_count
+        except Exception as e:
+            print(f"Fehler beim Abrufen der Views für Video {video_id} mit der YouTube API: {e}")
+            return "Unknown"
+
     videos = []
     
     for index, item in enumerate(response.get("items", []), start=1):
@@ -137,7 +193,8 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
             tags = item["snippet"].get("tags", [])
             thumbnail = item["snippet"]["thumbnails"]["medium"]["url"]
             length = get_video_length(youtube, video_id)
-            views = item["statistics"]["viewCount"] if "statistics" in item else "Unknown"
+            views = get_views_with_youtube_api(youtube, video_id)  # Hole die Views mit yt_dlp
+            upload_date = item["snippet"].get("publishedAt", "Unknown")  # Das Upload-Datum wird hier extrahiert
         
         except KeyError:
             # Alternative Methode zur Verarbeitung
@@ -149,7 +206,8 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
                 tags = item.get("snippet", {}).get("tags", [])
                 thumbnail = item.get("snippet", {}).get("thumbnails", {}).get("medium", {}).get("url", "")
                 length = "Unknown"
-                views = item.get("statistics", {}).get("viewCount", "Unknown")
+                views = get_views_with_youtube_api(youtube, video_id)
+                upload_date = item.get("snippet", {}).get("publishedAt", "Unknown")
             except Exception as e:
                 print(f"Fehler beim Verarbeiten des Items {index}: {e}")
                 continue  # Falls auch die alternative Methode fehlschlägt, überspringe das Item
@@ -164,22 +222,36 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
                 "length": length,
                 "channel_name": channel_name,
                 "views": views,
+                "upload_date": upload_date, 
             }
         )
 
-    return videos
+        # Entfernen der leeren Dictionaries
+        videos = [d for d in videos if d]  # Ein leeres Dictionary ist falsy in Python
+
+    # Sortieren nach Upload-Datum (neueste zuerst)
+    return sorted(videos, key=lambda v: v["upload_date"] or datetime.min, reverse=True)
 
 @st.cache_data(ttl=3600) 
-def search_videos_dlp(query: str, max_results: int = 100) -> list:  # Checked
+def search_videos_dlp(query: str, max_results: int = 100) -> List[Dict[str, Any]]:
     """
-    Führt eine YouTube-Suche ohne API durch und gibt eine Liste mit Video-Metadaten zurück, inkl. Views.
+    Führt eine YouTube-Suche mit yt-dlp durch und gibt eine Liste von Video-Metadaten zurück.
 
     Args:
-        query (str): Suchbegriff.
-        max_results (int): Anzahl der gewünschten Ergebnisse (max. 1000).
+        query (str): Der Suchbegriff.
+        max_results (int, optional): Maximale Anzahl der Ergebnisse (max. 1000). Standard: 100.
 
     Returns:
-        list: Eine Liste von Dictionaries mit Videodaten inkl. Views.
+        List[Dict[str, Any]]: Eine Liste mit Video-Metadaten, inkl.:
+            - place (int): Position in der Ergebnisliste.
+            - title (str): Videotitel.
+            - video_id (Optional[str]): Die Video-ID oder None.
+            - thumbnail (Optional[str]): URL des Thumbnails oder None.
+            - channel_name (str): Name des Kanals oder "Unbekannter Kanal".
+            - length (str): Videolänge im Format MM:SS.
+            - tags (str): Komma-separierte Tags oder "Keine Tags".
+            - upload_date (Optional[datetime]): Upload-Datum als `datetime`-Objekt oder None.
+            - views (int): Anzahl der Aufrufe.
     """
     max_results = min(max_results, 1000)  # Begrenze auf max. 1000
     ydl_opts = {
@@ -213,6 +285,8 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list:  # Checked
                 "views": view_count,  # ✅ Views integriert!
             })
 
+    # Entfernen der leeren Dictionaries
+    videos = [d for d in videos if d]  # Ein leeres Dictionary ist falsy in Python
     return sorted(videos, key=lambda v: v["upload_date"] or datetime.min, reverse=True)
 
 def get_category_name(youtube: object, category_id: str) -> str:
@@ -315,19 +389,26 @@ def get_subscriptions(channel_Id: str, youtube: object, csv_filename="subscripti
     return subs
 
 
-def get_recent_videos_from_subscriptions(
-    youtube: object, channel_ids: List[str], number_of_videos: int
-) -> List[Dict[str, str]]:
+
+def get_recent_videos_from_subscriptions(youtube: object, channel_ids: List[str], number_of_videos: int) -> List[Dict[str, Any]]:
     """
-    Get the most recent videos from a list of subscribed YouTube channels.
+    Ruft die neuesten Videos von einer Liste abonnierter YouTube-Kanäle über die YouTube API ab.
 
     Args:
-        youtube (object): The YouTube API client.
-        channel_ids (list): A list of YouTube channel IDs.
-        number_of_videos (int): The number of recent videos to retrieve.
+        youtube (Resource): Der YouTube API-Client.
+        channel_ids (List[str]): Eine Liste von YouTube-Kanal-IDs.
+        number_of_videos (int): Anzahl der gewünschten neuesten Videos pro Kanal.
 
     Returns:
-        list: A list of dictionaries containing video metadata from the subscriptions.
+        List[Dict[str, Any]]: Eine Liste mit Video-Metadaten, inkl.:
+            - place (int): Position des Videos in der Ergebnisliste.
+            - title (str): Titel des Videos.
+            - tags (str): Komma-separierte Liste von Tags oder "Keine Tags".
+            - video_id (str): Die eindeutige ID des Videos.
+            - thumbnail (str): URL des Thumbnails oder ein leerer String, falls nicht verfügbar.
+            - length (str): Länge des Videos oder "Unknown", falls nicht abrufbar.
+            - channel_name (str): Name des Kanals oder "Unknown Channel".
+            - views (Union[str, int]): Anzahl der Aufrufe oder "Unknown", falls nicht abrufbar.
     """
     videos = []
     # API-Anfragen minimieren: 1 Request pro Kanal
@@ -348,14 +429,27 @@ def get_recent_videos_from_subscriptions(
             for video in video_data:
                 videos.append(video)
         except Exception as e:
-            print(e)
+            st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
 
     return videos
 
 
 
 @st.cache_data(ttl=3600) 
-def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
+def get_recent_videos_from_channels_RSS(channel_ids: List[str], max_videos: int = 1) -> List[List[str]]:
+    """
+    Ruft die neuesten Videos von einer Liste von YouTube-Kanälen über deren RSS-Feeds ab.
+
+    Args:
+        channel_ids (List[str]): Eine Liste von YouTube-Kanal-IDs.
+        max_videos (int, optional): Die maximale Anzahl an Videos pro Kanal (Standard: 1).
+
+    Returns:
+        List[List[str]]: Eine Liste von Listen, wobei jede innere Liste die Video-IDs eines Kanals enthält.
+    
+    Die Funktion nutzt Multithreading, um mehrere Feeds gleichzeitig zu verarbeiten.
+    Falls ein Fehler auftritt, wird eine Warnung in Streamlit ausgegeben.
+    """
     videos = []
     num_threads = min(len(channel_ids), multiprocessing.cpu_count() * 2) 
 
@@ -377,9 +471,8 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
             return list(set(video_ids))
 
         except Exception as e:
-            if ctx:  # 🔥 Hier den richtigen Streamlit-Kontext setzen!
-                with ctx:
-                    st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
+            # Einfach ohne 'with ctx:' arbeiten
+            st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
             return []
 
     video_id_lists = []
@@ -395,9 +488,7 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
         try:
             return get_video_data_dlp(video_id)
         except Exception as e:
-            if ctx:  
-                with ctx:
-                    st.warning(f"Fehler beim Abrufen der Metadaten für Video {video_id}: {e}")
+            st.warning(f"Fehler beim Abrufen der Metadaten für Video {video_id}: {e}")
             return {}
 
     video_data_list = []
@@ -406,19 +497,21 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
         for future in future_to_video:
             video_data_list.append(future.result())
 
+    # Entfernen der leeren Dictionaries
+    video_data_list = [d for d in video_data_list if d]  # Ein leeres Dictionary ist falsy in Python
     videos = sorted(video_data_list, key=lambda v: v.get("upload_date", datetime.min), reverse=True)
 
     return videos  
 
-def extract_video_id_from_url(url: str) -> str | None:
+def extract_video_id_from_url(url: str) -> str:
     """
-    Extract the video ID from a YouTube URL.
+    Extrahiert die Video-ID aus einer YouTube-URL.
 
     Args:
-        url (str): The YouTube video URL.
+        url (str): Die YouTube-Video-URL.
 
     Returns:
-        str or None: The extracted video ID, or None if no ID is found.
+        str oder None: Die extrahierte Video-ID oder None, falls keine ID gefunden wurde.
     """
     pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11})"
     match = re.search(pattern, url)
@@ -434,15 +527,27 @@ def create_youtube_client(api_key: str) -> object:
 
 
 
-def get_trending_videos(youtube: object, region_code) -> pd.DataFrame:
+def get_trending_videos(youtube: object, region_code: str) -> pd.DataFrame:
     """
-    Retrieves trending videos from YouTube and formats them into a DataFrame.
+    Ruft die aktuellen Trending-Videos von YouTube ab und formatiert die Daten als DataFrame.
 
     Args:
-        youtube (object): The authenticated YouTube API client.
+        youtube (object): Der authentifizierte YouTube API-Client.
+        region_code (str): Der Ländercode für den die Trending-Videos abgerufen werden sollen.
 
     Returns:
-        pd.DataFrame: A DataFrame containing trending video data.
+        List[Dict[str, Any]]: Eine Liste mit Video-Metadaten, inkl.:
+            - place (int): Position des Videos in der Ergebnisliste.
+            - title (str): Titel des Videos.
+            - tags (str): Komma-separierte Liste von Tags oder "Keine Tags".
+            - video_id (str): Die eindeutige ID des Videos.
+            - thumbnail (str): URL des Thumbnails oder ein leerer String, falls nicht verfügbar.
+            - length (str): Länge des Videos oder "Unknown", falls nicht abrufbar.
+            - channel_name (str): Name des Kanals oder "Unknown Channel".
+            - views (Union[str, int]): Anzahl der Aufrufe oder "Unknown", falls nicht abrufbar.
+            - upload_date
+    
+    Die Funktion ruft bis zu 50 der beliebtesten Videos aus der angegebenen Region ab.
     """
     request = youtube.videos().list(
         part="snippet,contentDetails",
@@ -455,10 +560,29 @@ def get_trending_videos(youtube: object, region_code) -> pd.DataFrame:
 
     return get_video_data(youtube, response,'trends')
 
+def get_trending_videos_dlp(region_code: str = "DE", max_results: int = 50) -> List[Dict[str, Any]]:
+    """
+    Ruft die aktuell angesagten (Trending) Videos von YouTube mit yt-dlp ab.
 
-import concurrent.futures
+    Args:
+        region_code (str, optional): Der Ländercode (ISO 3166-1 Alpha-2), für den die Trending-Videos abgerufen werden sollen. Standard ist "DE" (Deutschland).
+        max_results (int, optional): Die maximale Anzahl an Trending-Videos, die zurückgegeben werden sollen. Standard ist 50.
 
-def get_trending_videos_dlp(region_code="DE", max_results=50):
+    Returns:
+        List[Dict[str, Any]]: Eine Liste von Dictionaries mit Metadaten der Trending-Videos, darunter:
+            - video_id (str): Die ID des Videos.
+            - title (str): Der Titel des Videos.
+            - tags (str): Eine durch Komma getrennte Liste von Tags oder "Keine Tags".
+            - thumbnail (str): Die URL des Thumbnails oder "Keine Thumbnail-URL".
+            - length (str): Die Videolänge im Format MM:SS.
+            - upload_date (Optional[datetime]): Das Upload-Datum oder None, falls unbekannt.
+            - channel_name (str): Der Name des Kanals oder "Unbekannter Kanal".
+            - views (int): Die Anzahl der Aufrufe.
+    
+    Die Funktion nutzt yt-dlp, um die Trending-Videos ohne API abzurufen. Anschließend werden die Videodaten mit `get_video_data_dlp` in parallelen Threads extrahiert.
+    
+    Falls keine Trending-Videos gefunden werden, wird eine leere Liste zurückgegeben.
+    """
     url = f"https://www.youtube.com/feed/trending?gl={region_code}"
 
     ydl_opts = {
@@ -492,59 +616,3 @@ def get_trending_videos_dlp(region_code="DE", max_results=50):
                 print(f"Fehler beim Abrufen von Videodaten: {e}")
 
     return videos
-def get_trending_videos_dlp(region_code="DE", max_results=50):
-    url = f"https://www.youtube.com/feed/trending?gl={region_code}"
-
-    ydl_opts = {
-        'quiet': True,
-        'extract_flat': True,
-        'force_generic_extractor': True,
-    }
-
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info_dict = ydl.extract_info(url, download=False)
-
-    trending_video_ids = [
-        entry.get('id') for entry in info_dict.get('entries', []) if entry.get('id')
-    ][:max_results]
-
-    if not trending_video_ids:
-        print("Keine Trend-Videos gefunden.")
-        return []
-
-    videos = []
-    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
-        future_to_video_id = {
-            executor.submit(get_video_data_dlp, video_id): video_id
-            for video_id in trending_video_ids
-        }
-
-        for future in concurrent.futures.as_completed(future_to_video_id):
-            try:
-                videos.append(future.result())
-            except Exception as e:
-                print(f"Fehler beim Abrufen von Videodaten: {e}")
-
-    return videos
-
-
-'''
-youtube = create_youtube_client("AIzaSyB7DvFs_Yqq9GpFM2hUyEvWfgYv7jJ20xs")
-
-request = youtube.search().list(
-        part="snippet", q='Python', type="video", maxResults=10
-    )
-    ###youtube REQUEST###
-search_response = request.execute()
-'''
-
-#print(get_video_length_dlp("D9YV-ykMfEA"))
-#print(get_video_length(youtube, "D9YV-ykMfEA"))
-"""
-print(search_videos_dlp("Python", 10))
-print('\n-------------------------------------------------------\n')
-print(get_video_data(youtube, search_response))
-print('\n-------------------------------------------------------\n')
-print(get_video_data_dlp(["D9YV-ykMfEA", "D9YV-ykMfEA"]))
-"""
-#print(get_recent_videos_from_channels_RSS(["UC8butISFwT-Wl7EV0hUK0BQ","UC1uEIIdQo0F6wLV-XSMCSvQ"], 1)
