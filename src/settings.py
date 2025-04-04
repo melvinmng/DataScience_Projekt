@@ -30,6 +30,6 @@ ai_generate_content_config = types.GenerateContentConfig(
     ],
 )
 
-## Personal Settings
+# Personal Settings
 interests = "chess, ..."
 languages = ["de", "en"]

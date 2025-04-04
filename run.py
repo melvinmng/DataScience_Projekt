@@ -9,7 +9,6 @@ import pandas as pd
 import csv
 from datetime import datetime
 
-# Own Modules
 import src.config_env
 
 from src.youtube_transcript import get_transcript
@@ -21,32 +20,35 @@ from src.youtube_helper import (
     get_recent_videos_from_subscriptions,
     search_videos_dlp,
     get_recent_videos_from_channels_RSS,
-    get_trending_videos, 
-    get_trending_videos_dlp
+    get_trending_videos,
+    get_trending_videos_dlp,
 )
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
 
-watch_later_history = 'watch_later_history.csv'
-watch_later_csv = 'watch_later.csv'
-gitignore ='.gitignore'
-Interests_file = "interests.txt"  # Speicherdatei für die Interessen
+
+# Variables & constants
+watch_later_history = "watch_later_history.csv"
+watch_later_csv = "watch_later.csv"
+gitignore = ".gitignore"
+Interests_file = "interests.txt"
 
 result = None
 
 FEEDBACK_FILE = "feedback.csv"
 
 
-## HELPERS
+# Helpers
+# @Adrian Evtl. kann das in den youtube_helper oder?
 def duration_to_seconds(duration_str: str) -> int:
     """
-    Converts a duration in "MM:SS" format to seconds.
+    Converts a duration from "MM:SS" format to seconds.
 
     Args:
-        duration_str (str): The duration in "MM:SS" format.
+        duration_str (str): duration in "MM:SS" format
 
     Returns:
-        int: The duration in seconds.
+        int: duration in seconds
     """
     try:
         minutes, seconds = map(int, duration_str.split(":"))
@@ -62,29 +64,28 @@ def lazy_expander(
     key: str,
     on_expand,
     expanded: bool = False,
-    callback_kwargs: dict = None
+    callback_kwargs: dict = None,
 ):
     """
     A 'lazy' expander that only loads/renders content on expand.
 
     Args:
-        title (str): Title to show beside the arrow.
-        key (str): Unique key for storing expanded state in st.session_state.
-        on_expand (callable): A function that takes a container (and optional kwargs)
+        title (str): title to show next to the arrow
+        key (str): unique key for storing expanded state in st.session_state
+        on_expand (callable): function that takes a container (and optional kwargs)
                               to fill with content *only* after expanding.
-        expanded (bool): Initial state (collapsed=False by default).
-        callback_kwargs (dict): Extra kwargs for on_expand() if needed.
+        expanded (bool): initial state (collapsed=False by default)
+        callback_kwargs (dict): extra kwargs for on_expand() if needed
     """
     if callback_kwargs is None:
         callback_kwargs = {}
 
-    # Initialize session state in the first run
     if key not in st.session_state or st.session_state[key] is None:
         st.session_state[key] = bool(expanded)
 
     outer_container = st.container(border=True)
 
-    arrows = ["▼", "▲"]  # down, up
+    arrows = ["▼", "▲"]
     arrow_keys = ["down", "up"]
 
     with outer_container:
@@ -93,14 +94,11 @@ def lazy_expander(
 
         if col2.button(
             arrows[int(st.session_state[key])],
-            key=f"{key}_arrow_{arrow_keys[int(st.session_state[key])]}"
+            key=f"{key}_arrow_{arrow_keys[int(st.session_state[key])]}",
         ):
-            # If currently collapsed -> expand and call on_expand
             if not st.session_state[key]:
                 st.session_state[key] = True
                 on_expand(outer_container, **callback_kwargs)
-
-            # If currently expanded -> collapse (force a rerun)
             else:
                 st.session_state[key] = False
 
@@ -108,89 +106,96 @@ def lazy_expander(
 @st.fragment
 def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
     """
-    A 'lazy' button that stores its state in st.session_state and doesn't trigger a full rerun.
+    A 'lazy' button that stores its state in st.session_state and does not trigger a full rerun.
 
     Args:
-        label (str): Button label.
-        key (str): Unique session state key.
-        on_click (callable): Function to call when the button is clicked.
-        callback_kwargs (dict): Extra kwargs for on_click() if needed.
+        label (str): button label
+        key (str): unique session state key
+        on_click (callable): function to call when button is clicked
+        callback_kwargs (dict): extra kwargs for on_click() if needed
     """
     if callback_kwargs is None:
         callback_kwargs = {}
 
-    # Initialisiere den Zustand, falls noch nicht gesetzt
     if key not in st.session_state:
         st.session_state[key] = False
 
-    # Zeige den Button
     if st.button(label, key=f"{key}_btn"):
         st.session_state[key] = True
         on_click(**callback_kwargs)
 
-    # Falls der Button-Status True ist, Erfolgsmeldung anzeigen
     if st.session_state[key]:
-        st.success("✅") 
+        st.success("✅")
         if label == "🚮delete from list":
             st.rerun()
 
 
 ########################## CSV-Functions ##########################
 def write_filename_to_gitignore(gitignore_path, filename):
+    """Writes a filename to .gitignore file.
+
+    Args:
+        gitignore_path (str): path to .gitignore file
+        filename (str): name of file to be stored
+    """
     if os.path.exists(gitignore_path):
-            with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
-                lines = gitignore_file.readlines()
-                if filename not in [line.strip() for line in lines]:
-                    gitignore_file.write(f"\n{filename}\n")
+        with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
+            lines = gitignore_file.readlines()
+            if filename not in [line.strip() for line in lines]:
+                gitignore_file.write(f"\n{filename}\n")
     else:
         with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
             gitignore_file.write(f"{filename}\n")
 
 
 def read_csv_to_list(filename):
-    """
-    Liest eine CSV-Datei aus und speichert jede Zeile als Dictionary in einer Liste.
-    Entfernt am Ende doppelte Einträge.
+    """Reads csv file and stores each line as a dictionary within a list without duplicates.
+
+    Args:
+        filename (str): name of csv file
+
+    Returns:
+        _type_: _description_
     """
     data = []
-    
-    # CSV-Datei lesen
+
     with open(filename, mode="r", encoding="utf-8") as file:
         reader = csv.DictReader(file)
-        
+
         for row in reader:
-            data.append(dict(row)) 
-    
+            data.append(dict(row))
+
     seen = set()
     unique_data = []
-    
+
     for row in data:
         row_tuple = tuple(row.items())
-        
+
         if row_tuple not in seen:
             seen.add(row_tuple)
             unique_data.append(row)
-    
+
     return unique_data
 
 
-def update_history_csv(source_file: str = watch_later_csv, history_file: str = watch_later_history, gitignore_path: str = gitignore):
+def update_history_csv(
+    source_file: str = watch_later_csv,
+    history_file: str = watch_later_history,
+    gitignore_path: str = gitignore,
+):
     """
-    Fügt neue Einträge aus source_file in history_file ein, falls sie dort noch nicht existieren.
-    Falls history_file noch nicht existiert, wird sie erstellt und zur .gitignore hinzugefügt.
+    Inserts new entries from source file to history.
 
     Args:
-        source_file (str): Pfad zur aktuellen CSV-Datei.
-        history_file (str): Pfad zur History-CSV-Datei (Standard: "history.csv").
-        gitignore_path (str): Pfad zur .gitignore-Datei (Standard: ".gitignore").
+        source_file (str): path to current csv source file
+        history_file (str): path to csv history file. Defaults to history.csv
+        gitignore_path (str): path to .gitignore file. Defaults to .gitignore
     """
 
-    # Prüfen, ob die Quell-CSV existiert und nicht leer ist
     if not os.path.exists(source_file) or os.stat(source_file).st_size == 0:
         print("Die Quell-CSV ist leer oder existiert nicht. Keine neuen Einträge.")
         return
 
-    # Falls die History-Datei nicht existiert, sie erstellen und zur .gitignore hinzufügen
     if not os.path.exists(history_file):
         with open(history_file, mode="w", encoding="utf-8") as file:
             pass  # Leere Datei erstellen
@@ -198,7 +203,6 @@ def update_history_csv(source_file: str = watch_later_csv, history_file: str = w
 
         write_filename_to_gitignore(gitignore_path, history_file)
 
-    # Bestehende History-Daten einlesen
     history_data = set()
     if os.stat(history_file).st_size > 0:
         with open(history_file, mode="r", encoding="utf-8") as file:
@@ -207,7 +211,6 @@ def update_history_csv(source_file: str = watch_later_csv, history_file: str = w
             for row in reader:
                 history_data.add(tuple(row))
 
-    # Neue Daten aus der Quell-CSV einlesen
     new_data = []
     with open(source_file, mode="r", encoding="utf-8") as file:
         reader = csv.reader(file)
@@ -216,11 +219,10 @@ def update_history_csv(source_file: str = watch_later_csv, history_file: str = w
             if tuple(row) not in history_data:
                 new_data.append(row)
 
-    # Falls es neue Einträge gibt, in die History-CSV speichern
     if new_data:
         with open(history_file, mode="a", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
-            if not history_data:  # Falls die Datei gerade erst erstellt wurde, Header schreiben
+            if not history_data:
                 writer.writerow(header)
             writer.writerows(new_data)
         print(f"{len(new_data)} neue Einträge zur History hinzugefügt.")
@@ -229,104 +231,159 @@ def update_history_csv(source_file: str = watch_later_csv, history_file: str = w
 
 
 def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=gitignore):
+    """Saves YouTube video to csv file
+
+    Args:
+        video (_type_): @Adrian
+        filename (str, optional): name of csv file containing videos to watch later. Defaults to watch_later_csv.
+        gitignore_path (str, optional): path to .gitignore file. Defaults to gitignore.
+    """
     file_exists = os.path.isfile(filename)
-    # CSV-Datei schreiben
     with open(filename, mode="a", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=["title", "channel_name", "video_id", "video_url", "length", "views", "summarized_transcript"])
-        
+        writer = csv.DictWriter(
+            file,
+            fieldnames=[
+                "title",
+                "channel_name",
+                "video_id",
+                "video_url",
+                "length",
+                "views",
+                "summarized_transcript",
+            ],
+        )
+
         if not file_exists:
             writer.writeheader()
 
-        writer.writerow({
-            "title": video["title"],
-            "channel_name": video["channel_name"],
-            "video_id": video["video_id"],
-            "video_url": f"https://www.youtube.com/watch?v={video['video_id']}",
-            "length": video["length"],
-            "views": video['views'],
-            "summarized_transcript": get_short_summary_for_watch_list(get_transcript(video['video_id']),video['title'],video["channel_name"]),
-        })
+        writer.writerow(
+            {
+                "title": video["title"],
+                "channel_name": video["channel_name"],
+                "video_id": video["video_id"],
+                "video_url": f"https://www.youtube.com/watch?v={video['video_id']}",
+                "length": video["length"],
+                "views": video["views"],
+                "summarized_transcript": get_short_summary_for_watch_list(
+                    get_transcript(video["video_id"]),
+                    video["title"],
+                    video["channel_name"],
+                ),
+            }
+        )
 
     # .gitignore aktualisieren
     write_filename_to_gitignore(gitignore_path, filename)
-    
 
     update_history_csv()
 
 
 def load_interests():
-    """Lädt die Interessen aus der Datei, falls sie existiert."""
+    """Loads interests from file if it exists.
+
+    Returns:
+        str: interests
+    """
     if os.path.exists(Interests_file):
         with open(Interests_file, "r", encoding="utf-8") as file:
             return file.read().strip()
-    return ""  # Falls die Datei nicht existiert, leere Zeichenkette zurückgeben
+    return ""
 
 
 def save_interests(interests):
-    """Speichert die Interessen in die Datei, falls sie sich geändert haben."""
+    """Saves changes to interest file.
+
+    Args:
+        interests (_type_): @Adrian
+    """
     current_interests = load_interests()
     if current_interests != interests:  # Speichern nur, wenn es Änderungen gibt
         with open(Interests_file, "w", encoding="utf-8") as file:
             file.write(interests)
 
-    write_filename_to_gitignore(filename = Interests_file, gitignore_path = gitignore)
+    write_filename_to_gitignore(filename=Interests_file, gitignore_path=gitignore)
 
 
 def delete_video_by_id(video, filename=watch_later_csv):
+    """Deletes video from watch later csv file.
+
+    Args:
+        video (_type_): @Adrian
+        filename (str, optional): name of csv file containing videos to watch later. Defaults to watch_later_csv.
     """
-    Löscht den Eintrag mit der angegebenen `video_id` aus der CSV-Datei.
-    """
-    # Liste der Zeilen (als Dictionaries) aus der CSV lesen
     videos = []
-    video_id = video['video_id']
+    video_id = video["video_id"]
     with open(filename, mode="r", encoding="utf-8") as file:
         reader = csv.DictReader(file)
         for row in reader:
             videos.append(row)
-    
-    # Finde und lösche den Eintrag mit der gewünschten video_id
+
     videos_to_keep = [video for video in videos if video["video_id"] != video_id]
 
-    # Schreibe die aktualisierte Liste zurück in die CSV-Datei
     with open(filename, mode="w", newline="", encoding="utf-8") as file:
-        fieldnames = ["title", "channel_name", "video_id", "video_url", "length","views", "summarized_transcript"]
+        fieldnames = [
+            "title",
+            "channel_name",
+            "video_id",
+            "video_url",
+            "length",
+            "views",
+            "summarized_transcript",
+        ]
         writer = csv.DictWriter(file, fieldnames=fieldnames)
-        
+
         writer.writeheader()
         for video in videos_to_keep:
-            writer.writerow(video) 
+            writer.writerow(video)
 
     print(f"Das Video mit der video_id {video_id} wurde erfolgreich gelöscht.")
 
 
 def build_video_list(incoming_videos, key_id: str):
+    """@Adrian
+
+    Args:
+        incoming_videos (_type_): _description_
+        key_id (str): _description_
+    """
     saved_video_ids = []
     filename = watch_later_csv
     if os.path.exists(filename):
-        # Öffne die CSV-Datei zum Lesen
         with open(filename, mode="r", encoding="utf-8") as file:
             reader = csv.DictReader(file)
-            
-            # Gehe jede Zeile durch und extrahiere den Wert der angegebenen Spalte
+
             for row in reader:
-                if 'video_id' in row:
-                    saved_video_ids.append(row['video_id'])
+                if "video_id" in row:
+                    saved_video_ids.append(row["video_id"])
                 else:
                     print(f"Spalte '{'video_id'}' nicht gefunden.")
 
     for video in incoming_videos:
         st.subheader(video["title"])
         st.write(video["channel_name"])
-        st.write(f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})")
+        st.write(
+            f"[📺 Video ansehen](https://www.youtube.com/watch?v={video['video_id']})"
+        )
 
         expander_key = f"summary_{video['video_id']}_{key_id}"
         if expander_key not in st.session_state:
             st.session_state[expander_key] = None
 
         def load_summary(container, video_id, title):
+            """@Adrian
+
+            Args:
+                container (_type_): _description_
+                video_id (_type_): _description_
+                title (_type_): _description_
+            """
             try:
                 transcript = get_transcript(video_id)
-                summary = get_summary(transcript, title) if transcript else "Keine Zusammenfassung verfügbar."
+                summary = (
+                    get_summary(transcript, title)
+                    if transcript
+                    else "Keine Zusammenfassung verfügbar."
+                )
             except:
                 summary = "Fehler beim Laden der Zusammenfassung."
 
@@ -345,30 +402,31 @@ def build_video_list(incoming_videos, key_id: str):
         st.write(f"{video['length']} Min.")
         st.write(f"{video['views']} Views")
 
-        if key_id =='watch_later':
+        if key_id == "watch_later":
             # Nutze den Lazy Button
             lazy_button(
                 label="🚮delete from list",
                 key=f"del_{video['video_id']}",
                 on_click=delete_video_by_id,
-                callback_kwargs={"video": video}
+                callback_kwargs={"video": video},
             )
-            
+
         else:
-            if video['video_id'] not in saved_video_ids:
+            if video["video_id"] not in saved_video_ids:
                 lazy_button(
                     label="➕add to watch list",
                     key=f"save_{video['video_id']}",
                     on_click=save_video_to_csv,
-                    callback_kwargs={"video": video}
-                )            
-            
+                    callback_kwargs={"video": video},
+                )
 
-## BUILD TABS
+
+# Build Tabs
 def build_trending_videos_tab() -> None:
+    """Builds tab for trending videos."""
     st.header("Trending Videos")
     region_code = st.radio("Region wählen:", ("DE", "US", "GB"))
-    
+
     if st.button("🔄 Trending Videos laden"):
         with st.spinner("Lade Trending Videos..."):
             if search_method == "YouTube API":
@@ -382,7 +440,18 @@ def build_trending_videos_tab() -> None:
             build_video_list(videos, key_id="trending_videos")
 
 
-def build_trend_recommondations(retry_count: int = 0, show_spinner: bool = True, show_loading_time_information: bool = True,):
+def build_trend_recommondations(
+    retry_count: int = 0,
+    show_spinner: bool = True,
+    show_loading_time_information: bool = True,
+):
+    """Builds sub tab for recommendations based on trending videos.
+
+    Args:
+        retry_count (int, optional): @Adrian. Defaults to 0.
+        show_spinner (bool, optional): @Adrian. Defaults to True.
+        show_loading_time_information (bool, optional): @Adrian. Defaults to True.
+    """
     loading_time_information = None
     max_retries = 3
 
@@ -404,12 +473,10 @@ def build_trend_recommondations(retry_count: int = 0, show_spinner: bool = True,
 
         if search_method == "YouTube API":
             videos = get_trending_videos(youtube, region_code="DE")
-        else:   
+        else:
             videos = get_trending_videos_dlp(region_code="DE")
 
-        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(
-            videos
-        )
+        video_ids_titles_and_transcripts = combine_video_id_title_and_transcript(videos)
         recommendations_unfiltered = get_recommendation(
             video_ids_titles_and_transcripts=video_ids_titles_and_transcripts,
             interests=user_interests,
@@ -431,48 +498,64 @@ def build_trend_recommondations(retry_count: int = 0, show_spinner: bool = True,
     if recommendations:
         if search_method == "YouTube API":
             request = youtube.videos().list(
-                part="snippet", 
-                id=recommendations["video_id"]      
+                part="snippet", id=recommendations["video_id"]
             )
             response = request.execute()
-            video_data = get_video_data(youtube, response,'trends')
+            video_data = get_video_data(youtube, response, "trends")
             build_video_list(video_data, key_id="recommendation")
         else:
             video_data = get_video_data_dlp(recommendations["video_id"])
             build_video_list([video_data], key_id="recommendation")
 
-        st.write('## Begründung:')
+        st.write("## Begründung:")
         st.write(recommendations["Begründung"])
 
 
 def build_gemini_recommondations(history_path):
-    recommended_videos=[]
+    """Builds sub tab for recommendations based on Gemini.
+
+    Args:
+        history_path (str): path to history file
+    """
+    recommended_videos = []
     try:
         channelId = load_channel_id()
     except Exception as e:
-        st.error(f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}")
+        st.error(
+            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}"
+        )
     else:
 
         if search_method == "YouTube API":
-            max_results = st.slider("Videoanzahl pro Kanal", min_value=1, max_value=5, value=2)
+            max_results = st.slider(
+                "Videoanzahl pro Kanal", min_value=1, max_value=5, value=2
+            )
             max_abos = st.slider("Kanalanzahl", min_value=1, max_value=20, value=10)
         else:
-            max_results = st.slider("Videoanzahl pro Kanal(yt_dlp)", min_value=1, max_value=10, value=5)
-            max_abos = st.slider("Kanalanzahl (yt-dlp)", min_value=1, max_value=30, value=10)
-
+            max_results = st.slider(
+                "Videoanzahl pro Kanal(yt_dlp)", min_value=1, max_value=10, value=5
+            )
+            max_abos = st.slider(
+                "Kanalanzahl (yt-dlp)", min_value=1, max_value=30, value=10
+            )
 
         subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
         if os.path.exists(history_path):
             history = read_csv_to_list(history_path)
             if len(history) != 0:
-                if st.button("🔄 Gemini Recommendation laden"): 
-                    recommended_channels = get_channel_recommondations(history,subscriptions ,max_abos, user_interests)
+                if st.button("🔄 Gemini Recommendation laden"):
+                    recommended_channels = get_channel_recommondations(
+                        history, subscriptions, max_abos, user_interests
+                    )
                     for channel in recommended_channels:
                         print(channel)
-                        print('response:_______________________________')
+                        print("response:_______________________________")
                         if search_method == "YouTube API":
                             request = youtube.search().list(
-                                part="snippet", q=channel, type="video", maxResults=max_results
+                                part="snippet",
+                                q=channel,
+                                type="video",
+                                maxResults=max_results,
                             )
                             response = request.execute()
                             print(response)
@@ -483,11 +566,15 @@ def build_gemini_recommondations(history_path):
                         for video in videos:
                             recommended_videos.append(video)
 
-                    build_video_list(recommended_videos, 'gemini_rec')
+                    build_video_list(recommended_videos, "gemini_rec")
             else:
-                st.error('Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf.')
+                st.error(
+                    "Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf."
+                )
         else:
-            st.error('Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf.')
+            st.error(
+                "Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf."
+            )
 
 
 def build_recommendation_tab(
@@ -495,21 +582,29 @@ def build_recommendation_tab(
     show_spinner: bool = True,
     show_loading_time_information: bool = True,
 ) -> None:
+    """Builds tab for recommendations.
+
+    Args:
+        retry_count (int, optional): @Adrian. Defaults to 0.
+        show_spinner (bool, optional): @Adrian. Defaults to True.
+        show_loading_time_information (bool, optional): @Adrian. Defaults to True.
+    """
     st.header("Personalisierte Empfehlungen")
 
-    # Erstelle die Tabs
     tab1, tab2 = st.tabs(["Trends Recommendation", " Gemini Recommendation"])
-
 
     with tab1:
         if st.button("🔄 Trend Recommendation laden"):
-            build_trend_recommondations(retry_count, show_spinner, show_loading_time_information)
+            build_trend_recommondations(
+                retry_count, show_spinner, show_loading_time_information
+            )
 
     with tab2:
-        build_gemini_recommondations('watch_later_history.csv')      
+        build_gemini_recommondations("watch_later_history.csv")
 
 
 def build_clickbait_recognition_tab() -> None:
+    """Builds tab for clickbait recognition."""
     st.header("Clickbait Analyse")
     st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
 
@@ -522,7 +617,9 @@ def build_clickbait_recognition_tab() -> None:
 
         if video_id:
             video_info = get_video_data_dlp(video_id)
-            clickbait_elements = check_for_clickbait(get_transcript(video_id),video_info['title'])
+            clickbait_elements = check_for_clickbait(
+                get_transcript(video_id), video_info["title"]
+            )
             if clickbait_elements == "no transcript":
                 st.warning(
                     "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuchen Sie es mit einem anderen Video."
@@ -541,40 +638,31 @@ def build_clickbait_recognition_tab() -> None:
 
 
 def save_feedback(feedback_text: str) -> None:
-    """
-    Speichert das Feedback in einer CSV-Datei mit Datum und Uhrzeit.
-
-    Falls die Datei nicht existiert, wird sie mit den entsprechenden Spalten erstellt.
+    """Saves feedback from input form to csv.
 
     Args:
-        feedback_text (str): Der eingegebene Feedback-Text.
+        feedback_text (str): feedback sent by user
     """
-
-    # Daten vorbereiten
     now = datetime.now()
     date = now.strftime("%Y-%m-%d")
     time = now.strftime("%H:%M:%S")
     feedback_data = [date, time, feedback_text]
 
-    # Prüfen, ob die Datei existiert, falls nicht, erstellen wir sie mit Header
     file_exists = os.path.exists(FEEDBACK_FILE)
 
     with open(FEEDBACK_FILE, mode="a", newline="", encoding="utf-8") as file:
         writer = csv.writer(file)
         if not file_exists:
-            writer.writerow(["Datum", "Uhrzeit", "Feedback"])  # Header schreiben
+            writer.writerow(["Datum", "Uhrzeit", "Feedback"])
         writer.writerow(feedback_data)
 
-    # Erfolgsnachricht anzeigen und Textfeld zurücksetzen
-    st.session_state["feedback_submitted"] = True  # Setzt einen Status, dass Feedback gesendet wurde
-    st.session_state["feedback_text"] = ""  # Leert das Textfeld
-    st.rerun()  # Lädt die Seite neu
+    st.session_state["feedback_submitted"] = True
+    st.session_state["feedback_text"] = ""
+    st.rerun()
 
 
 def build_feedback_tab() -> None:
-    """
-    Erstellt das Feedback-Tab im Streamlit-Dashboard.
-    """
+    """Builds tab for feedback."""
     st.header("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
 
@@ -582,37 +670,39 @@ def build_feedback_tab() -> None:
         st.session_state["feedback_text"] = ""
 
     if "feedback_submitted" not in st.session_state:
-        st.session_state["feedback_submitted"] = False  # Status, ob Feedback abgegeben wurde
+        st.session_state["feedback_submitted"] = False
 
     feedback = st.text_area("Dein Feedback oder Verbesserungsvorschläge:")
 
-    # Feedback erfolgreich abgegeben
     if st.session_state["feedback_submitted"]:
-        st.session_state["feedback_submitted"] = False  # Setzt den Status zurück
+        st.session_state["feedback_submitted"] = False
         st.success("Vielen Dank für dein Feedback!")
 
     if st.button("Feedback absenden"):
-        if feedback.strip():  # Verhindert Absenden leerer Nachrichten
+        if feedback.strip():
             save_feedback(feedback)
         else:
             st.warning("Bitte gib ein Feedback ein, bevor du es absendest.")
 
 
 def build_search_tab():
+    """Builds tab for search."""
     st.session_state["active_tab"] = "search"
 
     if "videos" not in st.session_state or (st.session_state.get("new_search", False)):
         st.session_state["videos"] = []
-        st.session_state["new_search"] = False  # Reset des Flags nach dem Setzen
+        st.session_state["new_search"] = False
 
     st.header("Suche")
     st.write("Hier kannst du nach Videos oder Kategorien suchen.")
-    
+
     query = st.text_input("🔎 Wonach suchst du?", "KI Trends 2024")
 
-    max_results = 10  
+    max_results = 10
     if search_method == "yt-dlp(Experimentell)":
-        max_results = st.slider("Anzahl der Videos", min_value=1, max_value=50, value=10)
+        max_results = st.slider(
+            "Anzahl der Videos", min_value=1, max_value=50, value=10
+        )
 
     if st.button("🔍 Suchen"):
         st.session_state["new_search"] = True  # Neue Suche starten
@@ -627,39 +717,46 @@ def build_search_tab():
             videos = search_videos_dlp(query, max_results=max_results)
 
         st.session_state["videos"] = videos  # Ergebnisse speichern
-        st.session_state["last_tab"] = "search" # Tab-Wechsel speichern
+        st.session_state["last_tab"] = "search"  # Tab-Wechsel speichern
 
     if st.session_state.get("videos"):
         build_video_list(st.session_state["videos"], key_id="search")
 
 
 def build_abobox_tab():
+    """Builds tab for subscriptions."""
     st.session_state["active_tab"] = "abobox"
 
-    
     if "videos" in st.session_state and st.session_state.get("last_tab") != "abobox":
         st.session_state["videos"] = []
 
     st.header("Abobox")
     st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
-    
 
     if search_method == "YouTube API":
-        max_results = st.slider("Anzahl der Videos pro Kanal", min_value=1, max_value=5, value=2)
+        max_results = st.slider(
+            "Anzahl der Videos pro Kanal", min_value=1, max_value=5, value=2
+        )
         max_abos = st.slider("Anzahl der Kanäle", min_value=1, max_value=20, value=10)
     else:
-        max_results = st.slider("Anzahl der Videos pro Kanal (yt_dlp)", min_value=1, max_value=10, value=5)
-        max_abos = st.slider("Anzahl der Kanäle (yt_dlp)", min_value=1, max_value=30, value=10)
-    
+        max_results = st.slider(
+            "Anzahl der Videos pro Kanal (yt_dlp)", min_value=1, max_value=10, value=5
+        )
+        max_abos = st.slider(
+            "Anzahl der Kanäle (yt_dlp)", min_value=1, max_value=30, value=10
+        )
+
     try:
         channelId = load_channel_id()
     except Exception as e:
-        st.error(f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}")
+        st.error(
+            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}"
+        )
     else:
         try:
             subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
-            if len(subscriptions)==0:
-                st.error('APi key aufgebraucht oder Abos nicht auf öffentlich')
+            if len(subscriptions) == 0:
+                st.error("APi key aufgebraucht oder Abos nicht auf öffentlich")
 
         except:
             st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
@@ -667,7 +764,8 @@ def build_abobox_tab():
             if st.button("🔄 Abobox laden"):
                 channel_names_and_description = ", ".join(
                     subscriptions[subscriptions["description"].str.strip() != ""].apply(
-                        lambda row: f"{row['channel_name']}:{row['description']}", axis=1
+                        lambda row: f"{row['channel_name']}:{row['description']}",
+                        axis=1,
                     )
                 )
 
@@ -689,12 +787,16 @@ def build_abobox_tab():
                     if not match.empty:
                         matched_ids.append(match.iloc[0]["channel_id"])
 
-                if search_method == "YouTube API":  
-                    recent_videos = get_recent_videos_from_subscriptions(youtube, matched_ids, max_results)
+                if search_method == "YouTube API":
+                    recent_videos = get_recent_videos_from_subscriptions(
+                        youtube, matched_ids, max_results
+                    )
                 else:
-                    recent_videos = get_recent_videos_from_channels_RSS(matched_ids, max_results)
-            
-                st.session_state["videos"] = recent_videos  
+                    recent_videos = get_recent_videos_from_channels_RSS(
+                        matched_ids, max_results
+                    )
+
+                st.session_state["videos"] = recent_videos
                 st.session_state["last_tab"] = "abobox"  # Tab-Wechsel speichern
 
             if st.session_state.get("videos"):
@@ -702,12 +804,16 @@ def build_abobox_tab():
 
 
 def build_watch_later_tab():
+    """Builds tab for watch later."""
     st.session_state["active_tab"] = "view_later"
 
-    if "videos" in st.session_state and st.session_state.get("last_tab") != "view_later":
+    if (
+        "videos" in st.session_state
+        and st.session_state.get("last_tab") != "view_later"
+    ):
         st.session_state["videos"] = []
 
-    if st.button('neu laden'):
+    if st.button("neu laden"):
         st.rerun()
 
     if os.path.exists(watch_later_csv):
@@ -716,32 +822,29 @@ def build_watch_later_tab():
             st.header("Watch list")
             build_video_list(videos, key_id="watch_later")
         else:
-            st.error('Es wurden noch keine Videos zur Watchlist hinzugefügt')
+            st.error("Es wurden noch keine Videos zur Watchlist hinzugefügt")
     else:
-        st.error('Es wurden noch keine Videos zur Watchlist hinzugefügt')
+        st.error("Es wurden noch keine Videos zur Watchlist hinzugefügt")
 
 
 def build_settings_pop_up() -> None:
+    """Builds pop up for settings at first use."""
     env_path = ".env"
     load_dotenv()
 
-    # Falls die .env Datei nicht existiert, erstelle sie
     if not os.path.exists(env_path):
         with open(env_path, "w") as f:
             f.write("# API Keys\n")
 
-    # Lade vorhandene API-Keys
     current_env = dotenv_values(env_path)
     youtube_api_key = current_env.get("YOUTUBE_API_KEY", "")
     openai_api_key = current_env.get("TOKEN_GOOGLEAPI", "")
-    channel_id = current_env.get("CHANNEL_ID", "") 
+    channel_id = current_env.get("CHANNEL_ID", "")
 
-    # Eingabefelder für API-Keys
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
     openai_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
-    # Speichern-Button
     if st.button("💾 Speichern"):
         if youtube_key:
             set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
@@ -750,54 +853,48 @@ def build_settings_pop_up() -> None:
         if channel_id:
             set_key(env_path, "CHANNEL_ID", channel_id)
 
-        # API-Keys erneut aus der Datei laden
         updated_env = dotenv_values(env_path)
 
-        # Prüfen, ob die Werte gespeichert wurden
-        if (updated_env.get("YOUTUBE_API_KEY") == youtube_key and 
-            updated_env.get("TOKEN_GOOGLEAPI") == openai_key and
-            updated_env.get("CHANNEL_ID") == channel_id):
+        if (
+            updated_env.get("YOUTUBE_API_KEY") == youtube_key
+            and updated_env.get("TOKEN_GOOGLEAPI") == openai_key
+            and updated_env.get("CHANNEL_ID") == channel_id
+        ):
 
             st.success("✅ API-Keys wurden gespeichert!")
-            st.session_state.show_settings = False  # Schließt das "Pop-up"
+            st.session_state.show_settings = False
             st.rerun()
-            initialize()  # YouTube-Client neu initialisieren
+            initialize()
         else:
             st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
 
 
 def build_settings_tab() -> None:
-    """Tab für API-Key Einstellungen"""
+    """Builds tab for settings."""
     st.header("⚙️ Einstellungen")
 
-    # Lade vorhandene .env-Datei oder erstelle sie
     env_path = ".env"
     load_dotenv()
     if not os.path.exists(env_path):
         with open(env_path, "w") as f:
             f.write("# API Keys\n")
 
-    # Vorhandene API-Keys abrufen
     youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
     openai_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
 
-    # Eingabefelder für API-Keys
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
     openai_key = st.text_input("🤖 OpenAI API Key", openai_api_key, type="password")
 
     if st.button("🗑️Watch List history löschen"):
         history = watch_later_history
-        
-        # CSV einlesen
+
         df = pd.read_csv(history)
         df1 = pd.read_csv(watch_later_csv)
 
-        # Nur die Header behalten und Datei neu schreiben
         df.iloc[0:0].to_csv(history, index=False)
         df1.iloc[0:0].to_csv(watch_later_csv, index=False)
 
-        st.success('Erfolgreich gelöscht')
-    # API-Keys speichern
+        st.success("Erfolgreich gelöscht")
     if st.button("💾 Speichern"):
         if youtube_key:
             set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
@@ -810,6 +907,11 @@ def build_settings_tab() -> None:
 
 
 def initialize() -> googleapiclient.discovery.Resource | None:
+    """Initializes issues regarding Google API Client.
+
+    Returns:
+        googleapiclient.discovery.Resource | None: Ressource from Google API Client
+    """
     try:
         YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
         youtube: object = create_youtube_client(YT_API_KEY)
@@ -843,8 +945,9 @@ from src.gemini_helper import (
     check_for_clickbait,
     get_subscriptions_based_on_interests,
     get_short_summary_for_watch_list,
-    get_channel_recommondations
+    get_channel_recommondations,
 )
+
 ###----------------------------------###
 
 st.sidebar.header("Einstellungen")
@@ -860,7 +963,9 @@ user_interests = st.sidebar.text_input(
 )
 save_interests(user_interests)
 
-search_method = st.sidebar.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)"))
+search_method = st.sidebar.radio(
+    "Suchmethode wählen:", ("YouTube API", "yt-dlp(Experimentell)")
+)
 
 st.session_state.show_spoiler = st.sidebar.checkbox(
     "Spoiler anzeigen", value=st.session_state.show_spoiler
@@ -874,9 +979,9 @@ tabs = st.tabs(
         "Clickbait Analyse",
         "Suche",
         "Abobox",
-        "Watch Later",  
+        "Watch Later",
         "Feedback",
-        "Einstellungen"
+        "Einstellungen",
     ]
 )
 
@@ -904,7 +1009,7 @@ with tabs[4]:
 ####################################
 with tabs[5]:
     build_watch_later_tab()
-    
+
 ####################################
 with tabs[6]:
     build_feedback_tab()

@@ -3,8 +3,18 @@ from googleapiclient.discovery import build
 from typing import Optional
 
 
-
 def get_api_key(env_var: str) -> Optional[str]:
+    """Fetches API Key (currently Gemini or YouTube) from .env file.
+
+    Args:
+        env_var (str): Name of the desired key from .env file.
+
+    Raises:
+        ValueError: Key not found.
+
+    Returns:
+        Optional[str]: API Key
+    """
     try:
         api_key = os.getenv(env_var)
     except:
@@ -15,6 +25,14 @@ def get_api_key(env_var: str) -> Optional[str]:
 
 
 def create_youtube_client(api_key: str) -> object:
+    """Sets up a client for YouTube Data API v3.
+
+    Args:
+        api_key (str): YouTube API Key
+
+    Returns:
+        object: YouTube Client
+    """
     api_service_name = "youtube"
     api_version = "v3"
     return build(api_service_name, api_version, developerKey=api_key)

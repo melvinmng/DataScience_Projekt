@@ -9,6 +9,7 @@ import json
 from .youtube_transcript import get_transcript
 from .key_management.api_key_management import get_api_key
 
+
 ################# Initialization ###############################
 try:
     ai_client = genai.Client(api_key=get_api_key("TOKEN_GOOGLEAPI"))
@@ -37,12 +38,30 @@ ai_generate_content_config = types.GenerateContentConfig(
 )
 
 
-def get_short_summary_for_watch_list(transcript, title, channel):
+def get_short_summary_for_watch_list(transcript: str, title: str, channel: str):
+    """Briefly summarizes video for watch list.
+
+    Args:
+        transcript (str): transcript of YouTube video
+        title (str): title of YouTube video
+        channel (str): YouTube Channel ID
+
+    Raises:
+        ValueError: Key not found.
+
+    Returns:
+        str | none: Gemini AI response
+    """
     try:
         response = ai_client.models.generate_content(
             model=ai_model,
             config=ai_generate_content_config,
-            contents=f"Fasse mir dieses Video unglaublich kurz und prägnant zusammen,sodass nur das Hauptthema des Videos klar wird. Transkript: {transcript}. Zusätzlich gebe ich dir noch den Titel des Videos und den Kanalnamen. Titel:{title}, Channel:{channel}. Gebe mir zudem nur die Zusammenfassung zurück. Keine Überschriften etc.",
+            contents=f"""
+            Fasse mir dieses Video unglaublich kurz und prägnant zusammen,
+            sodass nur das Hauptthema des Videos klar wird. Transkript: {transcript}. 
+            Zusätzlich gebe ich dir noch den Titel des Videos und den Kanalnamen. 
+            Titel:{title}, Channel:{channel}. 
+            Gebe mir zudem nur die Zusammenfassung zurück. Keine Überschriften etc.""",
         )
         if response.text:
             return response.text
@@ -52,24 +71,35 @@ def get_short_summary_for_watch_list(transcript, title, channel):
         return transcript
 
 
-def get_channel_recommondations(history, channels, Anzahl, interests):
+def get_channel_recommondations(
+    history, channels, number_of_recommendations, interests
+):
+    """Reccomends YouTube Channels based on user preferences.
+
+    Args:
+        history (_type_): @Adrian
+        channels (_type_): @Adrian
+        number_of_recommendations (_type_): @Adrian
+        interests (_type_): @Adrian
+
+    Returns:
+        _type_: @Adrian
+    """
     response = ai_client.models.generate_content(
-            model=ai_model,
-            config=ai_generate_content_config,
-            contents =(
-                f"Gebe mir anhand meiner Video History {history} genau {Anzahl} Kanalvorschläge die mir gefallen könnten. DIE KANÄLE DIE DU MIR VORSCHLÄGST MÜSSEN NEUE KANÄLE SEIN. SIE DÜRFEN NICHT IN MEINER HISTORY STEHEN. Gebe mir AUSSCHLIESLICH nur die Namen der Kanäle in reiner Textform und Kommagetrent zurück.\n"
-                f"Zusätzlich erhälts du meine Abos umd noch genauere Empfehlungen zu geben. Abos: {channels}. Deine Empfehlungen müssen Kanäle sein, die ich noch nicht abonniert habe.\n"
-                f"Berücksichtige außerdem noch meine aktuellen Interessen: {interests} und gewichte diese besonders in deiner Auswahl. Es sollte für jede Interesse ein Kanal in deiner Auswahl dabei sein."
-                f"Gebe wirklich außschließlich nur die Kanäle kommagetrennt zurück. Bsp: Kanal1, Kanal2, Kanal3, etc...WIRKLICH NUR DIE KANÄLE NICHTS ANDERES."
-            )
-
-
-        )
+        model=ai_model,
+        config=ai_generate_content_config,
+        contents=(
+            f"Gebe mir anhand meiner Video History {history} genau {number_of_recommendations} Kanalvorschläge die mir gefallen könnten. DIE KANÄLE DIE DU MIR VORSCHLÄGST MÜSSEN NEUE KANÄLE SEIN. SIE DÜRFEN NICHT IN MEINER HISTORY STEHEN. Gebe mir AUSSCHLIESLICH nur die Namen der Kanäle in reiner Textform und Kommagetrent zurück.\n"
+            f"Zusätzlich erhälts du meine Abos umd noch genauere Empfehlungen zu geben. Abos: {channels}. Deine Empfehlungen müssen Kanäle sein, die ich noch nicht abonniert habe.\n"
+            f"Berücksichtige außerdem noch meine aktuellen Interessen: {interests} und gewichte diese besonders in deiner Auswahl. Es sollte für jede Interesse ein Kanal in deiner Auswahl dabei sein."
+            f"Gebe wirklich außschließlich nur die Kanäle kommagetrennt zurück. Bsp: Kanal1, Kanal2, Kanal3, etc...WIRKLICH NUR DIE KANÄLE NICHTS ANDERES."
+        ),
+    )
     if response.text:
-            print(response.text)
-            return response.text.split(",")
+        print(response.text)
+        return response.text.split(",")
     else:
-            return 'Fehler'
+        return "Fehler"
 
 
 def get_summary(transcript: str, title) -> str | None:
@@ -77,15 +107,21 @@ def get_summary(transcript: str, title) -> str | None:
     Offers a summary of a YouTube video using its transcript. Spoilers possible.
 
     Args:
-        transcript (str): Transcript of the YouTube video
+        transcript (str): transcript of YouTube video
+        title (str): title of YouTube video
 
     Returns:
-        str: summary of the YouTube video
+        str: summary of YouTube video
     """
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
-        contents=f"Fasse mir dieses Video unglaublich kurz und prägnant zusammen, sodass nur das Hauptthema des Videos klar wird: {transcript}. Gehe dabei nur auf die Kernaussage ein. Vergleiche zudem den Inhalt des Videos mit dem Titel: {title} und untersuche diesen auf potenziellen Clickbait.",
+        contents=f"""Fasse mir dieses Video unglaublich 
+        kurz und prägnant zusammen, sodass nur das Hauptthema des Videos 
+        klar wird: {transcript}. Gehe dabei nur auf die Kernaussage ein. 
+        Vergleiche zudem den Inhalt des Videos mit dem Titel: {title} und 
+        untersuche diesen auf potenziellen Clickbait.
+        """,
     )
     if response.text:
         return response.text
@@ -98,19 +134,17 @@ def get_summary_without_spoiler(transcript: str) -> str | None:
     Offers a summary of a YouTube video using its transcript. Spoilers prevented.
 
     Args:
-        transcript (str): Transcript of the YouTube video
+        transcript (str): transcript of YouTube video
 
     Returns:
-        str: summary of the YouTube video without spoilers
+        str: summary of YouTube video without spoilers
     """
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
         contents=(
             f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein und achte darauf, keinen Inhalt zu spoilern."
-            
-        )
-
+        ),
     )
 
     if response.text:
@@ -123,8 +157,19 @@ def get_recommendation(
     video_ids_titles_and_transcripts: list[str],
     interests: str | None = None,
     todays_free_time: float | None = None,
-    abonnements: DataFrame | None = None,
+    subscriptions: DataFrame | None = None,
 ) -> str | None:
+    """Gets video recommendations based on user preferences.
+
+    Args:
+        video_ids_titles_and_transcripts (list[str]): List of YouTube video IDs, titles, transcripts
+        interests (str | None, optional): User interests. Defaults to None.
+        todays_free_time (float | None, optional): User's free time. Defaults to None.
+        subscriptions (DataFrame | None, optional): User's subsricptions. Defaults to None.
+
+    Returns:
+        str | None: Gemini AI response
+    """
     prompt = (
         f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
         f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
@@ -148,7 +193,15 @@ def get_recommendation(
 
 
 def get_transcript_safe(video_id):
-    """ Wrapper-Funktion, um Fehler bei einzelnen Videos zu vermeiden. """
+    """Wrapper function to avoid errors when handling transcripts.
+
+    Args:
+        video_id (str): YouTube video ID
+
+    Returns:
+        _type_: _description_ @Adrian @Melvin
+    """
+    # Wrapper-Funktion, um Fehler bei einzelnen Videos zu vermeiden.
     try:
         return get_transcript(video_id)
     except Exception as e:
@@ -156,15 +209,23 @@ def get_transcript_safe(video_id):
 
 
 def combine_video_id_title_and_transcript(videos: list) -> list[str]:
+    """Combines YouTube video id, title and transcript with threads.
+
+    Args:
+        videos (list): List of YouTube videos
+
+    Returns:
+        list[str]: List of YouTube videos combined with key features
     """
-    Holt die Transkripte parallel mit Threads.
-    """
+    # Holt die Transkripte parallel mit Threads.
     num_videos = len(videos)
-    num_threads = min(num_videos, multiprocessing.cpu_count() * 2) 
+    num_threads = min(num_videos, multiprocessing.cpu_count() * 2)
     video_id_title_and_transcript = []
 
     # Mapping von Video-IDs auf Titel
-    video_map = {video["video_id"]: video["title"] for video in videos if "video_id" in video}
+    video_map = {
+        video["video_id"]: video["title"] for video in videos if "video_id" in video
+    }
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
         future_to_video_id = {
@@ -186,7 +247,23 @@ def combine_video_id_title_and_transcript(videos: list) -> list[str]:
 
 
 def extract_video_id_and_reason(json_str: str, on_fail: Callable):
+    """_summary_ @Adrian
+
+    Args:
+        json_str (str): _description_
+        on_fail (Callable): _description_
+    """
+
     def extract_field(fieldname: str, text: str) -> str | None:
+        """_summary_ @Adrian
+
+        Args:
+            fieldname (str): _description_
+            text (str): _description_
+
+        Returns:
+            str | None: _description_
+        """
         pattern = rf'"{fieldname}":\s*"((?:\\.|[^"\\])*)"'  # Erfasst Zeichen inklusive Escape-Sequenzen
         match = re.search(pattern, text, re.DOTALL)
         return match.group(1).strip() if match else None
@@ -203,7 +280,15 @@ def extract_video_id_and_reason(json_str: str, on_fail: Callable):
 
 
 def check_for_clickbait(transcript: str, title: str) -> str:
+    """Checks a video for clickbait based on transcript and title.
 
+    Args:
+        transcript (str): Transcript of YouTube video
+        title (str): Title of YOuTube video
+
+    Returns:
+        str: Gemini AI response
+    """
     if transcript:
         response = ai_client.models.generate_content(
             model=ai_model,
@@ -220,11 +305,10 @@ def check_for_clickbait(transcript: str, title: str) -> str:
 
 
 def live_conversation() -> str:
-    """
-    Allows a live interaction with Gemini. For test cases only!
+    """Allows a live interaction with Gemini. For test cases only!
 
     Returns:
-        str: Gemini's response to the user's question/prompt as text in terminal
+        str: Gemini AI response to the user's input in terminal
     """
     print("Starte Konversation")
     question = input("Was kann ich für dich tun?")
@@ -239,6 +323,16 @@ def live_conversation() -> str:
 def get_subscriptions_based_on_interests(
     subscriptions: str, interests: str, number_of_channels: int
 ) -> list:
+    """Gets subscriptions based on user's preferences.
+
+    Args:
+        subscriptions (str): @Adrian
+        interests (str): @Adrian
+        number_of_channels (int): @Adrian
+
+    Returns:
+        list: @Adrian
+    """
     prompt = (
         f"Du erhälts einen String an Kanalnamen und ihrer zugehörigen beschreibung die ich mit meinem Youtube Account abonniert habe.\n"
         f"Hier ein Bespiel: 'channel_1:description_1,channel_2:description_2,....'"

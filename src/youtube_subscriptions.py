@@ -10,13 +10,16 @@ SCOPES = ["https://www.googleapis.com/auth/youtube.readonly"]
 
 
 def authenticate() -> Optional[object]:
+    """Authenticates user via Google AUth0. For test cases only!
+
+    Returns:
+        Optional[object]: YouTube client
+    """
     creds = None
-    # Die Token-Datei speichert den Zugriffstoken und wird bei der ersten Authentifizierung erzeugt.
     if os.path.exists("token.pickle"):
         with open("token.pickle", "rb") as token:
             creds = pickle.load(token)
 
-    # Wenn keine gültigen Anmeldeinformationen vorhanden sind, muss der Benutzer sich anmelden.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
@@ -30,7 +33,6 @@ def authenticate() -> Optional[object]:
         with open("token.pickle", "wb") as token:
             pickle.dump(creds, token)
 
-    # Erstelle den YouTube API-Client
     try:
         api_key: Optional[str] = get_api_key()
         youtube = create_youtube_client(api_key)
@@ -44,10 +46,15 @@ def authenticate() -> Optional[object]:
 
 
 def get_subscriptions(youtube: object) -> None:
+    """Gets user's subscriptions. For test cases only!
+
+    Args:
+        youtube (object): YouTube API client
+    """
     request = youtube.subscriptions().list(
         part="snippet",
-        mine=True,  # Nur für den authentifizierten Benutzer
-        maxResults=50,  # Anzahl der Ergebnisse pro Anfrage (max. 50)
+        mine=True,
+        maxResults=50,
     )
     response = request.execute()
 

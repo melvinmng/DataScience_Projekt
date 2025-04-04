@@ -18,10 +18,10 @@ def parse_duration(duration: str) -> str:
     Parse a YouTube video duration string into a human-readable format (MM:SS).
 
     Args:
-        duration (str): The ISO 8601 duration string (e.g., "PT5M10S").
+        duration (str): ISO 8601 duration string (e.g., "PT5M10S").
 
     Returns:
-        str: The formatted duration in the format "MM:SS".
+        str: formatted duration (MM:SS).
     """
     pattern = re.compile(r"PT(\d+M)?(\d+S)?")
     match = pattern.match(duration)
@@ -40,14 +40,14 @@ def parse_duration(duration: str) -> str:
 
 def get_video_length(youtube: object, video_id: str) -> str:
     """
-    Get the duration of a YouTube video.
+    Gets duration of a YouTube video via YouTube API.
 
     Args:
         youtube (object): The YouTube API client.
         video_id (str): The YouTube video ID.
 
     Returns:
-        str: The formatted video duration in the format "MM:SS".
+        str: video duration
     """
     request = youtube.videos().list(part="snippet,contentDetails", id=video_id)
     response = request.execute()
@@ -61,13 +61,13 @@ def get_video_length(youtube: object, video_id: str) -> str:
 
 def get_video_length_dlp(video_id: str) -> str:  # Checked
     """
-    Holt die Dauer eines YouTube-Videos ohne API, basierend auf der Video-ID.
+    Gets duration of a YouTube video via yt_dlp based on video ID.
 
     Args:
-        video_id (str): Die YouTube-Video-ID.
+        video_id (str): YouTube video ID
 
     Returns:
-        str: Die Videodauer im Format "MM:SS".
+        str: video duration
     """
     video_url = f"https://www.youtube.com/watch?v={video_id}"
     ydl_opts = {
@@ -92,6 +92,14 @@ def get_video_length_dlp(video_id: str) -> str:  # Checked
 
 
 def get_video_data_dlp(video_id) -> list:
+    """@Adrian
+
+    Args:
+        video_id (str): YouTube video ID
+
+    Returns:
+        list: @Adrian
+    """
     ydl_opts = {"quiet": True, "noplaylist": True, "no_warnings": True}
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -129,15 +137,15 @@ def get_video_data_dlp(video_id) -> list:
 
 def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str, str]]:
     """
-    Extract video data from a YouTube API response.
+    Extracts video data from a YouTube API response.
 
     Args:
-        youtube (object): The YouTube API client.
-        response (dict): The response from a YouTube API search query.
-        mode (str, optional): Mode to determine parsing behavior (e.g., "trends").
+        youtube (object): YouTube API client
+        response (dict): response from YouTube API search query
+        mode (str, optional): mode to determine parsing behavior (e.g., "trends")
 
     Returns:
-        list: A list of dictionaries containing video metadata such as title, tags, video ID, views, etc.
+        list: list of dictionaries containing video metadata such as title, tags, video ID, views, etc.
     """
     videos = []
 
@@ -199,14 +207,14 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
 @st.cache_data(ttl=3600)
 def search_videos_dlp(query: str, max_results: int = 100) -> list:  # Checked
     """
-    Führt eine YouTube-Suche ohne API durch und gibt eine Liste mit Video-Metadaten zurück, inkl. Views.
+    Runs a search query via yt_dlp
 
     Args:
-        query (str): Suchbegriff.
-        max_results (int): Anzahl der gewünschten Ergebnisse (max. 1000).
+        query (str): search query
+        max_results (int): max. number of search results (<= 1000)
 
     Returns:
-        list: Eine Liste von Dictionaries mit Videodaten inkl. Views.
+        list: list of dictionaries including video meta data including views
     """
     max_results = min(max_results, 1000)  # Begrenze auf max. 1000
     ydl_opts = {
@@ -255,14 +263,14 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list:  # Checked
 
 def get_category_name(youtube: object, category_id: str) -> str:
     """
-    Get the name of a YouTube video category by its ID.
+    Gets the name of a YouTube video category by ID.
 
     Args:
-        youtube (object): The YouTube API client.
-        category_id (str): The category ID.
+        youtube (object): YouTube API client
+        category_id (str): video category ID
 
     Returns:
-        str: The category name or "Unbekannte Kategorie" if not found.
+        str: category name or "Unbekannte Kategorie" if not found
     """
     request = youtube.videoCategories().list(part="snippet", regionCode="DE")
 
@@ -280,20 +288,17 @@ def get_subscriptions(
     gitignore_path=".gitignore",
 ) -> pd.DataFrame:
     """
-    Holt YouTube-Abonnements für eine gegebene Kanal-ID.
-    Falls die CSV-Datei existiert, werden die Daten aus der Datei gelesen.
-    Falls nicht, werden die Daten von der API abgerufen und gespeichert.
+    Gets subscriptions for YouTube channel ID via YouTube API or pre-saved csv file.
 
     Args:
-        channel_Id (str): Die YouTube-Kanal-ID.
-        youtube (object): YouTube API Client.
-        csv_filename (str): Name der CSV-Datei zum Speichern.
-        gitignore_path (str): Pfad zur .gitignore-Datei.
+        channel_Id (str): YouTube channel ID
+        youtube (object): YouTube API Client
+        csv_filename (str): filename of csv file to store subscriptions
+        gitignore_path (str): path to .gitignore file
 
     Returns:
-        pd.DataFrame: Ein DataFrame mit den Abonnementdetails.
+        pd.DataFrame: DataFrame containing details about subscriptions
     """
-    # Falls CSV existiert, lese Daten daraus und returne
     if os.path.isfile(csv_filename):
         return pd.read_csv(csv_filename)
 
@@ -336,13 +341,10 @@ def get_subscriptions(
             }
         )
 
-    # DataFrame erstellen
     subs = pd.DataFrame(channels)
 
-    # Daten in CSV speichern
     subs.to_csv(csv_filename, index=False, encoding="utf-8")
 
-    # Falls die .gitignore existiert, prüfen ob die CSV bereits eingetragen ist
     if os.path.isfile(gitignore_path):
         with open(gitignore_path, "r", encoding="utf-8") as gitignore_file:
             gitignore_content = gitignore_file.readlines()
@@ -351,7 +353,6 @@ def get_subscriptions(
             with open(gitignore_path, "a", encoding="utf-8") as gitignore_file:
                 gitignore_file.write(f"\n{csv_filename}\n")
     else:
-        # Falls .gitignore nicht existiert, erstelle sie und füge die Datei hinzu
         with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
             gitignore_file.write(f"{csv_filename}\n")
 
@@ -362,15 +363,15 @@ def get_recent_videos_from_subscriptions(
     youtube: object, channel_ids: List[str], number_of_videos: int
 ) -> List[Dict[str, str]]:
     """
-    Get the most recent videos from a list of subscribed YouTube channels.
+    Gets the most recent videos from a list of subscribed YouTube channels.
 
     Args:
-        youtube (object): The YouTube API client.
-        channel_ids (list): A list of YouTube channel IDs.
-        number_of_videos (int): The number of recent videos to retrieve.
+        youtube (object): YouTube API client
+        channel_ids (list): list of YouTube channel IDs
+        number_of_videos (int): number of recent videos to retrieve
 
     Returns:
-        list: A list of dictionaries containing video metadata from the subscriptions.
+        list: list of dictionaries containing video metadata from the subscriptions
     """
     videos = []
     # API-Anfragen minimieren: 1 Request pro Kanal
@@ -398,13 +399,29 @@ def get_recent_videos_from_subscriptions(
 
 @st.cache_data(ttl=3600)
 def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
+    """_summary_
+
+    Args:
+        channel_ids (str): YouTube channel IDs
+        max_videos (int, optional): max. number of videos. Defaults to 1.
+
+    Returns:
+        _type_: @Adrian
+    """
     videos = []
     num_threads = min(len(channel_ids), multiprocessing.cpu_count() * 2)
 
     ctx = get_script_run_ctx()  # 🔥 Streamlit-Thread-Kontext sichern
 
     def fetch_videos(channel_id):
-        """Holt die neuesten Videos für einen Kanal."""
+        """Fetches latest videos of a channel.
+
+        Args:
+            channel_id (str): YouTube channel ID
+
+        Returns:
+            _type_: @Adrian
+        """
         try:
             feed_url = (
                 f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
@@ -442,7 +459,14 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
     video_ids = [video_id for sublist in video_id_lists for video_id in sublist]
 
     def fetch_video_data(video_id):
-        """Holt die Metadaten eines Videos."""
+        """Fetches meta data of a video.
+
+        Args:
+            video_id (str): YouTube channel ID
+
+        Returns:
+            _type_: @Adrian
+        """
         try:
             return get_video_data_dlp(video_id)
         except Exception as e:
@@ -471,13 +495,13 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
 
 def extract_video_id_from_url(url: str) -> str | None:
     """
-    Extract the video ID from a YouTube URL.
+    Extracts YouTube video ID from URL.
 
     Args:
-        url (str): The YouTube video URL.
+        url (str): URL of YouTube video
 
     Returns:
-        str or None: The extracted video ID, or None if no ID is found.
+        str | None: extracted video ID or None if ID is not found
     """
     pattern = r"(?:v=|\/)([0-9A-Za-z_-]{11})"
     match = re.search(pattern, url)
@@ -494,13 +518,13 @@ def create_youtube_client(api_key: str) -> object:
 
 def get_trending_videos(youtube: object, region_code) -> pd.DataFrame:
     """
-    Retrieves trending videos from YouTube and formats them into a DataFrame.
+    Gets trending videos via YouTube API
 
     Args:
-        youtube (object): The authenticated YouTube API client.
+        youtube (object): YouTube API client
 
     Returns:
-        pd.DataFrame: A DataFrame containing trending video data.
+        pd.DataFrame: DataFrame containing trending video data
     """
     request = youtube.videos().list(
         part="snippet,contentDetails",
@@ -516,7 +540,17 @@ def get_trending_videos(youtube: object, region_code) -> pd.DataFrame:
 
 import concurrent.futures
 
+
 def get_trending_videos_dlp(region_code="DE", max_results=50):
+    """
+    Gets trending videos via yt_dlp
+
+    Args:
+        region_code (str): YouTube region code. Defaults to 'DE'
+
+    Returns:
+        _name_ (_type_): @Adrian
+    """
     url = f"https://www.youtube.com/feed/trending?gl={region_code}"
 
     ydl_opts = {

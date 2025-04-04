@@ -2,10 +2,18 @@ import os
 from googleapiclient.discovery import build
 
 
-
 def load_channel_id():
+    """Loads YouTube channel ID from .env file.
+
+    Raises:
+        ValueError: Channel ID not found
+        ValueError: Channel ID false (possibly mistaken with user ID)
+
+    Returns:
+        _type_: _description_
+    """
     channel_key = os.getenv("CHANNEL_ID")
-    
+
     if not channel_key:
         raise ValueError(
             "CHANNEL_ID nicht gefunden! Bitte stelle sicher, dass der Channel id in der .env-Datei definiert ist."
