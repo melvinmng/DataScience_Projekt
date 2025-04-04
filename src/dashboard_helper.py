@@ -1,9 +1,24 @@
 from contextlib import nullcontext
 import re
 import streamlit as st
-###
-st.set_page_config(page_title="YouTube FY Dashboard", layout="wide")
-###
+
+st.set_page_config(
+    page_title="YourTime",
+    layout="wide",
+    page_icon="⏲️",
+    initial_sidebar_state="collapsed",
+    menu_items={
+        "Get Help": "https://github.com/melvinmng/DataScience_Projekt.git",
+        "About": """
+            Adrian Siebnich, Melvin Manning, Ricky Nguyen  
+            WDS24B - Data Science Projekt
+
+            ©2025
+        
+        """,
+    },
+)
+
 import googleapiclient
 import os
 import csv
@@ -31,7 +46,6 @@ from src.youtube_helper import (
 )
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
-
 
 
 # Variables & constants
@@ -450,7 +464,7 @@ def build_trending_videos_tab(search_method, youtube) -> None:
 
 def build_trend_recommondations(
     search_method,
-    youtube, 
+    youtube,
     user_interests,
     retry_count: int = 0,
     show_spinner: bool = True,
@@ -468,7 +482,7 @@ def build_trend_recommondations(
 
     if retry_count >= max_retries:
         st.error(
-            "Nach mehreren Versuchen konnte keine Empfehlung generiert werden.\nBitte versuchen Sie es später erneut."
+            "Nach mehreren Versuchen konnte keine Empfehlung generiert werden.\nBitte versuche es später erneut."
         )
         return
 
@@ -479,7 +493,7 @@ def build_trend_recommondations(
         if show_loading_time_information:
             loading_time_information = st.empty()
             loading_time_information.info(
-                "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
+                "Bitte beachte eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
             )
 
         if search_method == "YouTube API":
@@ -525,7 +539,9 @@ def build_trend_recommondations(
         st.write(recommendations["Begründung"])
 
 
-def build_gemini_recommondations(search_method, youtube, user_interests, history_path: str):
+def build_gemini_recommondations(
+    search_method, youtube, user_interests, history_path: str
+):
     """Builds sub tab for recommendations based on Gemini.
 
     Args:
@@ -613,11 +629,18 @@ def build_recommendation_tab(
     with tab1:
         if st.button("🔄 Trend Recommendation laden"):
             build_trend_recommondations(
-                search_method, youtube, user_interests, retry_count, show_spinner, show_loading_time_information
+                search_method,
+                youtube,
+                user_interests,
+                retry_count,
+                show_spinner,
+                show_loading_time_information,
             )
 
     with tab2:
-        build_gemini_recommondations(search_method, youtube, user_interests, "watch_later_history.csv")
+        build_gemini_recommondations(
+            search_method, youtube, user_interests, "watch_later_history.csv"
+        )
 
 
 def build_clickbait_recognition_tab() -> None:
@@ -639,18 +662,18 @@ def build_clickbait_recognition_tab() -> None:
             )
             if clickbait_elements == "no transcript":
                 st.warning(
-                    "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuchen Sie es mit einem anderen Video."
+                    "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuche es mit einem anderen Video."
                 )
             elif clickbait_elements == "no response":
                 st.warning(
-                    "Es gab leider ein Problem mit Gemini. Bitte versuchen Sie es später noch einmal."
+                    "Es gab leider ein Problem mit Gemini. Bitte versuche es später noch einmal."
                 )
             else:
                 st.video(f"https://www.youtube.com/watch?v={video_id}")
                 st.write(clickbait_elements)
         else:
             st.warning(
-                "Kein Video mit dieser Video-ID gefunden, bitte versuchen Sie es noch einmal"
+                "Kein Video mit dieser Video-ID gefunden, bitte versuche es noch einmal."
             )
 
 
@@ -903,15 +926,15 @@ def build_settings_tab() -> None:
     # Vorhandene API-Keys abrufen
     youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
     openai_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
-    channel_id = os.getenv("CHANNEL_ID", "") 
+    channel_id = os.getenv("CHANNEL_ID", "")
     # Eingabefelder für API-Keys
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
     gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
-    if st.button("🗑️Watch List history löschen"):
+    if st.button("🗑️ Watch List history löschen"):
         history = watch_later_history
-       
+
         if os.path.exists(history) and os.path.exists(watch_later_csv):
             # CSV einlesen
             df = pd.read_csv(history)
@@ -936,11 +959,15 @@ def build_settings_tab() -> None:
         updated_env = dotenv_values(env_path)
 
         # Prüfen, ob die Werte gespeichert wurden
-        if (updated_env.get("YOUTUBE_API_KEY") == youtube_key and 
-            updated_env.get("TOKEN_GOOGLEAPI") == gemini_key and
-            updated_env.get("CHANNEL_ID") == channel_id):
+        if (
+            updated_env.get("YOUTUBE_API_KEY") == youtube_key
+            and updated_env.get("TOKEN_GOOGLEAPI") == gemini_key
+            and updated_env.get("CHANNEL_ID") == channel_id
+        ):
 
-            st.success("✅ Gespeichert. Bitte laden sie das Dashboard neu um die Änderungen zu übernehmen.")
+            st.success(
+                "✅ Gespeichert. Bitte laden sie das Dashboard neu um die Änderungen zu übernehmen."
+            )
             st.write("Starte App neu...")
             time.sleep(2)
             subprocess.Popen([sys.executable, "src/restart_app.py"])
@@ -960,14 +987,14 @@ def initialize() -> googleapiclient.discovery.Resource | None:
         YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
         GEMINI_API_KEY = get_api_key("TOKEN_GOOGLEAPI")
         if len(YT_API_KEY) == 0 or len(GEMINI_API_KEY) == 0:
-            raise ValueError(
-                "API keys not found. Please check your .env file."
-            )
+            raise ValueError("API keys not found. Please check your .env file.")
         youtube: object = create_youtube_client(YT_API_KEY)
         return youtube
     except Exception as e:
         build_settings_pop_up()
         st.stop()
+
+
 ####Geht erst hier, weil zuvor initialize() definiert werden muss.####
 try:
     from src.gemini_helper import (
@@ -979,7 +1006,7 @@ try:
         check_for_clickbait,
         get_subscriptions_based_on_interests,
         get_short_summary_for_watch_list,
-        get_channel_recommondations
+        get_channel_recommondations,
     )
 except:
     initialize()
