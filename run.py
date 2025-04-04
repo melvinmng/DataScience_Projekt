@@ -12,29 +12,12 @@ from src.dashboard_helper import (
     build_settings_tab,
 )
 import streamlit as st
-from streamlit_theme import st_theme
-from pathlib import Path
 
 
 if "show_spoiler" not in st.session_state:
     st.session_state.show_spoiler = False
 youtube = initialize()
 
-
-adjust = st.toggle("Make the CSS adjustment")
-st_theme(adjust=adjust)
-
-CSS_FILE_PATH = Path(__file__).parent / "style.css"
-
-with open(CSS_FILE_PATH) as f:
-    st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-if adjust == True:
-    with open(CSS_FILE_PATH) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-else:
-    st.write("Output:")
-    st.write("Lorem ipsum")
 
 # Header
 st.title("YourTime")
