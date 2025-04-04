@@ -17,8 +17,8 @@ import sys
 import signal
 import src.config_env
 
-from src.youtube_transcript import get_transcript
 from src.youtube_helper import (
+    get_transcript,
     get_video_data,
     get_video_data_dlp,
     extract_video_id_from_url,
