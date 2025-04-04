@@ -1,6 +1,9 @@
 from contextlib import nullcontext
 import re
 import streamlit as st
+###
+st.set_page_config(page_title="YouTube FY Dashboard", layout="wide")
+###
 import googleapiclient
 import os
 import csv
