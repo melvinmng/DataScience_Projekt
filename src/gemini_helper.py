@@ -20,7 +20,7 @@ else:
 
 try:
     print("Versuche Gemini Client zu erstellen...")
-    ai_client = genai.Client(api_key)
+    ai_client = genai.Client(api_key=api_key)
     print("Client erfolgreich erstellt.")
 except Exception as e:
     raise RuntimeError(
