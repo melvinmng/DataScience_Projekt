@@ -1,10 +1,12 @@
 from contextlib import nullcontext
 import re
 import streamlit as st
+
 ###
 st.set_page_config(page_title="YouTube FY Dashboard", layout="wide")
 ###
 import googleapiclient
+from googleapiclient.discovery import Resource
 import os
 import csv
 from dotenv import load_dotenv, set_key, dotenv_values
@@ -15,8 +17,9 @@ import time
 import subprocess
 import sys
 import signal
-import src.config_env
+from typing import Any, NoReturn
 
+import src.config_env
 from src.youtube_helper import (
     get_transcript,
     get_video_data,
@@ -31,7 +34,6 @@ from src.youtube_helper import (
 )
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
-
 
 
 # Variables & constants
@@ -71,7 +73,7 @@ def lazy_expander(
     key: str,
     on_expand,
     expanded: bool = False,
-    callback_kwargs: dict = None,
+    callback_kwargs: dict[Any, Any] | None = None,
 ):
     """
     A 'lazy' expander that only loads/renders content on expand.
@@ -111,7 +113,9 @@ def lazy_expander(
 
 
 @st.fragment
-def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
+def lazy_button(
+    label: str, key: str, on_click, callback_kwargs: dict[Any, Any] | None = None
+):
     """
     A 'lazy' button that stores its state in st.session_state and does not trigger a full rerun.
 
@@ -215,21 +219,23 @@ def update_history_csv(
         with open(history_file, mode="r", encoding="utf-8") as file:
             reader = csv.reader(file)
             header = next(reader, None)  # Header lesen
-            for row in reader:
-                history_data.add(tuple(row))
+            if header:
+                for row in reader:
+                    history_data.add(tuple(row))
 
     new_data = []
     with open(source_file, mode="r", encoding="utf-8") as file:
         reader = csv.reader(file)
         header = next(reader, None)  # Header lesen
-        for row in reader:
-            if tuple(row) not in history_data:
-                new_data.append(row)
+        if header:
+            for row in reader:
+                if tuple(row) not in history_data:
+                    new_data.append(row)
 
     if new_data:
         with open(history_file, mode="a", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
-            if not history_data:
+            if not history_data and header:
                 writer.writerow(header)
             writer.writerows(new_data)
         print(f"{len(new_data)} neue Einträge zur History hinzugefügt.")
@@ -313,7 +319,7 @@ def save_interests(interests):
     write_filename_to_gitignore(filename=Interests_file, gitignore_path=gitignore)
 
 
-def delete_video_by_id(video, filename: str = watch_later_csv):
+def delete_video_by_id(video, filename: str = watch_later_csv) -> None:
     """Deletes video from watch later csv file.
 
     Args:
@@ -348,7 +354,7 @@ def delete_video_by_id(video, filename: str = watch_later_csv):
     print(f"Das Video mit der video_id {video_id} wurde erfolgreich gelöscht.")
 
 
-def build_video_list(incoming_videos, key_id: str):
+def build_video_list(incoming_videos, key_id: str) -> None:
     """@Adrian
 
     Args:
@@ -378,7 +384,7 @@ def build_video_list(incoming_videos, key_id: str):
         if expander_key not in st.session_state:
             st.session_state[expander_key] = None
 
-        def load_summary(container, video_id: str, title: str):
+        def load_summary(container, video_id: str, title: str) -> None:
             """@Adrian
 
             Args:
@@ -448,14 +454,14 @@ def build_trending_videos_tab(search_method, youtube) -> None:
             build_video_list(videos, key_id="trending_videos")
 
 
-def build_trend_recommondations(
+def build_trend_recommendations(
     search_method,
-    youtube, 
+    youtube,
     user_interests,
     retry_count: int = 0,
     show_spinner: bool = True,
     show_loading_time_information: bool = True,
-):
+) -> None:
     """Builds sub tab for recommendations based on trending videos.
 
     Args:
@@ -496,7 +502,7 @@ def build_trend_recommondations(
         if recommendations_unfiltered:
             recommendations = extract_video_id_and_reason(
                 recommendations_unfiltered,
-                on_fail=lambda: build_trend_recommondations(
+                on_fail=lambda: build_trend_recommendations(
                     search_method,
                     youtube,
                     user_interests,
@@ -518,14 +524,16 @@ def build_trend_recommondations(
             video_data = get_video_data(youtube, response, "trends")
             build_video_list(video_data, key_id="recommendation")
         else:
-            video_data = get_video_data_dlp(recommendations["video_id"])
+            video_data = [get_video_data_dlp(recommendations["video_id"])]
             build_video_list([video_data], key_id="recommendation")
 
         st.write("## Begründung:")
         st.write(recommendations["Begründung"])
 
 
-def build_gemini_recommondations(search_method, youtube, user_interests, history_path: str):
+def build_gemini_recommondations(
+    search_method, youtube, user_interests, history_path: str
+) -> None:
     """Builds sub tab for recommendations based on Gemini.
 
     Args:
@@ -612,12 +620,19 @@ def build_recommendation_tab(
 
     with tab1:
         if st.button("🔄 Trend Recommendation laden"):
-            build_trend_recommondations(
-                search_method, youtube, user_interests, retry_count, show_spinner, show_loading_time_information
+            build_trend_recommendations(
+                search_method,
+                youtube,
+                user_interests,
+                retry_count,
+                show_spinner,
+                show_loading_time_information,
             )
 
     with tab2:
-        build_gemini_recommondations(search_method, youtube, user_interests, "watch_later_history.csv")
+        build_gemini_recommondations(
+            search_method, youtube, user_interests, "watch_later_history.csv"
+        )
 
 
 def build_clickbait_recognition_tab() -> None:
@@ -790,7 +805,11 @@ def build_abobox_tab(search_method, youtube, user_interests) -> None:
                     channel_names_and_description, user_interests, max_abos
                 )
 
-                channel_list = channel_string.split(",")
+                channel_list = []
+                if channel_string:
+                    channel_list = channel_string.split(",")
+                else:
+                    st.warning("Keine Kanal-Empfehlungen von Gemini erhalten.")
 
                 matched_ids = []
                 for channel in channel_list:
@@ -890,7 +909,7 @@ def build_settings_pop_up() -> None:
 
 
 def build_settings_tab() -> None:
-    """Tab für API-Key Einstellungen"""
+    """Tab for API-Key settings"""
     st.header("⚙️ Einstellungen")
 
     # Lade vorhandene .env-Datei oder erstelle sie
@@ -903,7 +922,7 @@ def build_settings_tab() -> None:
     # Vorhandene API-Keys abrufen
     youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
     openai_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
-    channel_id = os.getenv("CHANNEL_ID", "") 
+    channel_id = os.getenv("CHANNEL_ID", "")
     # Eingabefelder für API-Keys
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
     gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
@@ -911,7 +930,7 @@ def build_settings_tab() -> None:
 
     if st.button("🗑️Watch List history löschen"):
         history = watch_later_history
-       
+
         if os.path.exists(history) and os.path.exists(watch_later_csv):
             # CSV einlesen
             df = pd.read_csv(history)
@@ -922,7 +941,6 @@ def build_settings_tab() -> None:
             df1.iloc[0:0].to_csv(watch_later_csv, index=False)
         else:
             st.error("Es existiert noch keine Historie. Der Vorgang wird abgebrochen.")
-    # API-Keys speichern
     if st.button("💾 Speichern"):
         if youtube_key:
             set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
@@ -932,43 +950,46 @@ def build_settings_tab() -> None:
             set_key(env_path, "CHANNEL_ID", channel_id)
         st.session_state["Trending Videos"] = 0
 
-        # API-Keys erneut aus der Datei laden
         updated_env = dotenv_values(env_path)
 
-        # Prüfen, ob die Werte gespeichert wurden
-        if (updated_env.get("YOUTUBE_API_KEY") == youtube_key and 
-            updated_env.get("TOKEN_GOOGLEAPI") == gemini_key and
-            updated_env.get("CHANNEL_ID") == channel_id):
+        if (
+            updated_env.get("YOUTUBE_API_KEY") == youtube_key
+            and updated_env.get("TOKEN_GOOGLEAPI") == gemini_key
+            and updated_env.get("CHANNEL_ID") == channel_id
+        ):
 
-            st.success("✅ Gespeichert. Bitte laden sie das Dashboard neu um die Änderungen zu übernehmen.")
+            st.success(
+                "✅ Gespeichert. Bitte laden sie das Dashboard neu um die Änderungen zu übernehmen."
+            )
             st.write("Starte App neu...")
             time.sleep(2)
             subprocess.Popen([sys.executable, "src/restart_app.py"])
-            # Beende aktuellen Prozess
             os.kill(os.getpid(), signal.SIGTERM)
         else:
             st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
 
 
-def initialize() -> googleapiclient.discovery.Resource | None:
+def initialize() -> googleapiclient.discovery.Resource | NoReturn:
     """Initializes issues regarding Google API Client.
 
     Returns:
-        googleapiclient.discovery.Resource | None: Ressource from Google API Client
+        googleapiclient.discovery.Resource: Ressource from Google API Client if successful.
+        Never returns if API keys are missing (calls st.stop()).
     """
     try:
         YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
         GEMINI_API_KEY = get_api_key("TOKEN_GOOGLEAPI")
-        if len(YT_API_KEY) == 0 or len(GEMINI_API_KEY) == 0:
-            raise ValueError(
-                "API keys not found. Please check your .env file."
-            )
-        youtube: object = create_youtube_client(YT_API_KEY)
+        if not YT_API_KEY or not GEMINI_API_KEY:
+            raise ValueError("API keys not found. Please check your .env file.")
+        youtube: Resource = create_youtube_client(YT_API_KEY)
         return youtube
     except Exception as e:
         build_settings_pop_up()
         st.stop()
-####Geht erst hier, weil zuvor initialize() definiert werden muss.####
+        raise RuntimeError("App sollte bis jetzt schon abgebrochen worden sein") from e
+
+
+####Needs to be executed after initialize()####
 try:
     from src.gemini_helper import (
         extract_video_id_and_reason,
@@ -979,7 +1000,7 @@ try:
         check_for_clickbait,
         get_subscriptions_based_on_interests,
         get_short_summary_for_watch_list,
-        get_channel_recommondations
+        get_channel_recommondations,
     )
 except:
     initialize()

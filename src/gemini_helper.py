@@ -11,16 +11,21 @@ from .key_management.api_key_management import get_api_key
 
 
 ################# Initialization ###############################
+api_key = get_api_key("TOKEN_GOOGLEAPI")
+
+if not api_key:
+    raise ValueError("API Key nicht gefunden (leer oder nicht vorhanden).")
+else:
+    print("API Key erfolgreich geladen.")
+
 try:
-    api_key = get_api_key("TOKEN_GOOGLEAPI")
-    print(api_key)
-    if len(api_key) == 0:
-        raise ValueError("API_KEY not found.")
-    else:
-        print("API_KEY found")
-        ai_client = genai.Client(api_key)
-except:
-    raise ValueError("Kein API_KEY gefunden.")
+    print("Versuche Gemini Client zu erstellen...")
+    ai_client = genai.Client(api_key)
+    print("Client erfolgreich erstellt.")
+except Exception as e:
+    raise RuntimeError(
+        f"Fehler beim Erstellen des genai Clients mit gefundenem Key: {e}"
+    ) from e
 else:
     print("API_KEY gefunden")
 
@@ -44,7 +49,9 @@ ai_generate_content_config = types.GenerateContentConfig(
 )
 
 
-def get_short_summary_for_watch_list(transcript: str, title: str, channel: str):
+def get_short_summary_for_watch_list(
+    transcript: str, title: str, channel: str
+) -> str | None:
     """Briefly summarizes video for watch list.
 
     Args:
@@ -79,7 +86,7 @@ def get_short_summary_for_watch_list(transcript: str, title: str, channel: str):
 
 def get_channel_recommondations(
     history, channels, number_of_recommendations, interests
-):
+) -> list[str] | str:
     """Reccomends YouTube Channels based on user preferences.
 
     Args:
@@ -180,7 +187,7 @@ def get_recommendation(
         f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
         f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
         f"Bitte wähle aus dieser Liste genau ein Video als Empfehlung aus, das am besten zu meinen Interessen passt: {interests}. Falls kein Video zu meinen Interessen passt, wähle eins aus, welches am ehesten passen würde.\n"
-        f"Deine Antowrt muss folgendermaßen sturkturiert sein: 'video_id': 'video_id'\n'Begründung': 'Begründung wieso diese Video von dir empfohlen wird'(achte vor allem auf die Keywords 'video_id' und 'Begründung' - sie müssen enthalten und richtig geschrieben sein)\n"
+        f"Deine Antowrt muss folgendermaßen sturkturiert sein: 'video_id': 'video_id'\n'explanation': 'Begründung wieso diese Video von dir empfohlen wird'(achte vor allem auf die Keywords 'video_id' und 'explanation' - sie müssen enthalten und richtig geschrieben sein)\n"
         f"DU MUSST DIR ABSOULT SICHER SEIN, DASS DIE VIDEO_ID ZUR BEGRÜNDUNG UMD ZUM TRANSCRIPT PASST.\n"
         f"Hier ist die Liste der Videos: {video_ids_titles_and_transcripts}"
     )
@@ -253,33 +260,40 @@ def combine_video_id_title_and_transcript(videos: list) -> list[str]:
     return video_id_title_and_transcript
 
 
-def extract_video_id_and_reason(json_str: str, on_fail: Callable):
-    """_summary_ @Adrian
+def extract_video_id_and_reason(
+    json_str: str, on_fail: Callable | None = None
+) -> dict[str, str] | None:
+    """Extracts video ID and reason from a string (normally a response from Gemini) using regex.
 
     Args:
-        json_str (str): _description_
-        on_fail (Callable): _description_
+        json_str (str): Gemini's response.
+        on_fail (Callable): a function to call if parsing fails.
+
+    Returns:
+        dict[str, str]: Dict containing the video_id and an explanation
+        None if extraction fails
     """
 
     def extract_field(fieldname: str, text: str) -> str | None:
-        """_summary_ @Adrian
+        """Extracts a certain snippet from a String (following the structure used by Gemini)
 
         Args:
-            fieldname (str): _description_
+            fieldname (str): Name of the category to extract (e. g. video_id, explanation)
             text (str): _description_
 
         Returns:
-            str | None: _description_
+            str: Extracted snippet
+            None: Snippet is not included in given text
         """
-        pattern = rf'"{fieldname}":\s*"((?:\\.|[^"\\])*)"'  # Erfasst Zeichen inklusive Escape-Sequenzen
+        pattern = rf'"{fieldname}":\s*"((?:\\.|[^"\\])*)"'
         match = re.search(pattern, text, re.DOTALL)
         return match.group(1).strip() if match else None
 
     video_id = extract_field("video_id", json_str)
-    reason = extract_field("Begründung", json_str)
+    explanation = extract_field("explanation", json_str)
 
-    if video_id and reason:
-        return {"video_id": video_id, "Begründung": reason}
+    if video_id and explanation:
+        return {"video_id": video_id, "Begründung": explanation}
     else:
         if on_fail:
             on_fail()
@@ -329,7 +343,7 @@ def live_conversation() -> str:
 
 def get_subscriptions_based_on_interests(
     subscriptions: str, interests: str, number_of_channels: int
-) -> list:
+) -> str | None:
     """Gets subscriptions based on user's preferences.
 
     Args:
@@ -338,7 +352,7 @@ def get_subscriptions_based_on_interests(
         number_of_channels (int): @Adrian
 
     Returns:
-        list: @Adrian
+        str | None: Gemini's response as string or None
     """
     prompt = (
         f"Du erhälts einen String an Kanalnamen und ihrer zugehörigen beschreibung die ich mit meinem Youtube Account abonniert habe.\n"
@@ -356,9 +370,11 @@ def get_subscriptions_based_on_interests(
     response = ai_client.models.generate_content(
         model=ai_model, config=ai_generate_content_config, contents=prompt
     )
-
-    return response.text
+    if response.text:
+        return response.text
+    else:
+        return None
 
 
 if __name__ == "__main__":
-    get_recommendation()
+    pass
