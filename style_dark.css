@@ -1,0 +1,87 @@
+:root {
+    /* Dark */
+    --dBlack: #31333f;
+    --dWhite: #f4f4f4;
+    --dRed: #ff8282;
+
+    --dSkyPurple: #100045;
+    --dSkyLavender: #292070;
+
+    --dFrostedWhite: rgba(97, 97, 97, 0.15);
+    --dFrostedGrey: rgba(58, 58, 58, 0.15);
+    --dFrostedGradientLight: linear-gradient(135deg, var(--dFrostedWhite), var(--dFrostedGrey));
+    --dFrostedGradientLightNegative: linear-gradient(45deg, var(--dFrostedWhite), var(--dFrostedGrey));
+    --dFrostedBorder: 1px solid rgba(255, 255, 255, 0.5);
+
+    --dShadowLow: 0 5px 10px rgba(0, 0, 0, 0.2);
+    --dShadowHigh: 0 2px 5px rgba(0, 0, 0, 0.2);
+    
+    /* Universal */
+    --seethrough: rgba(0, 0, 0, 0);
+    --blur: 20px;
+}
+
+body {
+    font-family: "Arial", sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+    [data-testid="stAppViewContainer"] {
+        background-image: linear-gradient(180deg, var(--dSkyPurple), var(--dSkyPurple));
+    }
+
+    .stAppHeader {
+        background-color: var(--seethrough);
+    }
+
+    .st-emotion-cache-1dp5vir {
+        background-image: linear-gradient(0deg, var(--dRed), var(--dRed));
+    }
+
+    [data-testid="stSidebar"] {
+        background: var(--dFrostedGradientLight);
+        box-shadow: var(--dShadowHigh);
+        backdrop-filter: blur(var(--blur));
+        -webkit-backdrop-filter: blur(var(--blur));
+        border: var(--dFrostedBorder);
+        width: 30%;
+
+        transition: all 0.3s ease;
+    }
+
+    .stSidebar:hover {
+        box-shadow: var(--dShadowLow);
+    }
+
+    [data-testid="stSidebarContent"] {
+        background-color: var(--seethrough);
+    }
+
+    [data-testid="stBaseButton-secondary"] {
+		background: var(--dFrostedGradientLight);
+        box-shadow: var(--dShadowLow);
+        backdrop-filter: blur(var(--blur));
+        -webkit-backdrop-filter: blur(var(--blur));
+        border: var(--dFrostedBorder);
+
+        transition: all 0.1s ease;
+    }
+
+    [data-testid="stBaseButton-secondary"]:hover {
+		background: var(--dFrostedGradientLightNegative);
+        box-shadow: var(--dShadowHigh);
+        backdrop-filter: blur(var(--blur));
+        -webkit-backdrop-filter: blur(var(--blur));
+        border: var(--dFrostedBorder);
+    }
+    
+    [data-baseweb="input"]{
+        background: var(--dFrostedGradientLight);
+        border: var(--dFrostedBorder);
+        height: 60px;
+        }
+    
+    [data-baseweb="base-input"]{
+        background: var(--seethrough);
+    }
+}
