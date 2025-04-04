@@ -532,7 +532,7 @@ def get_recent_videos_from_channels_RSS(
     videos = []
     num_threads = min(len(channel_ids), multiprocessing.cpu_count() * 2)
 
-    ctx = get_script_run_ctx()  # 🔥 Streamlit-Thread-Kontext sichern
+    ctx = get_script_run_ctx()  # Streamlit-Thread-Kontext sichern
 
     def fetch_videos(channel_id: str) -> list[str]:
         """Fetches the latest video IDs for one channel via its RSS feed."""

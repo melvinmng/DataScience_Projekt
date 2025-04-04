@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Any
 from google import genai
 from google.genai import types
 from pandas import DataFrame
@@ -52,18 +52,17 @@ ai_generate_content_config = types.GenerateContentConfig(
 def get_short_summary_for_watch_list(
     transcript: str, title: str, channel: str
 ) -> str | None:
-    """Briefly summarizes video for watch list.
+    """Generates a brief video summary suitable for a watch list using Gemini.
 
     Args:
-        transcript (str): transcript of YouTube video
-        title (str): title of YouTube video
-        channel (str): YouTube Channel ID
-
-    Raises:
-        ValueError: Key not found.
+        transcript (str): The transcript text of the YouTube video.
+        title (str): The title of the YouTube video.
+        channel (str): The name or ID of the YouTube channel.
 
     Returns:
-        str | none: Gemini AI response
+        str | None: The generated summary text from Gemini, or None if the
+                       API call yields no text. Returns the original transcript
+                       if an exception occurs during the API call.
     """
     try:
         response = ai_client.models.generate_content(
@@ -85,18 +84,26 @@ def get_short_summary_for_watch_list(
 
 
 def get_channel_recommondations(
-    history, channels, number_of_recommendations, interests
+    history: Any,
+    channels: Any,
+    number_of_recommendations: int,
+    interests: str,
 ) -> list[str] | str:
-    """Reccomends YouTube Channels based on user preferences.
+    """Recommends new YouTube channels based on user preferences and history using Gemini.
 
     Args:
-        history (_type_): @Adrian
-        channels (_type_): @Adrian
-        number_of_recommendations (_type_): @Adrian
-        interests (_type_): @Adrian
+        history (Any): User's video watch history data. The exact format depends
+                       on how it's provided to the function. Used within the prompt.
+        channels (Any): User's current subscriptions or channel data. The exact format
+                        depends on how it's provided. Used within the prompt.
+        number_of_recommendations (int): The exact number of channel names to recommend.
+        interests (str): A string describing the user's interests, used to guide
+                         recommendations.
 
     Returns:
-        _type_: @Adrian
+        list[str] | str: A list of recommended channel names if successful,
+                         otherwise the string "Fehler" if the API call yields no text.
+                         Returns "Fehler" also if an exception occurs.
     """
     response = ai_client.models.generate_content(
         model=ai_model,
@@ -115,16 +122,18 @@ def get_channel_recommondations(
         return "Fehler"
 
 
-def get_summary(transcript: str, title) -> str | None:
-    """
-    Offers a summary of a YouTube video using its transcript. Spoilers possible.
+def get_summary(transcript: str, title: str) -> str | None:
+    """Generates a summary of a YouTube video transcript using Gemini.
+
+    May include spoilers. Compares content to title to check for clickbait.
 
     Args:
-        transcript (str): transcript of YouTube video
-        title (str): title of YouTube video
+        transcript (str): The transcript text of the YouTube video.
+        title (str): The title of the YouTube video.
 
     Returns:
-        str: summary of YouTube video
+        str | None: The generated summary and clickbait analysis text,
+                       or None if the API call yields no text or an error occurs.
     """
     response = ai_client.models.generate_content(
         model=ai_model,
@@ -143,14 +152,17 @@ def get_summary(transcript: str, title) -> str | None:
 
 
 def get_summary_without_spoiler(transcript: str) -> str | None:
-    """
-    Offers a summary of a YouTube video using its transcript. Spoilers prevented.
+    """Generates a non-spoiler summary of a YouTube video transcript using Gemini.
+
+    Focuses on content description and potential clickbait elements without
+    revealing key plot points or outcomes.
 
     Args:
-        transcript (str): transcript of YouTube video
+        transcript (str): The transcript text of the YouTube video.
 
     Returns:
-        str: summary of YouTube video without spoilers
+        str | None: The generated non-spoiler summary text, or None if the
+                       API call yields no text or an error occurs.
     """
     response = ai_client.models.generate_content(
         model=ai_model,
@@ -172,16 +184,26 @@ def get_recommendation(
     todays_free_time: float | None = None,
     subscriptions: DataFrame | None = None,
 ) -> str | None:
-    """Gets video recommendations based on user preferences.
+    """Gets a single video recommendation from a list based on user preferences using Gemini.
+
+    Selects one video from the provided list that best matches the user's interests.
+    The response is expected in a specific string format including 'video_id' and 'explanation'.
 
     Args:
-        video_ids_titles_and_transcripts (list[str]): List of YouTube video IDs, titles, transcripts
-        interests (str | None, optional): User interests. Defaults to None.
-        todays_free_time (float | None, optional): User's free time. Defaults to None.
-        subscriptions (DataFrame | None, optional): User's subsricptions. Defaults to None.
+        video_ids_titles_and_transcripts (list[str]): A list of strings, each containing
+                                                      title, transcript, and video ID
+                                                      for a single video.
+        interests (str | None, optional): User interests to guide selection. Defaults to None.
+        todays_free_time (float | None, optional): User's available time (currently unused
+                                                     in the prompt). Defaults to None.
+        subscriptions (DataFrame | None, optional): User's subscriptions data (currently unused
+                                                        in the prompt). Defaults to None.
 
     Returns:
-        str | None: Gemini AI response
+        str | None: The raw Gemini response string containing the recommended
+                       video_id and explanation, or None if the API call fails or
+                       yields no text. The string requires further parsing by
+                       extract_video_id_and_reason.
     """
     prompt = (
         f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
@@ -206,14 +228,16 @@ def get_recommendation(
         return None
 
 
-def get_transcript_safe(video_id: str):
-    """Wrapper function to avoid errors when handling transcripts.
+def get_transcript_safe(video_id: str) -> str:
+    """Safely retrieves a video transcript, returning an error message string on failure.
+
+    Acts as a wrapper around get_transcript() to catch exceptions.
 
     Args:
-        video_id (str): YouTube video ID
+        video_id (str): The YouTube video ID.
 
     Returns:
-        _type_: _description_ @Adrian @Melvin
+        str: The video transcript if successful, otherwise an error message string.
     """
     # Wrapper-Funktion, um Fehler bei einzelnen Videos zu vermeiden.
     try:
@@ -222,14 +246,22 @@ def get_transcript_safe(video_id: str):
         return f"Fehler beim Abrufen des Transkripts: {e}"
 
 
-def combine_video_id_title_and_transcript(videos: list) -> list[str]:
-    """Combines YouTube video id, title and transcript with threads.
+def combine_video_id_title_and_transcript(
+    videos: list[dict[str, Any]],
+) -> list[str]:
+    """Combines video ID, title, and transcript into formatted strings using threads.
+
+    Fetches transcripts concurrently for efficiency.
 
     Args:
-        videos (list): List of YouTube videos
+        videos (list[dict[str, Any]]): A list of dictionaries, where each dictionary
+                                       represents a video and must contain at least
+                                       'video_id' and 'title' keys.
 
     Returns:
-        list[str]: List of YouTube videos combined with key features
+        list[str]: A list of formatted strings, each containing the title,
+                   transcript, and video ID for one video where a transcript
+                   was successfully retrieved.
     """
     # Holt die Transkripte parallel mit Threads.
     num_videos = len(videos)
@@ -263,27 +295,35 @@ def combine_video_id_title_and_transcript(videos: list) -> list[str]:
 def extract_video_id_and_reason(
     json_str: str, on_fail: Callable | None = None
 ) -> dict[str, str] | None:
-    """Extracts video ID and reason from a string (normally a response from Gemini) using regex.
+    """Extracts video ID and explanation from a string using regex.
+
+    Expects the string to contain '"video_id": "..."' and
+    '"explanation": "..."' patterns, likely from a Gemini response.
 
     Args:
-        json_str (str): Gemini's response.
-        on_fail (Callable): a function to call if parsing fails.
+        json_str (str): The raw string potentially containing the video ID
+                      and explanation.
+        on_fail (Callable | None, optional): A function to call if parsing fails
+                                               (i.e., if video_id or explanation
+                                               cannot be extracted). Defaults to None.
 
     Returns:
-        dict[str, str]: Dict containing the video_id and an explanation
-        None if extraction fails
+        dict[str, str] | None: A dictionary with keys "video_id" and "explanation"
     """
 
     def extract_field(fieldname: str, text: str) -> str | None:
-        """Extracts a certain snippet from a String (following the structure used by Gemini)
+        """Extracts a double-quoted string value associated with a fieldname key.
+
+        Uses regex to find patterns like '"fieldname": "value"'. Handles escaped
+        quotes within the value.
 
         Args:
-            fieldname (str): Name of the category to extract (e. g. video_id, explanation)
-            text (str): _description_
+            fieldname (str): The key name (e.g., "video_id", "explanation") to search for.
+                             Assumed to be enclosed in double quotes in the pattern.
+            text (str): The text string to search within.
 
         Returns:
-            str: Extracted snippet
-            None: Snippet is not included in given text
+            str | None: The extracted string value (unescaped) if found, otherwise None.
         """
         pattern = rf'"{fieldname}":\s*"((?:\\.|[^"\\])*)"'
         match = re.search(pattern, text, re.DOTALL)
@@ -301,14 +341,16 @@ def extract_video_id_and_reason(
 
 
 def check_for_clickbait(transcript: str, title: str) -> str:
-    """Checks a video for clickbait based on transcript and title.
+    """Analyzes a video transcript and title for clickbait elements using Gemini.
 
     Args:
-        transcript (str): Transcript of YouTube video
-        title (str): Title of YOuTube video
+        transcript (str): The transcript text of the YouTube video. Can be empty.
+        title (str): The title of the YouTube video.
 
     Returns:
-        str: Gemini AI response
+        str: The analysis result from Gemini. Returns "no response" if Gemini
+             fails to provide text, or "no transcript" if the input transcript
+             is empty or None. Returns the analysis string otherwise.
     """
     if transcript:
         response = ai_client.models.generate_content(
@@ -326,10 +368,12 @@ def check_for_clickbait(transcript: str, title: str) -> str:
 
 
 def live_conversation() -> str:
-    """Allows a live interaction with Gemini. For test cases only!
+    """Starts a simple interactive command-line conversation with the Gemini model.
+
+    For testing purposes only. Prints prompts and responses to the console.
 
     Returns:
-        str: Gemini AI response to the user's input in terminal
+        str: The last response text from the Gemini model.
     """
     print("Starte Konversation")
     question = input("Was kann ich für dich tun?")
@@ -344,15 +388,20 @@ def live_conversation() -> str:
 def get_subscriptions_based_on_interests(
     subscriptions: str, interests: str, number_of_channels: int
 ) -> str | None:
-    """Gets subscriptions based on user's preferences.
+    """Filters a list of subscribed channels based on user interests using Gemini.
+
+    Takes a string representation of subscriptions and interests, asks Gemini
+    to select a specified number of channels matching the interests.
 
     Args:
-        subscriptions (str): @Adrian
-        interests (str): @Adrian
-        number_of_channels (int): @Adrian
+        subscriptions (str): A string containing subscribed channels, potentially
+                             with descriptions (e.g., "channel1:desc1,channel2:desc2").
+        interests (str): A string describing the user's interests.
+        number_of_channels (int): The desired number of channel names to return.
 
     Returns:
-        str | None: Gemini's response as string or None
+        str | None: A comma-separated string of selected channel names,
+                       or None if the API call fails or returns no text.
     """
     prompt = (
         f"Du erhälts einen String an Kanalnamen und ihrer zugehörigen beschreibung die ich mit meinem Youtube Account abonniert habe.\n"
