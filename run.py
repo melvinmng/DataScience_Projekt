@@ -131,7 +131,7 @@ def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
 
 
 ########################## CSV-Functions ##########################
-def write_filename_to_gitignore(gitignore_path, filename):
+def write_filename_to_gitignore(gitignore_path: str, filename: str):
     """Writes a filename to .gitignore file.
 
     Args:
@@ -148,7 +148,7 @@ def write_filename_to_gitignore(gitignore_path, filename):
             gitignore_file.write(f"{filename}\n")
 
 
-def read_csv_to_list(filename):
+def read_csv_to_list(filename: str):
     """Reads csv file and stores each line as a dictionary within a list without duplicates.
 
     Args:
@@ -230,7 +230,9 @@ def update_history_csv(
         print("Keine neuen Einträge für die History gefunden.")
 
 
-def save_video_to_csv(video, filename=watch_later_csv, gitignore_path=gitignore):
+def save_video_to_csv(
+    video, filename: str = watch_later_csv, gitignore_path: str = gitignore
+):
     """Saves YouTube video to csv file
 
     Args:
@@ -304,7 +306,7 @@ def save_interests(interests):
     write_filename_to_gitignore(filename=Interests_file, gitignore_path=gitignore)
 
 
-def delete_video_by_id(video, filename=watch_later_csv):
+def delete_video_by_id(video, filename: str = watch_later_csv):
     """Deletes video from watch later csv file.
 
     Args:
@@ -369,7 +371,7 @@ def build_video_list(incoming_videos, key_id: str):
         if expander_key not in st.session_state:
             st.session_state[expander_key] = None
 
-        def load_summary(container, video_id, title):
+        def load_summary(container, video_id: str, title: str):
             """@Adrian
 
             Args:
@@ -403,7 +405,6 @@ def build_video_list(incoming_videos, key_id: str):
         st.write(f"{video['views']} Views")
 
         if key_id == "watch_later":
-            # Nutze den Lazy Button
             lazy_button(
                 label="🚮delete from list",
                 key=f"del_{video['video_id']}",
@@ -511,7 +512,7 @@ def build_trend_recommondations(
         st.write(recommendations["Begründung"])
 
 
-def build_gemini_recommondations(history_path):
+def build_gemini_recommondations(history_path: str):
     """Builds sub tab for recommendations based on Gemini.
 
     Args:
@@ -685,7 +686,7 @@ def build_feedback_tab() -> None:
             st.warning("Bitte gib ein Feedback ein, bevor du es absendest.")
 
 
-def build_search_tab():
+def build_search_tab() -> None:
     """Builds tab for search."""
     st.session_state["active_tab"] = "search"
 
@@ -705,7 +706,7 @@ def build_search_tab():
         )
 
     if st.button("🔍 Suchen"):
-        st.session_state["new_search"] = True  # Neue Suche starten
+        st.session_state["new_search"] = True
         if search_method == "YouTube API":
             request = youtube.search().list(
                 part="snippet", q=query, type="video", maxResults=10
@@ -716,14 +717,14 @@ def build_search_tab():
         else:
             videos = search_videos_dlp(query, max_results=max_results)
 
-        st.session_state["videos"] = videos  # Ergebnisse speichern
-        st.session_state["last_tab"] = "search"  # Tab-Wechsel speichern
+        st.session_state["videos"] = videos
+        st.session_state["last_tab"] = "search"
 
     if st.session_state.get("videos"):
         build_video_list(st.session_state["videos"], key_id="search")
 
 
-def build_abobox_tab():
+def build_abobox_tab() -> None:
     """Builds tab for subscriptions."""
     st.session_state["active_tab"] = "abobox"
 
@@ -797,13 +798,13 @@ def build_abobox_tab():
                     )
 
                 st.session_state["videos"] = recent_videos
-                st.session_state["last_tab"] = "abobox"  # Tab-Wechsel speichern
+                st.session_state["last_tab"] = "abobox"
 
             if st.session_state.get("videos"):
                 build_video_list(st.session_state["videos"], key_id="abobox")
 
 
-def build_watch_later_tab():
+def build_watch_later_tab() -> None:
     """Builds tab for watch later."""
     st.session_state["active_tab"] = "view_later"
 

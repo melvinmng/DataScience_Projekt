@@ -192,7 +192,7 @@ def get_recommendation(
         return None
 
 
-def get_transcript_safe(video_id):
+def get_transcript_safe(video_id: str):
     """Wrapper function to avoid errors when handling transcripts.
 
     Args:

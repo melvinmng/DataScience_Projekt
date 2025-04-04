@@ -53,13 +53,13 @@ def get_video_length(youtube: object, video_id: str) -> str:
     response = request.execute()
     if "items" not in response or len(response["items"]) == 0:
         print(f"Fehler: Kein Video gefunden für ID {video_id}")
-        return "00:00"  # Oder eine Default-Wert wie 00:00 zurückgeben
+        return "00:00"
 
     duration = response["items"][0]["contentDetails"]["duration"]
     return parse_duration(duration)
 
 
-def get_video_length_dlp(video_id: str) -> str:  # Checked
+def get_video_length_dlp(video_id: str) -> str:
     """
     Gets duration of a YouTube video via yt_dlp based on video ID.
 
@@ -165,7 +165,6 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
             )
 
         except KeyError:
-            # Alternative Methode zur Verarbeitung
             print(
                 f"Warnung: Unerwartete API-Struktur für Item {index}, alternative Verarbeitung wird versucht."
             )
@@ -186,7 +185,7 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
                 views = item.get("statistics", {}).get("viewCount", "Unknown")
             except Exception as e:
                 print(f"Fehler beim Verarbeiten des Items {index}: {e}")
-                continue  # Falls auch die alternative Methode fehlschlägt, überspringe das Item
+                continue
 
         videos.append(
             {
@@ -205,7 +204,7 @@ def get_video_data(youtube: object, response: Dict, mode=None) -> List[Dict[str,
 
 
 @st.cache_data(ttl=3600)
-def search_videos_dlp(query: str, max_results: int = 100) -> list:  # Checked
+def search_videos_dlp(query: str, max_results: int = 100) -> list:
     """
     Runs a search query via yt_dlp
 
@@ -216,7 +215,7 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list:  # Checked
     Returns:
         list: list of dictionaries including video meta data including views
     """
-    max_results = min(max_results, 1000)  # Begrenze auf max. 1000
+    max_results = min(max_results, 1000)
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
@@ -254,7 +253,7 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list:  # Checked
                         else "Keine Tags"
                     ),
                     "upload_date": formatted_date,
-                    "views": view_count,  # ✅ Views integriert!
+                    "views": view_count,
                 }
             )
 
@@ -316,7 +315,7 @@ def get_subscriptions(
             response = request.execute()
         except Exception as e:
             st.write("API Tokens aufgebraucht oder Fehler aufgetreten:", str(e))
-            return pd.DataFrame()  # Leeres DataFrame zurückgeben
+            return pd.DataFrame()
 
         subscriptions.extend(response.get("items", []))
         next_page_token = response.get("nextPageToken")
@@ -374,15 +373,14 @@ def get_recent_videos_from_subscriptions(
         list: list of dictionaries containing video metadata from the subscriptions
     """
     videos = []
-    # API-Anfragen minimieren: 1 Request pro Kanal
     for channel_id in channel_ids:
         try:
             request = youtube.search().list(
                 part="id,snippet",
                 channelId=channel_id,
-                maxResults=number_of_videos,  # Maximal 10 neueste Videos abrufen
-                order="date",  # Neueste zuerst
-                type="video",  # Nur Videos (keine Streams oder Playlists)
+                maxResults=number_of_videos,
+                order="date",
+                type="video",
             )
             response = request.execute()
             print()
@@ -398,7 +396,7 @@ def get_recent_videos_from_subscriptions(
 
 
 @st.cache_data(ttl=3600)
-def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
+def get_recent_videos_from_channels_RSS(channel_ids: str, max_videos: int = 1):
     """_summary_
 
     Args:
@@ -411,9 +409,9 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
     videos = []
     num_threads = min(len(channel_ids), multiprocessing.cpu_count() * 2)
 
-    ctx = get_script_run_ctx()  # 🔥 Streamlit-Thread-Kontext sichern
+    ctx = get_script_run_ctx()  # Streamlit-Thread-Kontext sichern
 
-    def fetch_videos(channel_id):
+    def fetch_videos(channel_id: str):
         """Fetches latest videos of a channel.
 
         Args:
@@ -441,7 +439,7 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
             return list(set(video_ids))
 
         except Exception as e:
-            if ctx:  # 🔥 Hier den richtigen Streamlit-Kontext setzen!
+            if ctx:  # Streamlit-Kontext setzen
                 with ctx:
                     st.warning(
                         f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}"
@@ -458,7 +456,7 @@ def get_recent_videos_from_channels_RSS(channel_ids, max_videos=1):
 
     video_ids = [video_id for sublist in video_id_lists for video_id in sublist]
 
-    def fetch_video_data(video_id):
+    def fetch_video_data(video_id: str):
         """Fetches meta data of a video.
 
         Args:
@@ -541,7 +539,7 @@ def get_trending_videos(youtube: object, region_code) -> pd.DataFrame:
 import concurrent.futures
 
 
-def get_trending_videos_dlp(region_code="DE", max_results=50):
+def get_trending_videos_dlp(region_code: str = "DE", max_results: int = 50):
     """
     Gets trending videos via yt_dlp
 
