@@ -958,6 +958,11 @@ def initialize() -> googleapiclient.discovery.Resource | None:
     """
     try:
         YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
+        GEMINI_API_KEY = get_api_key("TOKEN_GOOGLEAPI")
+        if len(YT_API_KEY) == 0 or len(GEMINI_API_KEY) == 0:
+            raise ValueError(
+                "API keys not found. Please check your .env file."
+            )
         youtube: object = create_youtube_client(YT_API_KEY)
         return youtube
     except Exception as e:

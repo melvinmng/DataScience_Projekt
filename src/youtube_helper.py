@@ -606,25 +606,3 @@ def get_trending_videos_dlp(region_code: str = "DE", max_results: int = 50):
                 print(f"Fehler beim Abrufen von Videodaten: {e}")
 
     return videos
-
-
-"""
-youtube = create_youtube_client("AIzaSyB7DvFs_Yqq9GpFM2hUyEvWfgYv7jJ20xs")
-
-request = youtube.search().list(
-        part="snippet", q='Python', type="video", maxResults=10
-    )
-    ###youtube REQUEST###
-search_response = request.execute()
-"""
-
-# print(get_video_length_dlp("D9YV-ykMfEA"))
-# print(get_video_length(youtube, "D9YV-ykMfEA"))
-"""
-print(search_videos_dlp("Python", 10))
-print('\n-------------------------------------------------------\n')
-print(get_video_data(youtube, search_response))
-print('\n-------------------------------------------------------\n')
-print(get_video_data_dlp(["D9YV-ykMfEA", "D9YV-ykMfEA"]))
-"""
-# print(get_recent_videos_from_channels_RSS(["UC8butISFwT-Wl7EV0hUK0BQ","UC1uEIIdQo0F6wLV-XSMCSvQ"], 1)

@@ -12,7 +12,13 @@ from .key_management.api_key_management import get_api_key
 
 ################# Initialization ###############################
 try:
-    ai_client = genai.Client(api_key=get_api_key("TOKEN_GOOGLEAPI"))
+    api_key = get_api_key("TOKEN_GOOGLEAPI")
+    print(api_key)
+    if len(api_key) == 0:
+        raise ValueError("API_KEY not found.")
+    else:
+        print("API_KEY found")
+        ai_client = genai.Client(api_key)
 except:
     raise ValueError("Kein API_KEY gefunden.")
 else:
