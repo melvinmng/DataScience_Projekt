@@ -175,6 +175,7 @@ def get_recommendation(
         f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
         f"Bitte wähle aus dieser Liste genau ein Video als Empfehlung aus, das am besten zu meinen Interessen passt: {interests}. Falls kein Video zu meinen Interessen passt, wähle eins aus, welches am ehesten passen würde.\n"
         f"Deine Antowrt muss folgendermaßen sturkturiert sein: 'video_id': 'video_id'\n'Begründung': 'Begründung wieso diese Video von dir empfohlen wird'(achte vor allem auf die Keywords 'video_id' und 'Begründung' - sie müssen enthalten und richtig geschrieben sein)\n"
+        f"DU MUSST DIR ABSOULT SICHER SEIN, DASS DIE VIDEO_ID ZUR BEGRÜNDUNG UMD ZUM TRANSCRIPT PASST.\n"
         f"Hier ist die Liste der Videos: {video_ids_titles_and_transcripts}"
     )
 
