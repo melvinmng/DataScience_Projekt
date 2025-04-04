@@ -9,6 +9,7 @@ import pandas as pd
 import csv
 from datetime import datetime
 
+
 import src.config_env
 
 from src.youtube_transcript import get_transcript
@@ -935,8 +936,6 @@ st.title("Dein personalisiertes YouTube-FY-Dashboard")
 youtube = initialize()
 
 ###----------------------------------###
-# import src.settings
-
 from src.gemini_helper import (
     extract_video_id_and_reason,
     get_summary,
@@ -948,7 +947,6 @@ from src.gemini_helper import (
     get_short_summary_for_watch_list,
     get_channel_recommondations,
 )
-
 ###----------------------------------###
 
 st.sidebar.header("Einstellungen")
