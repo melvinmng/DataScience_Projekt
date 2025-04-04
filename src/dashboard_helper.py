@@ -11,8 +11,10 @@ from dotenv import load_dotenv, set_key, dotenv_values
 import pandas as pd
 import csv
 from datetime import datetime
-
-
+import time
+import subprocess
+import sys
+import signal
 import src.config_env
 
 from src.youtube_transcript import get_transcript
@@ -30,17 +32,7 @@ from src.youtube_helper import (
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
 
-from src.gemini_helper import (
-    extract_video_id_and_reason,
-    get_summary,
-    get_summary_without_spoiler,
-    get_recommendation,
-    combine_video_id_title_and_transcript,
-    check_for_clickbait,
-    get_subscriptions_based_on_interests,
-    get_short_summary_for_watch_list,
-    get_channel_recommondations
-)
+
 
 # Variables & constants
 watch_later_history = "watch_later_history.csv"
@@ -888,47 +880,74 @@ def build_settings_pop_up() -> None:
 
             st.success("✅ API-Keys wurden gespeichert!")
             st.session_state.show_settings = False
-            st.rerun()
-            initialize()
+            time.sleep(2)
+            subprocess.Popen([sys.executable, "src/restart_app.py"])
+            # Beende aktuellen Prozess
+            os.kill(os.getpid(), signal.SIGTERM)
+
         else:
             st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
 
 
 def build_settings_tab() -> None:
-    """Builds tab for settings."""
+    """Tab für API-Key Einstellungen"""
     st.header("⚙️ Einstellungen")
 
+    # Lade vorhandene .env-Datei oder erstelle sie
     env_path = ".env"
     load_dotenv()
     if not os.path.exists(env_path):
         with open(env_path, "w") as f:
             f.write("# API Keys\n")
 
+    # Vorhandene API-Keys abrufen
     youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
     openai_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
-
+    channel_id = os.getenv("CHANNEL_ID", "") 
+    # Eingabefelder für API-Keys
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
-    openai_key = st.text_input("🤖 OpenAI API Key", openai_api_key, type="password")
+    gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
+    channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
     if st.button("🗑️Watch List history löschen"):
         history = watch_later_history
+       
+        if os.path.exists(history) and os.path.exists(watch_later_csv):
+            # CSV einlesen
+            df = pd.read_csv(history)
+            df1 = pd.read_csv(watch_later_csv)
 
-        df = pd.read_csv(history)
-        df1 = pd.read_csv(watch_later_csv)
-
-        df.iloc[0:0].to_csv(history, index=False)
-        df1.iloc[0:0].to_csv(watch_later_csv, index=False)
-
-        st.success("Erfolgreich gelöscht")
+            # Nur die Header behalten und Datei neu schreiben
+            df.iloc[0:0].to_csv(history, index=False)
+            df1.iloc[0:0].to_csv(watch_later_csv, index=False)
+        else:
+            st.error("Es existiert noch keine Historie. Der Vorgang wird abgebrochen.")
+    # API-Keys speichern
     if st.button("💾 Speichern"):
         if youtube_key:
             set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
-        if openai_key:
-            set_key(env_path, "TOKEN_GOOGLEAPI", openai_key)
-        st.success("✅ API-Keys wurden gespeichert!")
+        if gemini_key:
+            set_key(env_path, "TOKEN_GOOGLEAPI", gemini_key)
+        if channel_id:
+            set_key(env_path, "CHANNEL_ID", channel_id)
         st.session_state["Trending Videos"] = 0
-        st.rerun()
-        initialize()
+
+        # API-Keys erneut aus der Datei laden
+        updated_env = dotenv_values(env_path)
+
+        # Prüfen, ob die Werte gespeichert wurden
+        if (updated_env.get("YOUTUBE_API_KEY") == youtube_key and 
+            updated_env.get("TOKEN_GOOGLEAPI") == gemini_key and
+            updated_env.get("CHANNEL_ID") == channel_id):
+
+            st.success("✅ Gespeichert. Bitte laden sie das Dashboard neu um die Änderungen zu übernehmen.")
+            st.write("Starte App neu...")
+            time.sleep(2)
+            subprocess.Popen([sys.executable, "src/restart_app.py"])
+            # Beende aktuellen Prozess
+            os.kill(os.getpid(), signal.SIGTERM)
+        else:
+            st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
 
 
 def initialize() -> googleapiclient.discovery.Resource | None:
@@ -940,8 +959,22 @@ def initialize() -> googleapiclient.discovery.Resource | None:
     try:
         YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
         youtube: object = create_youtube_client(YT_API_KEY)
-
         return youtube
     except Exception as e:
         build_settings_pop_up()
         st.stop()
+####Geht erst hier, weil zuvor initialize() definiert werden muss.####
+try:
+    from src.gemini_helper import (
+        extract_video_id_and_reason,
+        get_summary,
+        get_summary_without_spoiler,
+        get_recommendation,
+        combine_video_id_title_and_transcript,
+        check_for_clickbait,
+        get_subscriptions_based_on_interests,
+        get_short_summary_for_watch_list,
+        get_channel_recommondations
+    )
+except:
+    initialize()
