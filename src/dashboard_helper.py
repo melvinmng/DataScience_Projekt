@@ -33,7 +33,7 @@ import time
 import subprocess
 import sys
 import signal
-import src.config_env
+from typing import Any, Callable, NoReturn
 
 import src.config_env
 from src.youtube_helper import (
@@ -146,9 +146,9 @@ def duration_to_seconds(duration_str: str) -> int:
 def lazy_expander(
     title: str,
     key: str,
-    on_expand: callable,
+    on_expand: Callable,
     expanded: bool = False,
-    callback_kwargs: dict[any, any] | None = None,
+    callback_kwargs: dict[Any, Any] | None = None,
 ) -> None:
     """Renders a 'lazy' expander that loads its content only upon expansion.
 
@@ -163,7 +163,7 @@ def lazy_expander(
                               callback_kwargs.
         expanded (bool, optional): The initial state of the expander.
                                    Defaults to False (collapsed).
-        callback_kwargs (Optional[Dict[any, any]], optional):
+        callback_kwargs (Optional[Dict[Any, Any]], optional):
                         Extra keyword arguments to pass to the on_expand function.
                         Defaults to None.
 
@@ -200,8 +200,8 @@ def lazy_expander(
 def lazy_button(
     label: str,
     key: str,
-    on_click: callable,
-    callback_kwargs: dict[any, any] | None = None,
+    on_click: Callable,
+    callback_kwargs: dict[Any, Any] | None = None,
 ) -> None:
     """Renders a 'lazy' button that manages its clicked state via session state.
 
@@ -214,7 +214,7 @@ def lazy_button(
                    st.session_state.
         on_click (Callable): A function to call when the button is clicked.
                              It receives any callback_kwargs.
-        callback_kwargs (Optional[Dict[any, any]], optional):
+        callback_kwargs (Optional[Dict[Any, Any]], optional):
                         Extra keyword arguments to pass to the on_click function.
                         Defaults to None.
 
@@ -353,7 +353,7 @@ def update_history_csv(
 
 
 def save_video_to_csv(
-    video: dict[str, any],
+    video: dict[str, Any],
     filename: str = watch_later_csv,
     gitignore_path: str = gitignore,
 ) -> None:
@@ -364,7 +364,7 @@ def save_video_to_csv(
     Includes fetching and summarizing the transcript.
 
     Args:
-        video (Dict[str, any]): A dictionary containing video metadata. Must include
+        video (Dict[str, Any]): A dictionary containing video metadata. Must include
                                 keys: 'title', 'channel_name', 'video_id',
                                 'length', 'views'.
         filename (str, optional): Path to the CSV file for saving.
@@ -452,14 +452,14 @@ def save_interests(interests: str) -> None:
     write_filename_to_gitignore(filename=Interests_file, gitignore_path=gitignore)
 
 
-def delete_video_by_id(video: dict[str, any], filename: str = watch_later_csv) -> None:
+def delete_video_by_id(video: dict[str, Any], filename: str = watch_later_csv) -> None:
     """Deletes a video entry from the specified CSV file based on 'video_id'.
 
     Rewrites the CSV file excluding the row that matches the video_id
     from the input video dictionary.
 
     Args:
-        video (Dict[str, any]): A dictionary representing the video to delete.
+        video (Dict[str, Any]): A dictionary representing the video to delete.
                                 Must contain at least the 'video_id' key.
         filename (str, optional): Path to the CSV file from which to delete.
                                   Defaults to watch_later_csv.
@@ -495,14 +495,14 @@ def delete_video_by_id(video: dict[str, any], filename: str = watch_later_csv) -
     print(f"Das Video mit der video_id {video_id} wurde erfolgreich gelöscht.")
 
 
-def build_video_list(incoming_videos: list[dict[str, any]], key_id: str) -> None:
+def build_video_list(incoming_videos: list[dict[str, Any]], key_id: str) -> None:
     """Renders a list of videos using Streamlit components.
 
     Displays title, channel, link, an expandable summary, video player,
     length, views, and conditional add/delete buttons for each video.
 
     Args:
-        incoming_videos (List[Dict[str, any]]): A list of dictionaries,
+        incoming_videos (List[Dict[str, Any]]): A list of dictionaries,
                         where each dictionary represents a video and contains
                         keys like 'title', 'channel_name', 'video_id', 'length', 'views'.
         key_id (str): A unique identifier string to be incorporated into the keys
@@ -535,13 +535,13 @@ def build_video_list(incoming_videos: list[dict[str, any]], key_id: str) -> None
         if expander_key not in st.session_state:
             st.session_state[expander_key] = None
 
-        def load_summary(container: any, video_id: str, title: str) -> None:
+        def load_summary(container: Any, video_id: str, title: str) -> None:
             """Loads and displays the video summary within a given container.
 
             Handles potential errors during transcript fetching or summary generation.
 
             Args:
-                container (any): The Streamlit container element to display the summary in.
+                container (Any): The Streamlit container element to display the summary in.
                 video_id (str): The YouTube video ID.
                 title (str): The title of the YouTube video.
 
@@ -584,7 +584,7 @@ def build_video_list(incoming_videos: list[dict[str, any]], key_id: str) -> None
         else:
             if video["video_id"] not in saved_video_ids:
                 lazy_button(
-                    label="➕ Add to watch list",
+                    label="➕add to watch list",
                     key=f"save_{video['video_id']}",
                     on_click=save_video_to_csv,
                     callback_kwargs={"video": video},
@@ -655,7 +655,7 @@ def build_trend_recommendations(
 
     if retry_count >= max_retries:
         st.error(
-            "Nach mehreren Versuchen konnte keine Empfehlung generiert werden.\nBitte versuche es später erneut."
+            "Nach mehreren Versuchen konnte keine Empfehlung generiert werden.\nBitte versuchen Sie es später erneut."
         )
         return
 
@@ -666,7 +666,7 @@ def build_trend_recommendations(
         if show_loading_time_information:
             loading_time_information = st.empty()
             loading_time_information.info(
-                "Bitte beachte eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
+                "Bitte beachten Sie eine möglicherweise längere Ladezeit aufgrund der hohen Datenmenge und QA-Mechanismen."
             )
 
         if search_method == "YouTube API":
@@ -725,9 +725,15 @@ def build_trend_recommendations(
 
 
 def build_gemini_recommondations(
-    search_method, youtube, user_interests, history_path: str
-):
-    """Builds sub tab for recommendations based on Gemini.
+    search_method: str,
+    youtube: Resource | None,
+    user_interests: str,
+    history_path: str,
+) -> None:
+    """Builds the content for recommendations based on user history and Gemini.
+
+    Fetches user subscriptions and watch history, gets channel recommendations
+    from Gemini, fetches recent videos from those channels, and displays them.
 
     Args:
         search_method (str): The method for fetching videos ("YouTube API" or other).
@@ -743,7 +749,7 @@ def build_gemini_recommondations(
         channelId = load_channel_id()
     except Exception as e:
         st.error(
-            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung: {e}"
+            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}"
         )
     else:
 
@@ -868,7 +874,7 @@ def build_clickbait_recognition_tab() -> None:
     st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
 
     video_url = st.text_input(
-        "🔎 Welches Video möchtest du prüfen? Gib hier die Video-URL ein!",
+        "🔎 Welches Video möchtest du prüfen? Gib hier die Video-Url ein!",
         "https://www.youtube.com/watch?v=onE9aPkSmlw",
     )
     if st.button("🔄 Clickbait Analyse laden"):
@@ -881,18 +887,18 @@ def build_clickbait_recognition_tab() -> None:
             )
             if clickbait_elements == "no transcript":
                 st.warning(
-                    "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuche es mit einem anderen Video."
+                    "Leider konnte für dieses Video keine Transkript erstellt und folglich keine Analyse durchgeführt werden. Bitte versuchen Sie es mit einem anderen Video."
                 )
             elif clickbait_elements == "no response":
                 st.warning(
-                    "Es gab leider ein Problem mit Gemini. Bitte versuche es später noch einmal."
+                    "Es gab leider ein Problem mit Gemini. Bitte versuchen Sie es später noch einmal."
                 )
             else:
                 st.video(f"https://www.youtube.com/watch?v={video_id}")
                 st.write(clickbait_elements)
         else:
             st.warning(
-                "Kein Video mit dieser Video-ID gefunden, bitte versuche es noch einmal."
+                "Kein Video mit dieser Video-ID gefunden, bitte versuchen Sie es noch einmal"
             )
 
 
@@ -1057,7 +1063,7 @@ def build_abobox_tab(
         channelId = load_channel_id()
     except Exception as e:
         st.error(
-            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung: {e}"
+            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}"
         )
     else:
         try:
@@ -1225,7 +1231,7 @@ def build_settings_tab() -> None:
     gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
-    mode = st.radio("Layout basierend auf", ("Browser", "Streamlit"))
+    layout_mode = st.radio("Layout basierend auf", ("Browser", "Streamlit"))
     layout_information = st.empty()
     layout_information.info(
         "Eventuell musst du die Einstellungen von Streamlit anpassen ( ⋮ > Choose app theme, colors and fonts)."
@@ -1233,7 +1239,7 @@ def build_settings_tab() -> None:
 
     CSS_FILE_PATH = Path(__file__).parent / "style.css"
 
-    if mode == "Browser":
+    if layout_mode == "Browser":
         with open(CSS_FILE_PATH) as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
@@ -1279,6 +1285,7 @@ def build_settings_tab() -> None:
             st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
 
 
+'''
 def initialize() -> googleapiclient.discovery.Resource | None:
     """Initializes issues regarding Google API Client.
 
@@ -1312,3 +1319,4 @@ try:
     )
 except:
     initialize()
+'''
