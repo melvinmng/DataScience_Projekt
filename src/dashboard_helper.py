@@ -1,5 +1,6 @@
 from contextlib import nullcontext
 import re
+from typing import NoReturn
 import streamlit as st
 
 st.set_page_config(
@@ -20,7 +21,9 @@ st.set_page_config(
 )
 
 import googleapiclient
+from googleapiclient.discovery import Resource
 import os
+from pathlib import Path
 import csv
 from dotenv import load_dotenv, set_key, dotenv_values
 import pandas as pd
@@ -31,8 +34,8 @@ import subprocess
 import sys
 import signal
 import src.config_env
-from pathlib import Path
 
+import src.config_env
 from src.youtube_helper import (
     get_transcript,
     get_video_data,
@@ -49,6 +52,67 @@ from src.key_management.api_key_management import get_api_key, create_youtube_cl
 from src.key_management.youtube_channel_id import load_channel_id
 
 
+def initialize() -> Resource | NoReturn:
+    """Initializes the Google API Client for YouTube.
+
+    Checks for required API keys (YouTube and Gemini) in environment variables.
+    If keys are missing or empty, it triggers a settings pop-up, stops
+    the application execution via st.stop(), and raises a RuntimeError
+    (the RuntimeError is primarily to satisfy static type checkers like mypy
+    regarding the NoReturn path, as st.stop() halts execution before it).
+
+    Returns:
+        Resource: An initialized googleapiclient.discovery.Resource object for YouTube
+                  if initialization is successful.
+
+    Raises:
+        RuntimeError: This is raised only after st.stop() to satisfy type checkers,
+                      the application exits before this is truly raised.
+                      Wraps the original exception if one occurred besides missing keys.
+        ValueError: If API keys are found to be None or empty after retrieval.
+                    This is caught internally and leads to the NoReturn path.
+    """
+    try:
+        YT_API_KEY = get_api_key("YOUTUBE_API_KEY")
+        GEMINI_API_KEY = get_api_key("TOKEN_GOOGLEAPI")
+        if not YT_API_KEY or not GEMINI_API_KEY:
+            raise ValueError("API keys not found. Please check your .env file.")
+        youtube: Resource = create_youtube_client(YT_API_KEY)
+        return youtube
+    except Exception as e:
+        build_settings_pop_up()
+        st.stop()
+        raise RuntimeError("App sollte bis jetzt schon abgebrochen worden sein") from e
+
+
+####Needs to be executed after initialize()####
+try:
+    from src.gemini_helper import (
+        extract_video_id_and_reason,
+        get_summary,
+        get_summary_without_spoiler,
+        get_recommendation,
+        combine_video_id_title_and_transcript,
+        check_for_clickbait,
+        get_subscriptions_based_on_interests,
+        get_short_summary_for_watch_list,
+        get_channel_recommondations,
+    )
+except:
+    initialize()
+    from src.gemini_helper import (
+        extract_video_id_and_reason,
+        get_summary,
+        get_summary_without_spoiler,
+        get_recommendation,
+        combine_video_id_title_and_transcript,
+        check_for_clickbait,
+        get_subscriptions_based_on_interests,
+        get_short_summary_for_watch_list,
+        get_channel_recommondations,
+    )
+
+
 # Variables & constants
 watch_later_history = "watch_later_history.csv"
 watch_later_csv = "watch_later.csv"
@@ -61,16 +125,14 @@ FEEDBACK_FILE = "feedback.csv"
 
 
 # Helpers
-# @Adrian Evtl. kann das in den youtube_helper oder?
 def duration_to_seconds(duration_str: str) -> int:
-    """
-    Converts a duration from "MM:SS" format to seconds.
+    """Converts a duration string from "MM:SS" format to total seconds.
 
     Args:
-        duration_str (str): duration in "MM:SS" format
+        duration_str (str): The duration string in "MM:SS" format.
 
     Returns:
-        int: duration in seconds
+        int: The total duration in seconds. Returns 0 if parsing fails.
     """
     try:
         minutes, seconds = map(int, duration_str.split(":"))
@@ -84,20 +146,29 @@ def duration_to_seconds(duration_str: str) -> int:
 def lazy_expander(
     title: str,
     key: str,
-    on_expand,
+    on_expand: callable,
     expanded: bool = False,
-    callback_kwargs: dict = None,
-):
-    """
-    A 'lazy' expander that only loads/renders content on expand.
+    callback_kwargs: dict[any, any] | None = None,
+) -> None:
+    """Renders a 'lazy' expander that loads its content only upon expansion.
+
+    Uses session state to manage the expanded state.
 
     Args:
-        title (str): title to show next to the arrow
-        key (str): unique key for storing expanded state in st.session_state
-        on_expand (callable): function that takes a container (and optional kwargs)
-                              to fill with content *only* after expanding.
-        expanded (bool): initial state (collapsed=False by default)
-        callback_kwargs (dict): extra kwargs for on_expand() if needed
+        title (str): The title displayed next to the expander arrow.
+        key (str): A unique key used for storing the expanded state in
+                   st.session_state.
+        on_expand (Callable): A function to call when the expander is opened.
+                              It receives the container to populate and any
+                              callback_kwargs.
+        expanded (bool, optional): The initial state of the expander.
+                                   Defaults to False (collapsed).
+        callback_kwargs (Optional[Dict[any, any]], optional):
+                        Extra keyword arguments to pass to the on_expand function.
+                        Defaults to None.
+
+    Returns:
+        None
     """
     if callback_kwargs is None:
         callback_kwargs = {}
@@ -126,15 +197,29 @@ def lazy_expander(
 
 
 @st.fragment
-def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
-    """
-    A 'lazy' button that stores its state in st.session_state and does not trigger a full rerun.
+def lazy_button(
+    label: str,
+    key: str,
+    on_click: callable,
+    callback_kwargs: dict[any, any] | None = None,
+) -> None:
+    """Renders a 'lazy' button that manages its clicked state via session state.
+
+    Executes the on_click function when clicked and shows a success indicator.
+    Optionally triggers a rerun for delete actions.
 
     Args:
-        label (str): button label
-        key (str): unique session state key
-        on_click (callable): function to call when button is clicked
-        callback_kwargs (dict): extra kwargs for on_click() if needed
+        label (str): The text label displayed on the button.
+        key (str): A unique key used for storing the button's state in
+                   st.session_state.
+        on_click (Callable): A function to call when the button is clicked.
+                             It receives any callback_kwargs.
+        callback_kwargs (Optional[Dict[any, any]], optional):
+                        Extra keyword arguments to pass to the on_click function.
+                        Defaults to None.
+
+    Returns:
+        None
     """
     if callback_kwargs is None:
         callback_kwargs = {}
@@ -153,12 +238,17 @@ def lazy_button(label: str, key: str, on_click, callback_kwargs: dict = None):
 
 
 ########################## CSV-Functions ##########################
-def write_filename_to_gitignore(gitignore_path: str, filename: str):
-    """Writes a filename to .gitignore file.
+def write_filename_to_gitignore(gitignore_path: str, filename: str) -> None:
+    """Appends a filename to the specified .gitignore file if not already present.
+
+    Creates the .gitignore file if it does not exist.
 
     Args:
-        gitignore_path (str): path to .gitignore file
-        filename (str): name of file to be stored
+        gitignore_path (str): The path to the .gitignore file.
+        filename (str): The filename pattern to add to the .gitignore file.
+
+    Returns:
+        None
     """
     if os.path.exists(gitignore_path):
         with open(gitignore_path, "r+", encoding="utf-8") as gitignore_file:
@@ -170,14 +260,15 @@ def write_filename_to_gitignore(gitignore_path: str, filename: str):
             gitignore_file.write(f"{filename}\n")
 
 
-def read_csv_to_list(filename: str):
-    """Reads csv file and stores each line as a dictionary within a list without duplicates.
+def read_csv_to_list(filename: str) -> list[dict[str, str]]:
+    """Reads a CSV file into a list of dictionaries, removing duplicate rows.
 
     Args:
-        filename (str): name of csv file
+        filename (str): The path to the CSV file to read.
 
     Returns:
-        _type_: _description_
+        list: A list where each element is a dictionary representing a unique
+              row from the CSV file.
     """
     data = []
 
@@ -204,16 +295,23 @@ def update_history_csv(
     source_file: str = watch_later_csv,
     history_file: str = watch_later_history,
     gitignore_path: str = gitignore,
-):
-    """
-    Inserts new entries from source file to history.
+) -> None:
+    """Appends new, unique rows from a source CSV file to a history CSV file.
+
+    Creates the history file if it doesn't exist and adds it to .gitignore.
+    Handles potential errors during file operations.
 
     Args:
-        source_file (str): path to current csv source file
-        history_file (str): path to csv history file. Defaults to history.csv
-        gitignore_path (str): path to .gitignore file. Defaults to .gitignore
-    """
+        source_file (str, optional): Path to the source CSV file.
+                                     Defaults to watch_later_csv.
+        history_file (str, optional): Path to the history CSV file.
+                                      Defaults to watch_later_history.
+        gitignore_path (str, optional): Path to the .gitignore file.
+                                        Defaults to gitignore.
 
+    Returns:
+        None
+    """
     if not os.path.exists(source_file) or os.stat(source_file).st_size == 0:
         print("Die Quell-CSV ist leer oder existiert nicht. Keine neuen Einträge.")
         return
@@ -230,21 +328,23 @@ def update_history_csv(
         with open(history_file, mode="r", encoding="utf-8") as file:
             reader = csv.reader(file)
             header = next(reader, None)  # Header lesen
-            for row in reader:
-                history_data.add(tuple(row))
+            if header:
+                for row in reader:
+                    history_data.add(tuple(row))
 
     new_data = []
     with open(source_file, mode="r", encoding="utf-8") as file:
         reader = csv.reader(file)
         header = next(reader, None)  # Header lesen
-        for row in reader:
-            if tuple(row) not in history_data:
-                new_data.append(row)
+        if header:
+            for row in reader:
+                if tuple(row) not in history_data:
+                    new_data.append(row)
 
     if new_data:
         with open(history_file, mode="a", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
-            if not history_data:
+            if not history_data and header:
                 writer.writerow(header)
             writer.writerows(new_data)
         print(f"{len(new_data)} neue Einträge zur History hinzugefügt.")
@@ -253,14 +353,30 @@ def update_history_csv(
 
 
 def save_video_to_csv(
-    video, filename: str = watch_later_csv, gitignore_path: str = gitignore
-):
-    """Saves YouTube video to csv file
+    video: dict[str, any],
+    filename: str = watch_later_csv,
+    gitignore_path: str = gitignore,
+) -> None:
+    """Saves video metadata to a specified CSV file and updates history.
+
+    Appends the video information as a new row. Creates the CSV file
+    with headers if it doesn't exist. Adds the filename to .gitignore.
+    Includes fetching and summarizing the transcript.
 
     Args:
-        video (_type_): @Adrian
-        filename (str, optional): name of csv file containing videos to watch later. Defaults to watch_later_csv.
-        gitignore_path (str, optional): path to .gitignore file. Defaults to gitignore.
+        video (Dict[str, any]): A dictionary containing video metadata. Must include
+                                keys: 'title', 'channel_name', 'video_id',
+                                'length', 'views'.
+        filename (str, optional): Path to the CSV file for saving.
+                                  Defaults to watch_later_csv.
+        gitignore_path (str, optional): Path to the .gitignore file.
+                                        Defaults to gitignore.
+
+    Returns:
+        None
+
+    Raises:
+        KeyError: If the 'video' dictionary is missing essential keys.
     """
     file_exists = os.path.isfile(filename)
     with open(filename, mode="a", newline="", encoding="utf-8") as file:
@@ -302,11 +418,13 @@ def save_video_to_csv(
     update_history_csv()
 
 
-def load_interests():
-    """Loads interests from file if it exists.
+def load_interests() -> str:
+    """Loads user interests from the predefined interests text file.
 
     Returns:
-        str: interests
+        str: The content of the interests file as a string, stripped of
+             leading/trailing whitespace. Returns an empty string if the file
+             does not exist or an error occurs.
     """
     if os.path.exists(Interests_file):
         with open(Interests_file, "r", encoding="utf-8") as file:
@@ -314,11 +432,17 @@ def load_interests():
     return ""
 
 
-def save_interests(interests):
-    """Saves changes to interest file.
+def save_interests(interests: str) -> None:
+    """Saves the given interests string to the predefined interests text file.
+
+    Only writes to the file if the new interests string differs from the
+    currently saved one. Ensures the interests file is listed in .gitignore.
 
     Args:
-        interests (_type_): @Adrian
+        interests (str): The string containing user interests to save.
+
+    Returns:
+        None
     """
     current_interests = load_interests()
     if current_interests != interests:  # Speichern nur, wenn es Änderungen gibt
@@ -328,12 +452,20 @@ def save_interests(interests):
     write_filename_to_gitignore(filename=Interests_file, gitignore_path=gitignore)
 
 
-def delete_video_by_id(video, filename: str = watch_later_csv):
-    """Deletes video from watch later csv file.
+def delete_video_by_id(video: dict[str, any], filename: str = watch_later_csv) -> None:
+    """Deletes a video entry from the specified CSV file based on 'video_id'.
+
+    Rewrites the CSV file excluding the row that matches the video_id
+    from the input video dictionary.
 
     Args:
-        video (_type_): @Adrian
-        filename (str, optional): name of csv file containing videos to watch later. Defaults to watch_later_csv.
+        video (Dict[str, any]): A dictionary representing the video to delete.
+                                Must contain at least the 'video_id' key.
+        filename (str, optional): Path to the CSV file from which to delete.
+                                  Defaults to watch_later_csv.
+
+    Returns:
+        None
     """
     videos = []
     video_id = video["video_id"]
@@ -363,12 +495,22 @@ def delete_video_by_id(video, filename: str = watch_later_csv):
     print(f"Das Video mit der video_id {video_id} wurde erfolgreich gelöscht.")
 
 
-def build_video_list(incoming_videos, key_id: str):
-    """@Adrian
+def build_video_list(incoming_videos: list[dict[str, any]], key_id: str) -> None:
+    """Renders a list of videos using Streamlit components.
+
+    Displays title, channel, link, an expandable summary, video player,
+    length, views, and conditional add/delete buttons for each video.
 
     Args:
-        incoming_videos (_type_): _description_
-        key_id (str): _description_
+        incoming_videos (List[Dict[str, any]]): A list of dictionaries,
+                        where each dictionary represents a video and contains
+                        keys like 'title', 'channel_name', 'video_id', 'length', 'views'.
+        key_id (str): A unique identifier string to be incorporated into the keys
+                      of Streamlit elements created within this function, ensuring
+                      uniqueness across different lists.
+
+    Returns:
+        None
     """
     saved_video_ids = []
     filename = watch_later_csv
@@ -393,13 +535,18 @@ def build_video_list(incoming_videos, key_id: str):
         if expander_key not in st.session_state:
             st.session_state[expander_key] = None
 
-        def load_summary(container, video_id: str, title: str):
-            """@Adrian
+        def load_summary(container: any, video_id: str, title: str) -> None:
+            """Loads and displays the video summary within a given container.
+
+            Handles potential errors during transcript fetching or summary generation.
 
             Args:
-                container (_type_): _description_
-                video_id (_type_): _description_
-                title (_type_): _description_
+                container (any): The Streamlit container element to display the summary in.
+                video_id (str): The YouTube video ID.
+                title (str): The title of the YouTube video.
+
+            Returns:
+                None
             """
             try:
                 transcript = get_transcript(video_id)
@@ -437,7 +584,7 @@ def build_video_list(incoming_videos, key_id: str):
         else:
             if video["video_id"] not in saved_video_ids:
                 lazy_button(
-                    label="➕add to watch list",
+                    label="➕ Add to watch list",
                     key=f"save_{video['video_id']}",
                     on_click=save_video_to_csv,
                     callback_kwargs={"video": video},
@@ -445,8 +592,21 @@ def build_video_list(incoming_videos, key_id: str):
 
 
 # Build Tabs
-def build_trending_videos_tab(search_method, youtube) -> None:
-    """Builds tab for trending videos."""
+def build_trending_videos_tab(search_method: str, youtube: Resource | None) -> None:
+    """Builds the Streamlit tab displaying trending YouTube videos.
+
+    Allows selection of region and loads trending videos using either the
+    YouTube API or yt-dlp based on the search_method.
+
+    Args:
+        search_method (str): The method to use for fetching videos
+                             ("YouTube API" or other).
+        youtube (Resource | None): The initialized YouTube API client resource,
+                                    or None if API method is not used or failed.
+
+    Returns:
+        None
+    """
     st.header("Trending Videos")
     region_code = st.radio("Region wählen:", ("DE", "US", "GB"))
 
@@ -463,20 +623,32 @@ def build_trending_videos_tab(search_method, youtube) -> None:
             build_video_list(videos, key_id="trending_videos")
 
 
-def build_trend_recommondations(
-    search_method,
-    youtube,
-    user_interests,
+def build_trend_recommendations(
+    search_method: str,
+    youtube: Resource | None,
+    user_interests: str,
     retry_count: int = 0,
     show_spinner: bool = True,
     show_loading_time_information: bool = True,
-):
-    """Builds sub tab for recommendations based on trending videos.
+) -> None:
+    """Builds the content for recommendations based on trending videos.
+
+    Fetches trending videos, gets recommendations from Gemini based on them
+    and user interests, and displays the recommended video. Includes retry logic.
 
     Args:
-        retry_count (int, optional): @Adrian. Defaults to 0.
-        show_spinner (bool, optional): @Adrian. Defaults to True.
-        show_loading_time_information (bool, optional): @Adrian. Defaults to True.
+        search_method (str): The method for fetching videos ("YouTube API" or other).
+        youtube (Resource | None): The initialized YouTube API client resource, or None.
+        user_interests (str): A string describing the user's interests.
+        retry_count (int, optional): Internal counter for retry attempts. Defaults to 0.
+        show_spinner (bool, optional): Whether to show the spinner during loading.
+                                       Defaults to True.
+        show_loading_time_information (bool, optional): Whether to show the info
+                                                        message about loading times.
+                                                        Defaults to True.
+
+    Returns:
+        None
     """
     loading_time_information = None
     max_retries = 3
@@ -511,7 +683,7 @@ def build_trend_recommondations(
         if recommendations_unfiltered:
             recommendations = extract_video_id_and_reason(
                 recommendations_unfiltered,
-                on_fail=lambda: build_trend_recommondations(
+                on_fail=lambda: build_trend_recommendations(
                     search_method,
                     youtube,
                     user_interests,
@@ -526,15 +698,27 @@ def build_trend_recommondations(
 
     if recommendations:
         if search_method == "YouTube API":
-            request = youtube.videos().list(
-                part="snippet", id=recommendations["video_id"]
-            )
-            response = request.execute()
-            video_data = get_video_data(youtube, response, "trends")
-            build_video_list(video_data, key_id="recommendation")
+            if youtube:
+                request = youtube.videos().list(
+                    part="snippet", id=recommendations["video_id"]
+                )
+                response = request.execute()
+                video_data = get_video_data(youtube, response, "trends")
+                build_video_list(video_data, key_id="recommendation")
+            else:
+                st.error("YouTube API Client nicht verfügbar.")
         else:
-            video_data = get_video_data_dlp(recommendations["video_id"])
-            build_video_list([video_data], key_id="recommendation")
+            video_dict = get_video_data_dlp(recommendations["video_id"])
+            if video_dict:
+                video_data = [video_dict]
+            else:
+                video_data = []
+            if video_data:
+                build_video_list(video_data, key_id="recommendation")
+            else:
+                st.warning(
+                    f"Konnte Videodaten für {recommendations['video_id']} nicht laden."
+                )
 
         st.write("## Begründung:")
         st.write(recommendations["Begründung"])
@@ -546,14 +730,20 @@ def build_gemini_recommondations(
     """Builds sub tab for recommendations based on Gemini.
 
     Args:
-        history_path (str): path to history file
+        search_method (str): The method for fetching videos ("YouTube API" or other).
+        youtube (Resource | None): The initialized YouTube API client resource, or None.
+        user_interests (str): A string describing the user's interests.
+        history_path (str): The file path to the user's watch history CSV.
+
+    Returns:
+        None
     """
     recommended_videos = []
     try:
         channelId = load_channel_id()
     except Exception as e:
         st.error(
-            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}"
+            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung: {e}"
         )
     else:
 
@@ -582,15 +772,24 @@ def build_gemini_recommondations(
                         print(channel)
                         print("response:_______________________________")
                         if search_method == "YouTube API":
-                            request = youtube.search().list(
-                                part="snippet",
-                                q=channel,
-                                type="video",
-                                maxResults=max_results,
-                            )
-                            response = request.execute()
-                            print(response)
-                            videos = get_video_data(youtube, response)
+                            if youtube:
+                                try:
+                                    request = youtube.search().list(
+                                        part="snippet",
+                                        q=channel,
+                                        type="video",
+                                        maxResults=max_results,
+                                    )
+                                    response = request.execute()
+                                    videos = get_video_data(youtube, response)
+                                except Exception as e:
+                                    st.error(
+                                        f"API-Fehler bei Suche nach Kanal '{channel}': {e}"
+                                    )
+                                    videos = []
+                            else:
+                                st.error("YouTube API Client nicht verfügbar.")
+                                videos = []
                         else:
                             videos = search_videos_dlp(channel, max_results=max_results)
 
@@ -609,19 +808,31 @@ def build_gemini_recommondations(
 
 
 def build_recommendation_tab(
-    search_method,
-    youtube,
-    user_interests,
+    search_method: str,
+    youtube: Resource | None,
+    user_interests: str,
+    # Parameters below seem intended for build_trend_recommendations, pass them down
     retry_count: int = 0,
     show_spinner: bool = True,
     show_loading_time_information: bool = True,
 ) -> None:
-    """Builds tab for recommendations.
+    """Builds the main Streamlit tab for personalized recommendations.
+
+    Contains sub-tabs for recommendations based on trends and recommendations
+    based on Gemini/user history.
 
     Args:
-        retry_count (int, optional): @Adrian. Defaults to 0.
-        show_spinner (bool, optional): @Adrian. Defaults to True.
-        show_loading_time_information (bool, optional): @Adrian. Defaults to True.
+        search_method (str): The method for fetching videos ("YouTube API" or other).
+        youtube (Resource): The initialized YouTube API client resource, or None.
+        user_interests (str): A string describing the user's interests.
+        retry_count (int, optional): Passed down to sub-functions if they implement
+                                     retry logic. Defaults to 0.
+        show_spinner (bool, optional): Passed down to sub-functions. Defaults to True.
+        show_loading_time_information (bool, optional): Passed down to sub-functions.
+                                                        Defaults to True.
+
+    Returns:
+        None
     """
     st.header("Personalisierte Empfehlungen")
 
@@ -629,7 +840,7 @@ def build_recommendation_tab(
 
     with tab1:
         if st.button("🔄 Trend Recommendation laden"):
-            build_trend_recommondations(
+            build_trend_recommendations(
                 search_method,
                 youtube,
                 user_interests,
@@ -645,12 +856,19 @@ def build_recommendation_tab(
 
 
 def build_clickbait_recognition_tab() -> None:
-    """Builds tab for clickbait recognition."""
+    """Builds the Streamlit tab for analyzing video clickbait potential.
+
+    Takes a video URL input, fetches transcript and title, calls Gemini
+    for analysis, and displays the results.
+
+    Returns:
+        None
+    """
     st.header("Clickbait Analyse")
     st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
 
     video_url = st.text_input(
-        "🔎 Welches Video möchtest du prüfen? Gib hier die Video-Url ein!",
+        "🔎 Welches Video möchtest du prüfen? Gib hier die Video-URL ein!",
         "https://www.youtube.com/watch?v=onE9aPkSmlw",
     )
     if st.button("🔄 Clickbait Analyse laden"):
@@ -679,10 +897,17 @@ def build_clickbait_recognition_tab() -> None:
 
 
 def save_feedback(feedback_text: str) -> None:
-    """Saves feedback from input form to csv.
+    """Saves user feedback along with timestamp to the feedback CSV file.
+
+    Appends a new row with date, time, and feedback text. Creates the
+    file with headers if it doesn't exist. Sets session state flags
+    after saving and triggers a rerun.
 
     Args:
-        feedback_text (str): feedback sent by user
+        feedback_text (str): The feedback message provided by the user.
+
+    Returns:
+        None
     """
     now = datetime.now()
     date = now.strftime("%Y-%m-%d")
@@ -703,7 +928,14 @@ def save_feedback(feedback_text: str) -> None:
 
 
 def build_feedback_tab() -> None:
-    """Builds tab for feedback."""
+    """Builds the Streamlit tab for collecting user feedback.
+
+    Provides a text area for input and a button to submit. Shows a success
+    message upon submission using session state.
+
+    Returns:
+        None
+    """
     st.header("Feedback & Wünsche")
     st.write("Hilf uns, das Dashboard zu verbessern!")
 
@@ -726,8 +958,20 @@ def build_feedback_tab() -> None:
             st.warning("Bitte gib ein Feedback ein, bevor du es absendest.")
 
 
-def build_search_tab(search_method, youtube) -> None:
-    """Builds tab for search."""
+def build_search_tab(search_method: str, youtube: Resource | None) -> None:
+    """Builds the Streamlit tab for searching YouTube videos.
+
+    Provides a text input for the query and optionally a slider for max results.
+    Fetches and displays search results using the specified method. Manages
+    results in session state.
+
+    Args:
+        search_method (str): The method for searching videos ("YouTube API" or other).
+        youtube (Resource | None): The initialized YouTube API client resource, or None.
+
+    Returns:
+        None
+    """
     st.session_state["active_tab"] = "search"
 
     if "videos" not in st.session_state or (st.session_state.get("new_search", False)):
@@ -748,12 +992,19 @@ def build_search_tab(search_method, youtube) -> None:
     if st.button("🔍 Suchen"):
         st.session_state["new_search"] = True
         if search_method == "YouTube API":
-            request = youtube.search().list(
-                part="snippet", q=query, type="video", maxResults=10
-            )
-            response = request.execute()
-            print(response)
-            videos = get_video_data(youtube, response)
+            if youtube:
+                try:
+                    request = youtube.search().list(
+                        part="snippet", q=query, type="video", maxResults=10
+                    )
+                    response = request.execute()
+                    videos = get_video_data(youtube, response)
+                except Exception as e:
+                    st.error(f"API-Fehler bei der Suche: {e}")
+                    videos = []
+            else:
+                st.error("YouTube API Client nicht verfügbar.")
+                videos = []
         else:
             videos = search_videos_dlp(query, max_results=max_results)
 
@@ -764,8 +1015,23 @@ def build_search_tab(search_method, youtube) -> None:
         build_video_list(st.session_state["videos"], key_id="search")
 
 
-def build_abobox_tab(search_method, youtube, user_interests) -> None:
-    """Builds tab for subscriptions."""
+def build_abobox_tab(
+    search_method: str, youtube: Resource, user_interests: str
+) -> None:
+    """Builds the Streamlit tab displaying recent videos from subscribed channels.
+
+    Fetches subscriptions, filters channels based on interests using Gemini,
+    retrieves recent videos from those channels using the specified method,
+    and displays them.
+
+    Args:
+        search_method (str): The method for fetching videos ("YouTube API" or other).
+        youtube (Resource): The initialized YouTube API client resource, or None.
+        user_interests (str): A string describing the user's interests.
+
+    Returns:
+        None
+    """
     st.session_state["active_tab"] = "abobox"
 
     if "videos" in st.session_state and st.session_state.get("last_tab") != "abobox":
@@ -791,7 +1057,7 @@ def build_abobox_tab(search_method, youtube, user_interests) -> None:
         channelId = load_channel_id()
     except Exception as e:
         st.error(
-            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}"
+            f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung: {e}"
         )
     else:
         try:
@@ -814,7 +1080,11 @@ def build_abobox_tab(search_method, youtube, user_interests) -> None:
                     channel_names_and_description, user_interests, max_abos
                 )
 
-                channel_list = channel_string.split(",")
+                channel_list = []
+                if channel_string:
+                    channel_list = channel_string.split(",")
+                else:
+                    st.warning("Keine Kanal-Empfehlungen von Gemini erhalten.")
 
                 matched_ids = []
                 for channel in channel_list:
@@ -845,7 +1115,14 @@ def build_abobox_tab(search_method, youtube, user_interests) -> None:
 
 
 def build_watch_later_tab() -> None:
-    """Builds tab for watch later."""
+    """Builds the Streamlit tab displaying the user's 'Watch Later' list.
+
+    Reads videos from the watch later CSV file and displays them using
+    the build_video_list function. Provides a button to reload the list.
+
+    Returns:
+        None
+    """
     st.session_state["active_tab"] = "view_later"
 
     if (
@@ -869,7 +1146,14 @@ def build_watch_later_tab() -> None:
 
 
 def build_settings_pop_up() -> None:
-    """Builds pop up for settings at first use."""
+    """Builds a pop-up modal (simulated via main page content) for initial API key setup.
+
+    Displayed when API keys are missing upon initialization. Allows user
+    to input and save keys to the .env file. Triggers an app restart on save.
+
+    Returns:
+        None
+    """
     env_path = ".env"
     load_dotenv()
 
@@ -914,7 +1198,15 @@ def build_settings_pop_up() -> None:
 
 
 def build_settings_tab() -> None:
-    """Tab für API-Key Einstellungen"""
+    """Builds the Streamlit tab for managing API keys and other settings.
+
+    Allows viewing/updating API keys stored in the .env file and provides
+    an option to clear the watch list history. Triggers an app restart
+    when settings are saved.
+
+    Returns:
+        None
+    """
     st.header("⚙️ Einstellungen")
 
     # Lade vorhandene .env-Datei oder erstelle sie
@@ -958,7 +1250,6 @@ def build_settings_tab() -> None:
             df1.iloc[0:0].to_csv(watch_later_csv, index=False)
         else:
             st.error("Es existiert noch keine Historie. Der Vorgang wird abgebrochen.")
-    # API-Keys speichern
     if st.button("💾 Speichern"):
         if youtube_key:
             set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
@@ -968,7 +1259,6 @@ def build_settings_tab() -> None:
             set_key(env_path, "CHANNEL_ID", channel_id)
         st.session_state["Trending Videos"] = 0
 
-        # API-Keys erneut aus der Datei laden
         updated_env = dotenv_values(env_path)
 
         # Prüfen, ob die Werte gespeichert wurden
@@ -984,7 +1274,6 @@ def build_settings_tab() -> None:
             st.write("Starte App neu...")
             time.sleep(2)
             subprocess.Popen([sys.executable, "src/restart_app.py"])
-            # Beende aktuellen Prozess
             os.kill(os.getpid(), signal.SIGTERM)
         else:
             st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")

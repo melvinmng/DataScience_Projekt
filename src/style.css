@@ -26,7 +26,7 @@
     --dShadowHigh: 0 2px 5px rgba(200, 200, 200, 0.1);
     
     /* Universal */
-    --Red: #ff4b4b;
+    --red: #ff4b4b;
     --seethrough: rgba(0, 0, 0, 0);
     --blur: 20px;
 }
@@ -45,7 +45,7 @@ body {
     }
 
     .st-emotion-cache-1dp5vir {
-        background-image: linear-gradient(0deg, var(--lRed), var(--lRed));
+        background-image: linear-gradient(0deg, var(--red), var(--red));
     }
 
     [data-testid="stSidebar"] {
@@ -107,7 +107,7 @@ body {
     }
 
     .st-emotion-cache-1dp5vir {
-        background-image: linear-gradient(0deg, var(--lRed), var(--lRed));
+        background-image: linear-gradient(0deg, var(--red), var(--red));
     }
 
     [data-testid="stSidebar"] {
@@ -142,9 +142,6 @@ body {
     [data-testid="stBaseButton-secondary"]:hover {
 		background: var(--dFrostedGradientLightNegative);
         box-shadow: var(--dShadowHigh);
-        backdrop-filter: blur(var(--blur));
-        -webkit-backdrop-filter: blur(var(--blur));
-        border: var(--dFrostedBorder);
     }
     
     [data-baseweb="input"]{
