@@ -10,44 +10,6 @@ from .youtube_helper import get_transcript
 from .key_management.api_key_management import get_api_key
 
 
-################# Initialization ###############################
-api_key = get_api_key("TOKEN_GOOGLEAPI")
-
-if not api_key:
-    raise ValueError("API Key nicht gefunden (leer oder nicht vorhanden).")
-else:
-    print("API Key erfolgreich geladen.")
-
-try:
-    print("Versuche Gemini Client zu erstellen...")
-    ai_client = genai.Client(api_key=api_key)
-    print("Client erfolgreich erstellt.")
-except Exception as e:
-    raise RuntimeError(
-        f"Fehler beim Erstellen des genai Clients mit gefundenem Key: {e}"
-    ) from e
-else:
-    print("API_KEY gefunden")
-
-ai_model = "gemini-2.0-flash"
-ai_generate_content_config = types.GenerateContentConfig(
-    temperature=1,
-    top_p=0.95,
-    top_k=40,
-    max_output_tokens=8192,
-    response_mime_type="text/plain",
-    system_instruction=[
-        types.Part.from_text(
-            text="""Du bist ein Experte im Bereich Datenanalyse und For-You-Pages. 
-            Im Folgenden wirst du immer wieder YouTube-Videos und ihre Transkripte
-            zugeschickt bekommen und ausgehend von diesen Inhalte zusammenfassen, 
-            Clickbait erkennen und ausgehend von der verbleibenden Zeit des Users, 
-            Vorschläge machen, welche der Videos er sich am ehesten anschauen sollte 
-            (kein Clickbait, seinen Interessen entsprechend)."""
-        ),
-    ],
-)
-
 
 def get_short_summary_for_watch_list(
     transcript: str, title: str, channel: str
@@ -64,6 +26,11 @@ def get_short_summary_for_watch_list(
                        API call yields no text. Returns the original transcript
                        if an exception occurs during the API call.
     """
+    from run import (
+        ai_client,
+        ai_model,
+        ai_generate_content_config,
+    )
     try:
         response = ai_client.models.generate_content(
             model=ai_model,
@@ -105,6 +72,13 @@ def get_channel_recommondations(
                          otherwise the string "Fehler" if the API call yields no text.
                          Returns "Fehler" also if an exception occurs.
     """
+
+    from run import (
+        ai_client,
+        ai_model,
+        ai_generate_content_config,
+    )
+
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
@@ -135,6 +109,13 @@ def get_summary(transcript: str, title: str) -> str | None:
         str | None: The generated summary and clickbait analysis text,
                        or None if the API call yields no text or an error occurs.
     """
+
+    from run import (
+        ai_client,
+        ai_model,
+        ai_generate_content_config,
+    )
+
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
@@ -164,6 +145,13 @@ def get_summary_without_spoiler(transcript: str) -> str | None:
         str | None: The generated non-spoiler summary text, or None if the
                        API call yields no text or an error occurs.
     """
+
+    from run import (
+        ai_client,
+        ai_model,
+        ai_generate_content_config,
+    )
+
     response = ai_client.models.generate_content(
         model=ai_model,
         config=ai_generate_content_config,
@@ -205,6 +193,13 @@ def get_recommendation(
                        yields no text. The string requires further parsing by
                        extract_video_id_and_reason.
     """
+
+    from run import (
+        ai_client,
+        ai_model,
+        ai_generate_content_config,
+    )
+
     prompt = (
         f"Du erhältst eine Liste von Videos in folgendem Python-Format:\n"
         f"[('Titel': 'Titel1'\n'Transkript': 'Transkript1'\n'Video-ID': 'Video-ID1'\n), ('Titel': 'Titel2'\n'Transkript': 'Transkript2'\n'Video-ID': 'Video-ID2'\n), ...]\n"
@@ -352,6 +347,13 @@ def check_for_clickbait(transcript: str, title: str) -> str:
              fails to provide text, or "no transcript" if the input transcript
              is empty or None. Returns the analysis string otherwise.
     """
+
+    from run import (
+        ai_client,
+        ai_model,
+        ai_generate_content_config,
+    )
+
     if transcript:
         response = ai_client.models.generate_content(
             model=ai_model,
@@ -375,6 +377,13 @@ def live_conversation() -> str:
     Returns:
         str: The last response text from the Gemini model.
     """
+
+    from run import (
+        ai_client,
+        ai_model,
+        ai_generate_content_config,
+    )
+
     print("Starte Konversation")
     question = input("Was kann ich für dich tun?")
     response = ai_client.models.generate_content(
@@ -403,6 +412,13 @@ def get_subscriptions_based_on_interests(
         str | None: A comma-separated string of selected channel names,
                        or None if the API call fails or returns no text.
     """
+
+    from run import (
+        ai_client,
+        ai_model,
+        ai_generate_content_config,
+    )
+    
     prompt = (
         f"Du erhälts einen String an Kanalnamen und ihrer zugehörigen beschreibung die ich mit meinem Youtube Account abonniert habe.\n"
         f"Hier ein Bespiel: 'channel_1:description_1,channel_2:description_2,....'"

@@ -18,7 +18,8 @@ import subprocess
 import sys
 import signal
 from typing import Any, Callable, NoReturn
-
+from google import genai
+from google.genai import types
 import src.config_env
 from src.youtube_helper import (
     get_transcript,
@@ -34,6 +35,18 @@ from src.youtube_helper import (
 )
 from src.key_management.api_key_management import get_api_key, create_youtube_client
 from src.key_management.youtube_channel_id import load_channel_id
+
+from src.gemini_helper import (
+        extract_video_id_and_reason,
+        get_summary,
+        get_summary_without_spoiler,
+        get_recommendation,
+        combine_video_id_title_and_transcript,
+        check_for_clickbait,
+        get_subscriptions_based_on_interests,
+        get_short_summary_for_watch_list,
+        get_channel_recommondations,
+    )
 
 
 def initialize() -> Resource | NoReturn:
@@ -61,40 +74,44 @@ def initialize() -> Resource | NoReturn:
         GEMINI_API_KEY = get_api_key("TOKEN_GOOGLEAPI")
         if not YT_API_KEY or not GEMINI_API_KEY:
             raise ValueError("API keys not found. Please check your .env file.")
-        youtube: Resource = create_youtube_client(YT_API_KEY)
-        return youtube
     except Exception as e:
         build_settings_pop_up()
         st.stop()
         raise RuntimeError("App sollte bis jetzt schon abgebrochen worden sein") from e
+    else:
+        youtube: Resource = create_youtube_client(YT_API_KEY)
+        
 
+        try:
+            print("Versuche Gemini Client zu erstellen...")
+            ai_client = genai.Client(api_key=GEMINI_API_KEY)
+            print("Client erfolgreich erstellt.")
+        except Exception as e:
+            raise RuntimeError(
+                f"Fehler beim Erstellen des genai Clients mit gefundenem Key: {e}"
+            ) from e
+        else:
+            print("API_KEY gefunden")
 
-####Needs to be executed after initialize()####
-try:
-    from src.gemini_helper import (
-        extract_video_id_and_reason,
-        get_summary,
-        get_summary_without_spoiler,
-        get_recommendation,
-        combine_video_id_title_and_transcript,
-        check_for_clickbait,
-        get_subscriptions_based_on_interests,
-        get_short_summary_for_watch_list,
-        get_channel_recommondations,
-    )
-except:
-    initialize()
-    from src.gemini_helper import (
-        extract_video_id_and_reason,
-        get_summary,
-        get_summary_without_spoiler,
-        get_recommendation,
-        combine_video_id_title_and_transcript,
-        check_for_clickbait,
-        get_subscriptions_based_on_interests,
-        get_short_summary_for_watch_list,
-        get_channel_recommondations,
-    )
+        ai_model = "gemini-2.0-flash"
+        ai_generate_content_config = types.GenerateContentConfig(
+            temperature=1,
+            top_p=0.95,
+            top_k=40,
+            max_output_tokens=8192,
+            response_mime_type="text/plain",
+            system_instruction=[
+                types.Part.from_text(
+                    text="""Du bist ein Experte im Bereich Datenanalyse und For-You-Pages. 
+                    Im Folgenden wirst du immer wieder YouTube-Videos und ihre Transkripte
+                    zugeschickt bekommen und ausgehend von diesen Inhalte zusammenfassen, 
+                    Clickbait erkennen und ausgehend von der verbleibenden Zeit des Users, 
+                    Vorschläge machen, welche der Videos er sich am ehesten anschauen sollte 
+                    (kein Clickbait, seinen Interessen entsprechend)."""
+                ),
+            ],
+        )
+        return youtube, ai_client, ai_model, ai_generate_content_config
 
 
 # Variables & constants
