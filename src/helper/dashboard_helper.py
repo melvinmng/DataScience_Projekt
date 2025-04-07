@@ -22,7 +22,7 @@ import signal
 from typing import Any, Callable, NoReturn
 
 import src.env_management.config_env
-from src.youtube_helper import (
+from src.helper.youtube_helper import (
     get_transcript,
     get_video_data,
     get_video_data_dlp,
@@ -73,7 +73,7 @@ def initialize() -> Resource | NoReturn:
 
 ####Needs to be executed after initialize()####
 try:
-    from src.gemini_helper import (
+    from src.helper.gemini_helper import (
         extract_video_id_and_reason,
         get_summary,
         get_summary_without_spoiler,
@@ -86,7 +86,7 @@ try:
     )
 except:
     initialize()
-    from src.gemini_helper import (
+    from src.helper.gemini_helper import (
         extract_video_id_and_reason,
         get_summary,
         get_summary_without_spoiler,
@@ -1218,7 +1218,7 @@ def build_settings_tab() -> None:
         "Wenn du das Layout basierend auf deinen System/Browser nutzen möchtest, stelle sicher, dass Streamlit ebenfalls die Systemeinstellungen nutzt. ( ⋮ → Choose app theme, colors and fonts)."
     )
 
-    CSS_FILE_PATH = Path(__file__).parent / "style.css"
+    CSS_FILE_PATH = Path(__file__).parent.parent / "style.css"
 
     if layout_mode == "System/Browser":
         with open(CSS_FILE_PATH) as f:

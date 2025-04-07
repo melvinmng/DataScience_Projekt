@@ -1,4 +1,4 @@
-from src.dashboard_helper import (
+from src.helper.dashboard_helper import (
     initialize, 
     load_interests, 
     save_interests, 
