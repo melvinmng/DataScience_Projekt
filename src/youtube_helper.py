@@ -419,6 +419,7 @@ def get_subscriptions(
                 pageToken=next_page_token,
             )
             response = request.execute()
+            print(response)
         except Exception as e:
             st.write("API Tokens aufgebraucht oder Fehler aufgetreten:", str(e))
             return pd.DataFrame()  # Leeres DataFrame zurückgeben

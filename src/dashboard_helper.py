@@ -20,7 +20,7 @@ import sys
 import signal
 from typing import Any, Callable, NoReturn
 
-import src.config_env
+import src.env_management.config_env
 from src.youtube_helper import (
     get_transcript,
     get_video_data,
@@ -33,8 +33,8 @@ from src.youtube_helper import (
     get_trending_videos,
     get_trending_videos_dlp,
 )
-from src.key_management.api_key_management import get_api_key, create_youtube_client
-from src.key_management.youtube_channel_id import load_channel_id
+from src.env_management.api_key_management import get_api_key, create_youtube_client
+from src.env_management.youtube_channel_id import load_channel_id
 
 
 def initialize() -> Resource | NoReturn:

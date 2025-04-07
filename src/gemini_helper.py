@@ -7,7 +7,7 @@ import concurrent.futures
 import multiprocessing
 import json
 from .youtube_helper import get_transcript
-from .key_management.api_key_management import get_api_key
+from .env_management.api_key_management import get_api_key
 
 
 ################# Initialization ###############################

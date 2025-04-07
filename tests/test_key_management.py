@@ -4,8 +4,8 @@ Das Key management für Gemini und YouTube wurde zusammengefasst.
 Die Test müssen geupdatet werden.
 
 import pytest
-from src.key_management.gemini_api_key_management import get_api_key
-from src.key_management.youtube_api_key_management import load_api_key
+from src.env_management.gemini_api_key_management import get_api_key
+from src.env_management.youtube_api_key_management import load_api_key
 
 
 def test_get_gemini_api_key():
