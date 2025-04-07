@@ -11,6 +11,7 @@ import os
 import csv
 from dotenv import load_dotenv, set_key, dotenv_values
 import pandas as pd
+from pathlib import Path
 import csv
 from datetime import datetime
 import time
@@ -1214,6 +1215,18 @@ def build_settings_tab() -> None:
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
     gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
+
+    layout_mode = st.radio("Layout basierend auf", ("Browser", "Streamlit"))
+    layout_information = st.empty()
+    layout_information.info(
+        "Eventuell musst du die Einstellungen von Streamlit anpassen ( ⋮ > Choose app theme, colors and fonts)."
+    )
+
+    CSS_FILE_PATH = Path(__file__).parent / "style.css"
+
+    if layout_mode == "Browser":
+        with open(CSS_FILE_PATH) as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
     if st.button("🗑️Watch List history löschen"):
         history = watch_later_history
