@@ -1,0 +1,156 @@
+:root {
+    /* Light */
+    --lSkyBlue: #cae3ff;
+    --lSkyYellow: #ffecdd;
+
+    --lFrostedWhite: rgba(200, 200, 200, 0.15);
+    --lFrostedGrey: rgba(100, 100, 100, 0.15);
+    --lFrostedGradientLight: linear-gradient(135deg, var(--lFrostedWhite), var(--lFrostedGrey));
+    --lFrostedGradientLightNegative: linear-gradient(45deg, var(--lFrostedWhite), var(--lFrostedGrey));
+    --lFrostedBorder: 1px solid rgba(255, 255, 255, 0.5);
+
+    --lShadowLow: 0 5px 10px rgba(0, 0, 0, 0.2);
+    --lShadowHigh: 0 2px 5px rgba(0, 0, 0, 0.2);
+
+    /* Dark */
+    --dSkyPurple: #030304;
+    --dSkyLavender: #26253e;
+
+    --dFrostedWhite: rgba(215, 215, 215, 0.1);
+    --dFrostedGrey: rgba(175, 175, 175, 0.1);
+    --dFrostedGradientLight: linear-gradient(135deg, var(--dFrostedWhite), var(--dFrostedGrey));
+    --dFrostedGradientLightNegative: linear-gradient(45deg, var(--dFrostedWhite), var(--dFrostedGrey));
+    --dFrostedBorder: 1px solid rgba(100, 100, 100, 0.5);
+
+    --dShadowLow: 0 5px 10px rgba(175, 175, 175, 0.1);
+    --dShadowHigh: 0 2px 5px rgba(200, 200, 200, 0.1);
+    
+    /* Universal */
+    --red: #ff4b4b;
+    --seethrough: rgba(0, 0, 0, 0);
+    --blur: 20px;
+}
+
+body {
+    font-family: "Arial", sans-serif;
+}
+
+@media (prefers-color-scheme: light) {
+    [data-testid="stAppViewContainer"] {
+        background-image: linear-gradient(180deg, var(--lSkyBlue), var(--lSkyYellow));
+    }
+
+    .stAppHeader {
+        background-color: var(--seethrough);
+    }
+
+    .st-emotion-cache-1dp5vir {
+        background-image: linear-gradient(0deg, var(--red), var(--red));
+    }
+
+    [data-testid="stSidebar"] {
+        background: var(--lFrostedGradientLight);
+        box-shadow: var(--lShadowHigh);
+        backdrop-filter: blur(var(--blur));
+        -webkit-backdrop-filter: blur(var(--blur));
+        border: var(--lFrostedBorder);
+        width: 30%;
+
+        transition: all 0.3s ease;
+    }
+
+    .stSidebar:hover {
+        box-shadow: var(--lShadowLow);
+    }
+
+    [data-testid="stSidebarContent"] {
+        background-color: var(--seethrough);
+    }
+
+    [data-testid="stBaseButton-secondary"] {
+		background: var(--lFrostedGradientLight);
+        box-shadow: var(--lShadowLow);
+        backdrop-filter: blur(var(--blur));
+        -webkit-backdrop-filter: blur(var(--blur));
+        border: var(--lFrostedBorder);
+
+        transition: all 0.1s ease;
+    }
+
+    [data-testid="stBaseButton-secondary"]:hover {
+		background: var(--lFrostedGradientLightNegative);
+        box-shadow: var(--lShadowHigh);
+        backdrop-filter: blur(var(--blur));
+        -webkit-backdrop-filter: blur(var(--blur));
+        border: var(--lFrostedBorder);
+    }
+    
+    [data-baseweb="input"]{
+        background: var(--lFrostedGradientLight);
+        border: var(--lFrostedBorder);
+        height: 60px;
+        }
+    
+    [data-baseweb="base-input"]{
+        background: var(--seethrough);
+    }
+}
+
+
+@media (prefers-color-scheme: dark) {
+    [data-testid="stAppViewContainer"] {
+        background-image: linear-gradient(180deg, var(--dSkyPurple), var(--dSkyLavender));
+    }
+
+    .stAppHeader {
+        background-color: var(--seethrough);
+    }
+
+    .st-emotion-cache-1dp5vir {
+        background-image: linear-gradient(0deg, var(--red), var(--red));
+    }
+
+    [data-testid="stSidebar"] {
+        background: var(--dFrostedGradientLight);
+        box-shadow: var(--dShadowHigh);
+        backdrop-filter: blur(var(--blur));
+        -webkit-backdrop-filter: blur(var(--blur));
+        border: var(--dFrostedBorder);
+        width: 30%;
+
+        transition: all 0.3s ease;
+    }
+
+    .stSidebar:hover {
+        box-shadow: var(--dShadowLow);
+    }
+
+    [data-testid="stSidebarContent"] {
+        background-color: var(--seethrough);
+    }
+
+    [data-testid="stBaseButton-secondary"] {
+		background: var(--dFrostedGradientLight);
+        box-shadow: var(--dShadowLow);
+        backdrop-filter: blur(var(--blur));
+        -webkit-backdrop-filter: blur(var(--blur));
+        border: var(--dFrostedBorder);
+
+        transition: all 0.1s ease;
+    }
+
+    [data-testid="stBaseButton-secondary"]:hover {
+		background: var(--dFrostedGradientLightNegative);
+        box-shadow: var(--dShadowHigh);
+    }
+    
+    [data-baseweb="input"]{
+        background: var(--dFrostedGradientLight);
+        border: var(--dFrostedBorder);
+        height: 60px;
+        }
+    
+    [data-baseweb="base-input"]{
+        background: var(--seethrough);
+    }
+}
