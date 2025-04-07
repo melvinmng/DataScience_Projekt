@@ -83,7 +83,7 @@ def get_video_length(youtube: Resource, video_id: str) -> str:
     response = request.execute()
     if "items" not in response or len(response["items"]) == 0:
         print(f"Fehler: Kein Video gefunden für ID {video_id}")
-        return "00:00"  # Oder eine Default-Wert wie 00:00 zurückgeben
+        return "00:00"
 
     duration = response["items"][0]["contentDetails"]["duration"]
     return parse_duration(duration)
@@ -110,12 +110,12 @@ def get_video_length_dlp(video_id: str) -> str:
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
-            duration = info.get("duration")  # Dauer in Sekunden
+            duration = info.get("duration")  # in Seconds
 
             if duration:
                 return f"{duration // 60:02}:{duration % 60:02}"
             else:
-                return "00:00"  # Falls keine Dauer gefunden wurde
+                return "00:00"
     except Exception as e:
         print(f"Fehler beim Abrufen der Videolänge für {video_id}: {e}")
         return "00:00"
@@ -209,13 +209,9 @@ def get_video_data(
             str: The view count as a string, or "Unknown" if fetching fails.
         """
         try:
-            # Anfrage an die YouTube API, um Video-Daten abzurufen
-            request = youtube.videos().list(
-                part="statistics", id=video_id  # Nur Statistiken (einschließlich Views)
-            )
+            request = youtube.videos().list(part="statistics", id=video_id)
             response = request.execute()
 
-            # Die Anzahl der Aufrufe aus der Antwort extrahieren
             view_count = response["items"][0]["statistics"].get("viewCount", "Unknown")
             return view_count
         except Exception as e:
@@ -237,15 +233,10 @@ def get_video_data(
             tags = item["snippet"].get("tags", [])
             thumbnail = item["snippet"]["thumbnails"]["medium"]["url"]
             length = get_video_length(youtube, video_id)
-            views = get_views_with_youtube_api(
-                youtube, video_id
-            )  # Hole die Views mit yt_dlp
-            upload_date = item["snippet"].get(
-                "publishedAt", "Unknown"
-            )  # Das Upload-Datum wird hier extrahiert
+            views = get_views_with_youtube_api(youtube, video_id)
+            upload_date = item["snippet"].get("publishedAt", "Unknown")
 
         except KeyError:
-            # Alternative Methode zur Verarbeitung
             print(
                 f"Warnung: Unerwartete API-Struktur für Item {index}, alternative Verarbeitung wird versucht."
             )
@@ -267,7 +258,7 @@ def get_video_data(
                 upload_date = item.get("snippet", {}).get("publishedAt", "Unknown")
             except Exception as e:
                 print(f"Fehler beim Verarbeiten des Items {index}: {e}")
-                continue  # Falls auch die alternative Methode fehlschlägt, überspringe das Item
+                continue
 
         videos.append(
             {
@@ -283,10 +274,8 @@ def get_video_data(
             }
         )
 
-        # Entfernen der leeren Dictionaries
-        videos = [d for d in videos if d]  # Ein leeres Dictionary ist falsy in Python
+        videos = [d for d in videos if d]
 
-    # Sortieren nach Upload-Datum (neueste zuerst)
     return sorted(videos, key=lambda v: v["upload_date"] or datetime.min, reverse=True)
 
 
@@ -310,7 +299,7 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list[dict[str, Any]
                               Returns an empty list on error or if no results.
     """
 
-    max_results = min(max_results, 1000)  # Begrenze auf max. 1000
+    max_results = min(max_results, 1000)
     ydl_opts = {
         "quiet": True,
         "skip_download": True,
@@ -332,7 +321,7 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list[dict[str, Any]
             formatted_date = (
                 datetime.strptime(upload_date, "%Y%m%d") if upload_date else None
             )
-            view_count = entry.get("view_count", 0)  # 👈 Views hinzufügen
+            view_count = entry.get("view_count", 0)
 
             videos.append(
                 {
@@ -348,12 +337,11 @@ def search_videos_dlp(query: str, max_results: int = 100) -> list[dict[str, Any]
                         else "Keine Tags"
                     ),
                     "upload_date": formatted_date,
-                    "views": view_count,  # ✅ Views integriert!
+                    "views": view_count,
                 }
             )
 
-    # Entfernen der leeren Dictionaries
-    videos = [d for d in videos if d]  # Ein leeres Dictionary ist falsy in Python
+    videos = [d for d in videos if d]
     return sorted(videos, key=lambda v: v["upload_date"] or datetime.min, reverse=True)
 
 
@@ -403,7 +391,6 @@ def get_subscriptions(
                       ID, description, video counts, etc.). Returns an empty
                       DataFrame if an API error occurs or fetching fails.
     """
-    # Falls CSV existiert, lese Daten daraus und returne
     if os.path.isfile(csv_filename):
         return pd.read_csv(csv_filename)
 
@@ -422,7 +409,7 @@ def get_subscriptions(
             print(response)
         except Exception as e:
             st.write("API Tokens aufgebraucht oder Fehler aufgetreten:", str(e))
-            return pd.DataFrame()  # Leeres DataFrame zurückgeben
+            return pd.DataFrame()
 
         subscriptions.extend(response.get("items", []))
         next_page_token = response.get("nextPageToken")
@@ -447,13 +434,10 @@ def get_subscriptions(
             }
         )
 
-    # DataFrame erstellen
     subs = pd.DataFrame(channels)
 
-    # Daten in CSV speichern
     subs.to_csv(csv_filename, index=False, encoding="utf-8")
 
-    # Falls die .gitignore existiert, prüfen ob die CSV bereits eingetragen ist
     if os.path.isfile(gitignore_path):
         with open(gitignore_path, "r", encoding="utf-8") as gitignore_file:
             gitignore_content = gitignore_file.readlines()
@@ -462,7 +446,6 @@ def get_subscriptions(
             with open(gitignore_path, "a", encoding="utf-8") as gitignore_file:
                 gitignore_file.write(f"\n{csv_filename}\n")
     else:
-        # Falls .gitignore nicht existiert, erstelle sie und füge die Datei hinzu
         with open(gitignore_path, "w", encoding="utf-8") as gitignore_file:
             gitignore_file.write(f"{csv_filename}\n")
 
@@ -488,15 +471,14 @@ def get_recent_videos_from_subscriptions(
                               Returns an empty list if errors occur or no videos found.
     """
     videos = []
-    # API-Anfragen minimieren: 1 Request pro Kanal
     for channel_id in channel_ids:
         try:
             request = youtube.search().list(
                 part="id,snippet",
                 channelId=channel_id,
-                maxResults=number_of_videos,  # Maximal 10 neueste Videos abrufen
-                order="date",  # Neueste zuerst
-                type="video",  # Nur Videos (keine Streams oder Playlists)
+                maxResults=number_of_videos,
+                order="date",
+                type="video",
             )
             response = request.execute()
             print()
@@ -533,7 +515,7 @@ def get_recent_videos_from_channels_RSS(
     videos = []
     num_threads = min(len(channel_ids), multiprocessing.cpu_count() * 2)
 
-    ctx = get_script_run_ctx()  # Streamlit-Thread-Kontext sichern
+    ctx = get_script_run_ctx()  # secure Streamlit-Thread-context
 
     def fetch_videos(channel_id: str) -> list[str]:
         """Fetches the latest video IDs for one channel via its RSS feed."""
@@ -556,7 +538,6 @@ def get_recent_videos_from_channels_RSS(
             return list(set(video_ids))
 
         except Exception as e:
-            # Einfach ohne 'with ctx:' arbeiten
             st.warning(f"Fehler beim Abrufen der Videos für Kanal {channel_id}: {e}")
             return []
 
@@ -587,10 +568,7 @@ def get_recent_videos_from_channels_RSS(
         for future in future_to_video:
             video_data_list.append(future.result())
 
-    # Entfernen der leeren Dictionaries
-    video_data_list = [
-        d for d in video_data_list if d
-    ]  # Ein leeres Dictionary ist falsy in Python
+    video_data_list = [d for d in video_data_list if d]
     videos = sorted(
         video_data_list, key=lambda v: v.get("upload_date", datetime.min), reverse=True
     )

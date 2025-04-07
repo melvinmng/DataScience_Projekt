@@ -5,6 +5,7 @@ import streamlit as st
 ###
 st.set_page_config(page_title="YouTube FY Dashboard", layout="wide")
 ###
+
 import googleapiclient
 from googleapiclient.discovery import Resource
 import os
@@ -303,7 +304,7 @@ def update_history_csv(
 
     if not os.path.exists(history_file):
         with open(history_file, mode="w", encoding="utf-8") as file:
-            pass  # Leere Datei erstellen
+            pass
         print(f"{history_file} wurde erstellt.")
 
         write_filename_to_gitignore(gitignore_path, history_file)
@@ -312,7 +313,7 @@ def update_history_csv(
     if os.stat(history_file).st_size > 0:
         with open(history_file, mode="r", encoding="utf-8") as file:
             reader = csv.reader(file)
-            header = next(reader, None)  # Header lesen
+            header = next(reader, None)
             if header:
                 for row in reader:
                     history_data.add(tuple(row))
@@ -320,7 +321,7 @@ def update_history_csv(
     new_data = []
     with open(source_file, mode="r", encoding="utf-8") as file:
         reader = csv.reader(file)
-        header = next(reader, None)  # Header lesen
+        header = next(reader, None)
         if header:
             for row in reader:
                 if tuple(row) not in history_data:
@@ -397,7 +398,6 @@ def save_video_to_csv(
             }
         )
 
-    # .gitignore aktualisieren
     write_filename_to_gitignore(gitignore_path, filename)
 
     update_history_csv()
@@ -430,7 +430,7 @@ def save_interests(interests: str) -> None:
         None
     """
     current_interests = load_interests()
-    if current_interests != interests:  # Speichern nur, wenn es Änderungen gibt
+    if current_interests != interests:
         with open(Interests_file, "w", encoding="utf-8") as file:
             file.write(interests)
 
@@ -802,7 +802,6 @@ def build_recommendation_tab(
     search_method: str,
     youtube: Resource | None,
     user_interests: str,
-    # Parameters below seem intended for build_trend_recommendations, pass them down
     retry_count: int = 0,
     show_spinner: bool = True,
     show_loading_time_information: bool = True,
@@ -1181,7 +1180,6 @@ def build_settings_pop_up() -> None:
             st.session_state.show_settings = False
             time.sleep(2)
             subprocess.Popen([sys.executable, "src/restart_app.py"])
-            # Beende aktuellen Prozess
             os.kill(os.getpid(), signal.SIGTERM)
 
         else:
@@ -1200,18 +1198,16 @@ def build_settings_tab() -> None:
     """
     st.header("⚙️ Einstellungen")
 
-    # Lade vorhandene .env-Datei oder erstelle sie
     env_path = ".env"
     load_dotenv()
     if not os.path.exists(env_path):
         with open(env_path, "w") as f:
             f.write("# API Keys\n")
 
-    # Vorhandene API-Keys abrufen
     youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
     openai_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
     channel_id = os.getenv("CHANNEL_ID", "")
-    # Eingabefelder für API-Keys
+
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
     gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
@@ -1232,11 +1228,9 @@ def build_settings_tab() -> None:
         history = watch_later_history
 
         if os.path.exists(history) and os.path.exists(watch_later_csv):
-            # CSV einlesen
             df = pd.read_csv(history)
             df1 = pd.read_csv(watch_later_csv)
 
-            # Nur die Header behalten und Datei neu schreiben
             df.iloc[0:0].to_csv(history, index=False)
             df1.iloc[0:0].to_csv(watch_later_csv, index=False)
         else:
