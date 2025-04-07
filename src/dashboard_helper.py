@@ -733,7 +733,7 @@ def build_gemini_recommondations(
     try:
         channelId = load_channel_id()
     except Exception as e:
-        st.error(
+        st.warning(
             f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}"
         )
     else:
@@ -1046,7 +1046,7 @@ def build_abobox_tab(
     try:
         channelId = load_channel_id()
     except Exception as e:
-        st.error(
+        st.warning(
             f"Kanal-ID nicht gefunden. Bitte überprüfe deine ID.\nFehlermeldung:{e}"
         )
     else:
@@ -1130,9 +1130,9 @@ def build_watch_later_tab() -> None:
             st.header("Watch list")
             build_video_list(videos, key_id="watch_later")
         else:
-            st.error("Es wurden noch keine Videos zur Watchlist hinzugefügt")
+            st.warning("Es wurden noch keine Videos zur Watchlist hinzugefügt")
     else:
-        st.error("Es wurden noch keine Videos zur Watchlist hinzugefügt")
+        st.warning("Es wurden noch keine Videos zur Watchlist hinzugefügt")
 
 
 def build_settings_pop_up() -> None:
@@ -1212,15 +1212,15 @@ def build_settings_tab() -> None:
     gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
-    layout_mode = st.radio("Layout basierend auf", ("Browser", "Streamlit"))
+    layout_mode = st.radio("Layout basierend auf", ("System/Browser", "Streamlit"))
     layout_information = st.empty()
     layout_information.info(
-        "Eventuell musst du die Einstellungen von Streamlit anpassen ( ⋮ > Choose app theme, colors and fonts)."
+        "Wenn du das Layout basierend auf deinen System/Browser nutzen möchtest, stelle sicher, dass Streamlit ebenfalls die Systemeinstellungen nutzt. ( ⋮ → Choose app theme, colors and fonts)."
     )
 
     CSS_FILE_PATH = Path(__file__).parent / "style.css"
 
-    if layout_mode == "Browser":
+    if layout_mode == "System/Browser":
         with open(CSS_FILE_PATH) as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
