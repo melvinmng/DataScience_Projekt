@@ -1054,7 +1054,7 @@ def build_abobox_tab(
         try:
             subscriptions = get_subscriptions(channel_Id=channelId, youtube=youtube)
             if len(subscriptions) == 0:
-                st.error("APi key aufgebraucht oder Abos nicht auf öffentlich")
+                st.error("APi key aufgebraucht oder Abos nicht öffentlich zugänglich.")
 
         except:
             st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
