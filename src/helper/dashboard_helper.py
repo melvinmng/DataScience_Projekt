@@ -1225,6 +1225,9 @@ def build_settings_tab() -> None:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
     if st.button("🗑️Watch List history löschen"):
+        st.success(
+                "✅ Erfolgreich gelöscht."
+            )
         history = watch_later_history
 
         if os.path.exists(history) and os.path.exists(watch_later_csv):
