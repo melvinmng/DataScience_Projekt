@@ -6,7 +6,7 @@ from src.helper.dashboard_helper import (
     build_recommendation_tab,
     build_clickbait_recognition_tab,
     build_search_tab,
-    build_abobox_tab,
+    build_subs_tab,
     build_watch_later_tab,
     build_feedback_tab,
     build_settings_tab 
@@ -46,7 +46,7 @@ tabs = st.tabs(
         "Empfehlungen",
         "Clickbait Analyse",
         "Suche",
-        "Abobox",
+        "Abos",
         "Watch Later",
         "Feedback",
         "Einstellungen",
@@ -58,7 +58,7 @@ with tabs[0]: build_trending_videos_tab(search_method, youtube)
 with tabs[1]: build_recommendation_tab(search_method, youtube, user_interests)
 with tabs[2]: build_clickbait_recognition_tab()
 with tabs[3]: build_search_tab(search_method, youtube)
-with tabs[4]: build_abobox_tab(search_method, youtube, user_interests)
+with tabs[4]: build_subs_tab(search_method, youtube, user_interests)
 with tabs[5]: build_watch_later_tab()
 with tabs[6]: build_feedback_tab()
 with tabs[7]: build_settings_tab()

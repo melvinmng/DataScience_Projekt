@@ -742,12 +742,12 @@ def build_gemini_recommondations(
             max_results = st.slider(
                 "Videoanzahl pro Kanal", min_value=1, max_value=5, value=2
             )
-            max_abos = st.slider("Kanalanzahl", min_value=1, max_value=20, value=10)
+            max_subs = st.slider("Kanalanzahl", min_value=1, max_value=20, value=10)
         else:
             max_results = st.slider(
                 "Videoanzahl pro Kanal(yt_dlp)", min_value=1, max_value=10, value=5
             )
-            max_abos = st.slider(
+            max_subs = st.slider(
                 "Kanalanzahl (yt-dlp)", min_value=1, max_value=30, value=10
             )
 
@@ -757,7 +757,7 @@ def build_gemini_recommondations(
             if len(history) != 0:
                 if st.button("🔄 Gemini Recommendation laden"):
                     recommended_channels = get_channel_recommondations(
-                        history, subscriptions, max_abos, user_interests
+                        history, subscriptions, max_subs, user_interests
                     )
                     for channel in recommended_channels:
                         print(channel)
@@ -1005,9 +1005,7 @@ def build_search_tab(search_method: str, youtube: Resource | None) -> None:
         build_video_list(st.session_state["videos"], key_id="search")
 
 
-def build_abobox_tab(
-    search_method: str, youtube: Resource, user_interests: str
-) -> None:
+def build_subs_tab(search_method: str, youtube: Resource, user_interests: str) -> None:
     """Builds the Streamlit tab displaying recent videos from subscribed channels.
 
     Fetches subscriptions, filters channels based on interests using Gemini,
@@ -1022,24 +1020,24 @@ def build_abobox_tab(
     Returns:
         None
     """
-    st.session_state["active_tab"] = "abobox"
+    st.session_state["active_tab"] = "subs"
 
-    if "videos" in st.session_state and st.session_state.get("last_tab") != "abobox":
+    if "videos" in st.session_state and st.session_state.get("last_tab") != "subs":
         st.session_state["videos"] = []
 
-    st.header("Abobox")
-    st.write("Hier findest du die Videos deiner letzten abonnierten Kanäle")
+    st.header("Abos")
+    st.write("Hier findest du Videos deiner letzten abonnierten Kanäle")
 
     if search_method == "YouTube API":
         max_results = st.slider(
             "Anzahl der Videos pro Kanal", min_value=1, max_value=5, value=2
         )
-        max_abos = st.slider("Anzahl der Kanäle", min_value=1, max_value=20, value=10)
+        max_subs = st.slider("Anzahl der Kanäle", min_value=1, max_value=20, value=10)
     else:
         max_results = st.slider(
             "Anzahl der Videos pro Kanal (yt_dlp)", min_value=1, max_value=10, value=5
         )
-        max_abos = st.slider(
+        max_subs = st.slider(
             "Anzahl der Kanäle (yt_dlp)", min_value=1, max_value=30, value=10
         )
 
@@ -1058,7 +1056,7 @@ def build_abobox_tab(
         except:
             st.write("Bitte stelle sicher, dass deine Abos öffentlich einsehbar sind.")
         else:
-            if st.button("🔄 Abobox laden"):
+            if st.button("🔄 Abos laden"):
                 channel_names_and_description = ", ".join(
                     subscriptions[subscriptions["description"].str.strip() != ""].apply(
                         lambda row: f"{row['channel_name']}:{row['description']}",
@@ -1067,7 +1065,7 @@ def build_abobox_tab(
                 )
 
                 channel_string = get_subscriptions_based_on_interests(
-                    channel_names_and_description, user_interests, max_abos
+                    channel_names_and_description, user_interests, max_subs
                 )
 
                 channel_list = []
@@ -1098,10 +1096,10 @@ def build_abobox_tab(
                     )
 
                 st.session_state["videos"] = recent_videos
-                st.session_state["last_tab"] = "abobox"
+                st.session_state["last_tab"] = "subs"
 
             if st.session_state.get("videos"):
-                build_video_list(st.session_state["videos"], key_id="abobox")
+                build_video_list(st.session_state["videos"], key_id="subs")
 
 
 def build_watch_later_tab() -> None:
