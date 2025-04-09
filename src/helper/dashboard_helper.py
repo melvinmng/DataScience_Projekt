@@ -1153,18 +1153,18 @@ def build_settings_pop_up() -> None:
 
     current_env = dotenv_values(env_path)
     youtube_api_key = current_env.get("YOUTUBE_API_KEY", "")
-    openai_api_key = current_env.get("TOKEN_GOOGLEAPI", "")
+    gemini_api_key = current_env.get("TOKEN_GOOGLEAPI", "")
     channel_id = current_env.get("CHANNEL_ID", "")
 
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
-    openai_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
+    gemini_key = st.text_input("🤖 Gemini API Key", gemini_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
     if st.button("💾 Speichern"):
         if youtube_key:
             set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
-        if openai_key:
-            set_key(env_path, "TOKEN_GOOGLEAPI", openai_key)
+        if gemini_key:
+            set_key(env_path, "TOKEN_GOOGLEAPI", gemini_key)
         if channel_id:
             set_key(env_path, "CHANNEL_ID", channel_id)
 
@@ -1172,7 +1172,7 @@ def build_settings_pop_up() -> None:
 
         if (
             updated_env.get("YOUTUBE_API_KEY") == youtube_key
-            and updated_env.get("TOKEN_GOOGLEAPI") == openai_key
+            and updated_env.get("TOKEN_GOOGLEAPI") == gemini_key
             and updated_env.get("CHANNEL_ID") == channel_id
         ):
 
@@ -1205,11 +1205,11 @@ def build_settings_tab() -> None:
             f.write("# API Keys\n")
 
     youtube_api_key = os.getenv("YOUTUBE_API_KEY", "")
-    openai_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
+    gemini_api_key = os.getenv("TOKEN_GOOGLEAPI", "")
     channel_id = os.getenv("CHANNEL_ID", "")
 
     youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
-    gemini_key = st.text_input("🤖 Gemini API Key", openai_api_key, type="password")
+    gemini_key = st.text_input("🤖 Gemini API Key", gemini_api_key, type="password")
     channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
 
     layout_mode = st.radio("Layout basierend auf", ("System/Browser", "Streamlit"))
@@ -1225,9 +1225,7 @@ def build_settings_tab() -> None:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
     if st.button("🗑️Watch List history löschen"):
-        st.success(
-                "✅ Erfolgreich gelöscht."
-            )
+        st.success("✅ Erfolgreich gelöscht.")
         history = watch_later_history
 
         if os.path.exists(history) and os.path.exists(watch_later_csv):
