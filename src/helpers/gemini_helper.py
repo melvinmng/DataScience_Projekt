@@ -83,7 +83,7 @@ def get_short_summary_for_watch_list(
         return transcript
 
 
-def get_channel_recommondations(
+def get_channel_recommendations(
     history: Any,
     channels: Any,
     number_of_recommendations: int,
@@ -239,7 +239,6 @@ def get_transcript_safe(video_id: str) -> str:
     Returns:
         str: The video transcript if successful, otherwise an error message string.
     """
-    # Wrapper-Funktion, um Fehler bei einzelnen Videos zu vermeiden.
     try:
         return get_transcript(video_id)
     except Exception as e:
@@ -263,12 +262,10 @@ def combine_video_id_title_and_transcript(
                    transcript, and video ID for one video where a transcript
                    was successfully retrieved.
     """
-    # Holt die Transkripte parallel mit Threads.
     num_videos = len(videos)
     num_threads = min(num_videos, multiprocessing.cpu_count() * 2)
     video_id_title_and_transcript = []
 
-    # Mapping von Video-IDs auf Titel
     video_map = {
         video["video_id"]: video["title"] for video in videos if "video_id" in video
     }
@@ -325,9 +322,11 @@ def extract_video_id_and_reason(
         Returns:
             str | None: The extracted string value (unescaped) if found, otherwise None.
         """
-        pattern = rf'"{fieldname}":\s*"((?:\\.|[^"\\])*)"'
+        pattern = (
+            rf"(?:'{fieldname}'|\"{fieldname}\")\s*:\s*(?P<quote>['\"])(.*?)(?P=quote)"
+        )
         match = re.search(pattern, text, re.DOTALL)
-        return match.group(1).strip() if match else None
+        return match.group(2).strip() if match else None
 
     video_id = extract_field("video_id", json_str)
     explanation = extract_field("explanation", json_str)
@@ -388,7 +387,7 @@ def live_conversation() -> str:
 def get_subscriptions_based_on_interests(
     subscriptions: str, interests: str, number_of_channels: int
 ) -> str | None:
-    """Filters a list of subscribed channels based on user interests using Gemini.
+    """Filters out a comma-separated String of subscribed channels based on user interests using Gemini.
 
     Takes a string representation of subscriptions and interests, asks Gemini
     to select a specified number of channels matching the interests.

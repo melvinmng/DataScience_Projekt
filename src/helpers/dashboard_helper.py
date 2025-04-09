@@ -82,7 +82,7 @@ try:
         check_for_clickbait,
         get_subscriptions_based_on_interests,
         get_short_summary_for_watch_list,
-        get_channel_recommondations,
+        get_channel_recommendations,
     )
 except:
     initialize()
@@ -95,7 +95,7 @@ except:
         check_for_clickbait,
         get_subscriptions_based_on_interests,
         get_short_summary_for_watch_list,
-        get_channel_recommondations,
+        get_channel_recommendations,
     )
 
 
@@ -756,7 +756,7 @@ def build_gemini_recommondations(
             history = read_csv_to_list(history_path)
             if len(history) != 0:
                 if st.button("🔄 Gemini Recommendation laden"):
-                    recommended_channels = get_channel_recommondations(
+                    recommended_channels = get_channel_recommendations(
                         history, subscriptions, max_subs, user_interests
                     )
                     for channel in recommended_channels:
