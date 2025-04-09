@@ -1,7 +1,7 @@
-from src.helper.dashboard_helper import (
-    initialize, 
-    load_interests, 
-    save_interests, 
+from src.helpers.dashboard_helper import (
+    initialize,
+    load_interests,
+    save_interests,
     build_trending_videos_tab,
     build_recommendation_tab,
     build_clickbait_recognition_tab,
@@ -9,10 +9,11 @@ from src.helper.dashboard_helper import (
     build_subs_tab,
     build_watch_later_tab,
     build_feedback_tab,
-    build_settings_tab 
+    build_settings_tab,
 )
 
 import streamlit as st
+
 ############################### CODE #######################################
 ## Session States
 if "show_spoiler" not in st.session_state:
@@ -35,9 +36,13 @@ length_filter = st.sidebar.slider(
 user_interests = st.sidebar.text_input("Deine Interessen", value=load_interests())
 save_interests(user_interests)
 
-search_method = st.sidebar.radio("Suchmethode wählen:", ("YouTube API", "yt-dlp (Experimentell)"))
+search_method = st.sidebar.radio(
+    "Suchmethode wählen:", ("YouTube API", "yt-dlp (Experimentell)")
+)
 
-st.session_state.show_spoiler = st.sidebar.checkbox("Spoiler anzeigen", value=st.session_state.show_spoiler)
+st.session_state.show_spoiler = st.sidebar.checkbox(
+    "Spoiler anzeigen", value=st.session_state.show_spoiler
+)
 
 # Tabs für verschiedene Funktionen
 tabs = st.tabs(
@@ -54,11 +59,19 @@ tabs = st.tabs(
 )
 
 # Inhalte der Tabs
-with tabs[0]: build_trending_videos_tab(search_method, youtube)
-with tabs[1]: build_recommendation_tab(search_method, youtube, user_interests)
-with tabs[2]: build_clickbait_recognition_tab()
-with tabs[3]: build_search_tab(search_method, youtube)
-with tabs[4]: build_subs_tab(search_method, youtube, user_interests)
-with tabs[5]: build_watch_later_tab()
-with tabs[6]: build_feedback_tab()
-with tabs[7]: build_settings_tab()
+with tabs[0]:
+    build_trending_videos_tab(search_method, youtube)
+with tabs[1]:
+    build_recommendation_tab(search_method, youtube, user_interests)
+with tabs[2]:
+    build_clickbait_recognition_tab()
+with tabs[3]:
+    build_search_tab(search_method, youtube)
+with tabs[4]:
+    build_subs_tab(search_method, youtube, user_interests)
+with tabs[5]:
+    build_watch_later_tab()
+with tabs[6]:
+    build_feedback_tab()
+with tabs[7]:
+    build_settings_tab()

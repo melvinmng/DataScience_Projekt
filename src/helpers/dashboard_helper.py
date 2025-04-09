@@ -22,7 +22,7 @@ import signal
 from typing import Any, Callable, NoReturn
 
 import src.env_management.config_env
-from src.helper.youtube_helper import (
+from src.helpers.youtube_helper import (
     get_transcript,
     get_video_data,
     get_video_data_dlp,
@@ -73,7 +73,7 @@ def initialize() -> Resource | NoReturn:
 
 ####Needs to be executed after initialize()####
 try:
-    from src.helper.gemini_helper import (
+    from src.helpers.gemini_helper import (
         extract_video_id_and_reason,
         get_summary,
         get_summary_without_spoiler,
@@ -86,7 +86,7 @@ try:
     )
 except:
     initialize()
-    from src.helper.gemini_helper import (
+    from src.helpers.gemini_helper import (
         extract_video_id_and_reason,
         get_summary,
         get_summary_without_spoiler,
