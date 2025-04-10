@@ -1,10 +1,12 @@
+from blinker import ANY
+from pyparsing import Any
 import pytest
 import os
 import csv
 import subprocess
 import signal
 import sys
-from unittest.mock import patch, MagicMock, mock_open, call
+from unittest.mock import patch, MagicMock, mock_open, call, ANY
 from pathlib import Path
 import pandas as pd
 import datetime as dt
@@ -578,3 +580,85 @@ def test_build_trending_videos_tab_api(
     mock_build_list.assert_called_once_with(
         MOCK_VIDEO_DATA_LIST, key_id="trending_videos"
     )
+
+
+@patch("src.helpers.dashboard_helper.get_trending_videos")
+@patch("src.helpers.dashboard_helper.get_trending_videos_dlp")
+@patch("src.helpers.dashboard_helper.build_video_list")
+def test_build_trending_videos_tab_dlp(
+    mock_build_list, mock_get_dlp, mock_get_api, mock_streamlit
+):
+    """Test trending tab using yt-dlp."""
+    from src.helpers.dashboard_helper import build_trending_videos_tab
+
+    mock_get_dlp.return_value = [{"video_id": "dlp1"}]
+    mock_streamlit.button.return_value = True
+
+    build_trending_videos_tab(search_method="yt-dlp", youtube=None)
+
+    mock_streamlit.header.assert_called_with("Trending Videos")
+    mock_streamlit.radio.assert_called_with("Region wählen:", ("DE", "US", "GB"))
+    mock_streamlit.button.assert_called_with("🔄 Trending Videos laden")
+    mock_get_api.assert_not_called()
+    mock_get_dlp.assert_called_once_with(mock_streamlit.radio.return_value)
+    mock_build_list.assert_called_once_with(
+        [{"video_id": "dlp1"}], key_id="trending_videos"
+    )
+
+
+@patch("src.helpers.dashboard_helper.get_trending_videos_dlp")
+@patch("src.helpers.dashboard_helper.combine_video_id_title_and_transcript")
+@patch("src.helpers.dashboard_helper.get_recommendation")
+@patch("src.helpers.dashboard_helper.extract_video_id_and_reason")
+@patch("src.helpers.dashboard_helper.get_video_data_dlp")
+@patch("src.helpers.dashboard_helper.build_video_list")
+def test_build_trend_recommendations_dlp(
+    mock_build_list,
+    mock_get_video_dlp,
+    mock_extract,
+    mock_get_rec,
+    mock_combine,
+    mock_get_trending_dlp,
+    mock_streamlit,
+):
+    """Test building recommendations from trends using yt-dlp."""
+    from src.helpers.dashboard_helper import build_trend_recommendations
+
+    mock_get_trending_dlp.return_value = [
+        {"video_id": "t1", "title": "Trend 1"},
+        {"video_id": "t2", "title": "Trend 2"},
+    ]
+    mock_combine.return_value = ["T:T1 ID:t1 Tr:tr1", "T:T2 ID:t2 Tr:tr2"]
+    mock_get_rec.return_value = "Raw Gemini Response"
+    mock_extract.return_value = {"video_id": "t2", "Begründung": "Because it's cool."}
+    mock_get_video_dlp.return_value = {
+        "video_id": "t2",
+        "title": "Trend 2",
+        "length": "1:00",
+        "views": 10,
+        "channel_name": "Chan",
+    }
+
+    build_trend_recommendations(
+        search_method="yt-dlp", youtube=None, user_interests="testing"
+    )
+
+    mock_get_trending_dlp.assert_called_once_with(region_code="DE")
+    mock_combine.assert_called_once_with(mock_get_trending_dlp.return_value)
+    mock_get_rec.assert_called_once_with(
+        video_ids_titles_and_transcripts=mock_combine.return_value, interests="testing"
+    )
+    mock_extract.assert_called_once_with("Raw Gemini Response", on_fail=ANY)
+
+    args, kwargs = mock_extract.call_args
+    assert callable(kwargs.get("on_fail"))
+
+    mock_get_video_dlp.assert_called_once_with("t2")
+    mock_build_list.assert_called_once_with(
+        [mock_get_video_dlp.return_value], key_id="recommendation"
+    )
+    mock_streamlit.write.assert_any_call("## Begründung:")
+    mock_streamlit.write.assert_any_call("Because it's cool.")
+
+    mock_streamlit.spinner.assert_called_once()
+    mock_streamlit.empty.assert_called_once()
