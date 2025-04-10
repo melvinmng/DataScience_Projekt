@@ -8,7 +8,7 @@ import multiprocessing
 import json
 from .youtube_helper import get_transcript
 from ..env_management.api_key_management import get_api_key
-
+import streamlit as st
 
 ################# Initialization ###############################
 api_key = get_api_key("TOKEN_GOOGLEAPI")
@@ -105,24 +105,58 @@ def get_channel_recommondations(
                          otherwise the string "Fehler" if the API call yields no text.
                          Returns "Fehler" also if an exception occurs.
     """
-    response = ai_client.models.generate_content(
-        model=ai_model,
-        config=ai_generate_content_config,
-        contents=(
-            f"Gebe mir anhand meiner Video History {history} genau {number_of_recommendations} Kanalvorschläge die mir gefallen könnten. DIE KANÄLE DIE DU MIR VORSCHLÄGST MÜSSEN NEUE KANÄLE SEIN. SIE DÜRFEN NICHT IN MEINER HISTORY STEHEN. Gebe mir AUSSCHLIESLICH nur die Namen der Kanäle in reiner Textform und Kommagetrent zurück.\n"
-            f"Zusätzlich erhälts du meine Abos umd noch genauere Empfehlungen zu geben. Abos: {channels}. Deine Empfehlungen müssen Kanäle sein, die ich noch nicht abonniert habe.\n"
-            f"Berücksichtige außerdem noch meine aktuellen Interessen: {interests} und gewichte diese besonders in deiner Auswahl. Es sollte für jede Interesse ein Kanal in deiner Auswahl dabei sein."
-            f"Gebe wirklich außschließlich nur die Kanäle kommagetrennt zurück. Bsp: Kanal1, Kanal2, Kanal3, etc...WIRKLICH NUR DIE KANÄLE NICHTS ANDERES."
-        ),
-    )
-    if response.text:
-        print(response.text)
-        return response.text.split(",")
-    else:
-        return "Fehler"
+    try:
+        response = ai_client.models.generate_content(
+            model=ai_model,
+            config=ai_generate_content_config,
+            contents=(
+                f"Gebe mir anhand meiner Video History {history} genau {number_of_recommendations} Kanalvorschläge die mir gefallen könnten. DIE KANÄLE DIE DU MIR VORSCHLÄGST MÜSSEN NEUE KANÄLE SEIN. SIE DÜRFEN NICHT IN MEINER HISTORY STEHEN. Gebe mir AUSSCHLIESLICH nur die Namen der Kanäle in reiner Textform und Kommagetrent zurück.\n"
+                f"Zusätzlich erhälts du meine Abos umd noch genauere Empfehlungen zu geben. Abos: {channels}. Deine Empfehlungen müssen Kanäle sein, die ich noch nicht abonniert habe.\n"
+                f"Berücksichtige außerdem noch meine aktuellen Interessen: {interests} und gewichte diese besonders in deiner Auswahl. Es sollte für jede Interesse ein Kanal in deiner Auswahl dabei sein."
+                f"Gebe wirklich außschließlich nur die Kanäle kommagetrennt zurück. Bsp: Kanal1, Kanal2, Kanal3, etc...WIRKLICH NUR DIE KANÄLE NICHTS ANDERES."
+            ),
+        )
+        if response.text:
+            print(response.text)
+            return response.text.split(",")
+        else:
+            return "Fehler"
+    except Exception as e:
+        st.write(f"Fehler: {e}")
 
+        
+def get_summary_without_spoiler(transcript: str, title: str) -> str | None:
+    """Generates a non-spoiler summary of a YouTube video transcript using Gemini.
 
-def get_summary(transcript: str, title: str) -> str | None:
+    Focuses on content description and potential clickbait elements without
+    revealing key plot points or outcomes.
+
+    Args:
+        transcript (str): The transcript text of the YouTube video.
+        title (str): The title of the YouTube video.
+
+    Returns:
+        str | None: The generated non-spoiler summary text, or None if the
+                       API call yields no text or an error occurs.
+    """
+    try:
+        response = ai_client.models.generate_content(
+            model=ai_model,
+            config=ai_generate_content_config,
+            contents=(
+                f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein und achte darauf, keinen Inhalt zu spoilern. Mache mir das Thema zudem schmackhaft und schreibe in einem spannenden Stil. Vergleiche zudem den Inhalt des Videos mit dem Titel: {title} und untersuche diesen auf potenziellen Clickbait."
+            ),
+        )
+
+        if response.text:
+            return response.text
+        else:
+            return None
+    except Exception as e:
+        st.write(f"Fehler: {e}")
+        return None
+
+def get_summary(spoiler: bool, transcript: str, title: str) -> str | None:
     """Generates a summary of a YouTube video transcript using Gemini.
 
     May include spoilers. Compares content to title to check for clickbait.
@@ -135,47 +169,32 @@ def get_summary(transcript: str, title: str) -> str | None:
         str | None: The generated summary and clickbait analysis text,
                        or None if the API call yields no text or an error occurs.
     """
-    response = ai_client.models.generate_content(
-        model=ai_model,
-        config=ai_generate_content_config,
-        contents=f"""Fasse mir dieses Video unglaublich 
-        kurz und prägnant zusammen, sodass nur das Hauptthema des Videos 
-        klar wird: {transcript}. Gehe dabei nur auf die Kernaussage ein. 
-        Vergleiche zudem den Inhalt des Videos mit dem Titel: {title} und 
-        untersuche diesen auf potenziellen Clickbait.
-        """,
-    )
-    if response.text:
-        return response.text
-    else:
-        return None
+    print(spoiler)
+    if spoiler == False:
+        print("summary_withourt_spoiler")
+        return get_summary_without_spoiler(transcript,title)
+    if spoiler == True:
+        try:
+            response = ai_client.models.generate_content(
+                model=ai_model,
+                config=ai_generate_content_config,
+                contents=f"""Fasse mir dieses Video unglaublich 
+                kurz und prägnant zusammen, sodass nur das Hauptthema des Videos 
+                klar wird: {transcript}. Gehe dabei nur auf die Kernaussage ein. 
+                Vergleiche zudem den Inhalt des Videos mit dem Titel: {title} und 
+                untersuche diesen auf potenziellen Clickbait.
+                """,
+            )
+            if response.text:
+                return response.text
+            else:
+                return None
+        except Exception as e:
+            st.write(f"Fehler: {e}")
+            return None
 
 
-def get_summary_without_spoiler(transcript: str) -> str | None:
-    """Generates a non-spoiler summary of a YouTube video transcript using Gemini.
 
-    Focuses on content description and potential clickbait elements without
-    revealing key plot points or outcomes.
-
-    Args:
-        transcript (str): The transcript text of the YouTube video.
-
-    Returns:
-        str | None: The generated non-spoiler summary text, or None if the
-                       API call yields no text or an error occurs.
-    """
-    response = ai_client.models.generate_content(
-        model=ai_model,
-        config=ai_generate_content_config,
-        contents=(
-            f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein und achte darauf, keinen Inhalt zu spoilern."
-        ),
-    )
-
-    if response.text:
-        return response.text
-    else:
-        return None
 
 
 def get_recommendation(
@@ -403,25 +422,29 @@ def get_subscriptions_based_on_interests(
         str | None: A comma-separated string of selected channel names,
                        or None if the API call fails or returns no text.
     """
-    prompt = (
-        f"Du erhälts einen String an Kanalnamen und ihrer zugehörigen beschreibung die ich mit meinem Youtube Account abonniert habe.\n"
-        f"Hier ein Bespiel: 'channel_1:description_1,channel_2:description_2,....'"
-        f"Zudem übergebe ich dir meine aktuellen Interessen.\n"
-        f"Anschließend sollt du bassierend auf meinen Interessen aus dieser Liste {number_of_channels} Youtube Kanäle filtern, die zu meinen aktuellen Interessen passen. Es dürfen ausschließlich nur Kanäle sein, die in meiner Liste stehen. Falls du in dieser Liste keine {number_of_channels} Kanäle findest die zu meinen Interessen passen, dann wähle aus meiner Liste Kanäle aus, die nah verwandt mit meinen Interessen sind.\n"
-        f"Um die richtigen Kanäle aus der Liste auszuwählen, solltest du dir zu jedem Kanal in meiner Liste eine Kanalbeschreibung beschaffen."
-        f"Gebe mir auschließlich nur einen String zurück mit den {number_of_channels} von dir ausgwählten Kanälen. Nur die Liste. Keine Beschreibung, warum du die Kanäle ausgewählt hast, etc. Die Kanäle müssen hintereinander geschrieben werden.\n"
-        f"Der Kanalname muss zudem exakt so geschrieben sein, wie er im string heißt. ALso nichts am Namen verändern."
-        "Hier ist ein Bepsiel für den String: 'Kanal1, Kanal2,...'\n"
-        f"Hier ist die Liste an Youtube Kanälen die ich abonniert habe: {subscriptions}\n"
-        f"Hier sind meine Interessen: {interests}"
-    )
+    try:
+        prompt = (
+            f"Du erhälts einen String an Kanalnamen und ihrer zugehörigen beschreibung die ich mit meinem Youtube Account abonniert habe.\n"
+            f"Hier ein Bespiel: 'channel_1:description_1,channel_2:description_2,....'"
+            f"Zudem übergebe ich dir meine aktuellen Interessen.\n"
+            f"Anschließend sollt du bassierend auf meinen Interessen aus dieser Liste {number_of_channels} Youtube Kanäle filtern, die zu meinen aktuellen Interessen passen. Es dürfen ausschließlich nur Kanäle sein, die in meiner Liste stehen. Falls du in dieser Liste keine {number_of_channels} Kanäle findest die zu meinen Interessen passen, dann wähle aus meiner Liste Kanäle aus, die nah verwandt mit meinen Interessen sind.\n"
+            f"Um die richtigen Kanäle aus der Liste auszuwählen, solltest du dir zu jedem Kanal in meiner Liste eine Kanalbeschreibung beschaffen."
+            f"Gebe mir auschließlich nur einen String zurück mit den {number_of_channels} von dir ausgwählten Kanälen. Nur die Liste. Keine Beschreibung, warum du die Kanäle ausgewählt hast, etc. Die Kanäle müssen hintereinander geschrieben werden.\n"
+            f"Der Kanalname muss zudem exakt so geschrieben sein, wie er im string heißt. ALso nichts am Namen verändern."
+            "Hier ist ein Bepsiel für den String: 'Kanal1, Kanal2,...'\n"
+            f"Hier ist die Liste an Youtube Kanälen die ich abonniert habe: {subscriptions}\n"
+            f"Hier sind meine Interessen: {interests}"
+        )
 
-    response = ai_client.models.generate_content(
-        model=ai_model, config=ai_generate_content_config, contents=prompt
-    )
-    if response.text:
-        return response.text
-    else:
+        response = ai_client.models.generate_content(
+            model=ai_model, config=ai_generate_content_config, contents=prompt
+        )
+        if response.text:
+            return response.text
+        else:
+            return None
+    except Exception as e:
+        st.write(f"Fehler: {e}")
         return None
 
 
