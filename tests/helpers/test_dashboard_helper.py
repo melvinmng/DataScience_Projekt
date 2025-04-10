@@ -10,7 +10,6 @@ import pandas as pd
 import datetime as dt
 
 # === HILFSFUNKTIONEN / DATEN für Tests ===
-# Beispiel-Videodaten, wie sie von youtube_helper kommen könnten
 MOCK_VIDEO_DATA_LIST = [
     {
         "video_id": "vid1",
@@ -51,6 +50,7 @@ def mock_streamlit():
         mock_st.tabs = MagicMock()
         mock_st.spinner = MagicMock()
         mock_st.radio = MagicMock()
+        mock_st.rerun = MagicMock()
         yield mock_st
 
 
@@ -232,7 +232,268 @@ def test_delete_video_by_id(tmp_path):
     assert not any(row["video_id"] == "id2" for row in final_rows)
 
 
-# Add similar tests for load_interests, save_interests, save_feedback, update_history_csv using tmp_path
+def test_load_interests_file_not_exist(tmp_path):
+    """Test load_interests when the file doesn't exist."""
+    from src.helpers.dashboard_helper import load_interests
+
+    with patch(
+        "src.helpers.dashboard_helper.Interests_file",
+        str(tmp_path / "non_existent_interests.txt"),
+    ):
+        assert load_interests() == ""
+
+
+def test_load_interests_file_exists(tmp_path):
+    """Test load_interests when the file exists with content."""
+    from src.helpers.dashboard_helper import load_interests
+
+    interests_file_path = tmp_path / "my_interests.txt"
+    test_content = "  AI, Python, Data Visualization \n"
+    expected_content = "AI, Python, Data Visualization"
+    interests_file_path.write_text(test_content, encoding="utf-8")
+
+    with patch("src.helpers.dashboard_helper.Interests_file", str(interests_file_path)):
+        assert load_interests() == expected_content
+
+
+@patch("src.helpers.dashboard_helper.load_interests")
+@patch("src.helpers.dashboard_helper.write_filename_to_gitignore")
+def test_save_interests_new_file(mock_write_git, mock_load, tmp_path):
+    """Test save_interests creating a new file."""
+    from src.helpers.dashboard_helper import save_interests
+
+    interests_file_path = tmp_path / "interests.txt"
+    gitignore_path = tmp_path / ".gitignore"
+    new_interests = "Gardening, Cooking"
+
+    mock_load.return_value = ""
+
+    with patch(
+        "src.helpers.dashboard_helper.Interests_file", str(interests_file_path)
+    ), patch("src.helpers.dashboard_helper.gitignore", str(gitignore_path)):
+
+        save_interests(new_interests)
+
+    assert interests_file_path.exists()
+    assert interests_file_path.read_text(encoding="utf-8") == new_interests
+    mock_load.assert_called_once()
+    mock_write_git.assert_called_once_with(
+        filename=str(interests_file_path), gitignore_path=str(gitignore_path)
+    )
+
+
+@patch("src.helpers.dashboard_helper.load_interests")
+@patch("src.helpers.dashboard_helper.write_filename_to_gitignore")
+def test_save_interests_overwrite_file(mock_write_git, mock_load, tmp_path):
+    """Test save_interests overwriting existing file with different content."""
+    from src.helpers.dashboard_helper import save_interests
+
+    interests_file_path = tmp_path / "interests.txt"
+    gitignore_path = tmp_path / ".gitignore"
+    initial_interests = "Old Stuff"
+    new_interests = "New Stuff"
+
+    interests_file_path.write_text(initial_interests, encoding="utf-8")
+    mock_load.return_value = initial_interests
+
+    with patch(
+        "src.helpers.dashboard_helper.Interests_file", str(interests_file_path)
+    ), patch("src.helpers.dashboard_helper.gitignore", str(gitignore_path)):
+
+        save_interests(new_interests)
+
+    assert interests_file_path.read_text(encoding="utf-8") == new_interests
+    mock_load.assert_called_once()
+    mock_write_git.assert_called_once_with(
+        filename=str(interests_file_path), gitignore_path=str(gitignore_path)
+    )
+
+
+@patch("src.helpers.dashboard_helper.load_interests")  # Mock internal call
+@patch("src.helpers.dashboard_helper.write_filename_to_gitignore")  # Mock helper call
+def test_save_interests_same_content(mock_write_git, mock_load, tmp_path):
+    """Test save_interests when content is the same (should not rewrite)."""
+    from src.helpers.dashboard_helper import save_interests
+
+    interests_file_path = tmp_path / "interests.txt"
+    gitignore_path = tmp_path / ".gitignore"
+    current_interests = "Same Stuff"
+
+    interests_file_path.write_text(current_interests, encoding="utf-8")
+    mock_load.return_value = current_interests
+    mtime_before = interests_file_path.stat().st_mtime
+
+    with patch(
+        "src.helpers.dashboard_helper.Interests_file", str(interests_file_path)
+    ), patch("src.helpers.dashboard_helper.gitignore", str(gitignore_path)):
+
+        save_interests(current_interests)
+
+    mtime_after = interests_file_path.stat().st_mtime
+    assert mtime_after == mtime_before
+    assert interests_file_path.read_text(encoding="utf-8") == current_interests
+    mock_load.assert_called_once()
+    mock_write_git.assert_called_once_with(
+        filename=str(interests_file_path), gitignore_path=str(gitignore_path)
+    )
+
+
+@patch("src.helpers.dashboard_helper.datetime")
+def test_save_feedback_new_file(mock_datetime, tmp_path, mock_streamlit):
+    """Test save_feedback when the feedback file doesn't exist."""
+    from src.helpers.dashboard_helper import save_feedback
+
+    feedback_file_path = tmp_path / "feedback.csv"
+    feedback_text = "This is my feedback"
+    test_time = dt.datetime(2024, 5, 1, 12, 30, 0)
+    mock_datetime.now.return_value = test_time
+
+    with patch("src.helpers.dashboard_helper.FEEDBACK_FILE", str(feedback_file_path)):
+        save_feedback(feedback_text)
+
+    assert feedback_file_path.exists()
+    with open(feedback_file_path, "r", newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        rows = list(reader)
+    assert len(rows) == 2  # Header + 1 data row
+    assert rows[0] == ["Datum", "Uhrzeit", "Feedback"]
+    assert rows[1] == ["2024-05-01", "12:30:00", feedback_text]
+
+    mock_streamlit.session_state.__setitem__.assert_any_call("feedback_submitted", True)
+    mock_streamlit.session_state.__setitem__.assert_any_call("feedback_text", "")
+    mock_streamlit.rerun.assert_called_once()
+
+
+@patch("src.helpers.dashboard_helper.datetime")
+def test_save_feedback_append_file(mock_datetime, tmp_path, mock_streamlit):
+    """Test save_feedback appending to an existing file."""
+    from src.helpers.dashboard_helper import save_feedback
+
+    feedback_file_path = tmp_path / "feedback.csv"
+    feedback_text_1 = "Initial feedback"
+    feedback_text_2 = "More feedback"
+
+    test_time_1 = dt.datetime(2024, 5, 1, 10, 0, 0)
+    with open(feedback_file_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Datum", "Uhrzeit", "Feedback"])
+        writer.writerow(["2024-05-01", "10:00:00", feedback_text_1])
+
+    test_time_2 = dt.datetime(2024, 5, 2, 11, 15, 0)
+    mock_datetime.now.return_value = test_time_2
+    mock_streamlit.rerun.reset_mock()
+
+    with patch("src.helpers.dashboard_helper.FEEDBACK_FILE", str(feedback_file_path)):
+        save_feedback(feedback_text_2)
+
+    with open(feedback_file_path, "r", newline="", encoding="utf-8") as f:
+        reader = csv.reader(f)
+        rows = list(reader)
+    assert len(rows) == 3  # Header + 2 data rows
+    assert rows[0] == ["Datum", "Uhrzeit", "Feedback"]
+    assert rows[1] == [
+        "2024-05-01",
+        "10:00:00",
+        feedback_text_1,
+    ]
+    assert rows[2] == ["2024-05-02", "11:15:00", feedback_text_2]
+
+    mock_streamlit.session_state.__setitem__.assert_any_call("feedback_submitted", True)
+    mock_streamlit.session_state.__setitem__.assert_any_call("feedback_text", "")
+    mock_streamlit.rerun.assert_called_once()
+
+
+@patch("src.helpers.dashboard_helper.write_filename_to_gitignore")
+def test_update_history_csv_new_history(mock_write_git, tmp_path):
+    """Test update_history_csv when history file doesn't exist."""
+    from src.helpers.dashboard_helper import update_history_csv
+
+    source_path = tmp_path / "source.csv"
+    history_path = tmp_path / "history.csv"
+    gitignore_path = tmp_path / ".gitignore"
+
+    source_content = "id,data\n1,A\n2,B\n"
+    source_path.write_text(source_content, encoding="utf-8")
+
+    assert not history_path.exists()
+
+    update_history_csv(str(source_path), str(history_path), str(gitignore_path))
+
+    assert history_path.exists()
+    assert history_path.read_text(encoding="utf-8") == source_content
+    mock_write_git.assert_called_once_with(str(gitignore_path), str(history_path))
+
+
+@patch("src.helpers.dashboard_helper.write_filename_to_gitignore")
+def test_update_history_csv_append_unique(mock_write_git, tmp_path):
+    """Test update_history_csv appending unique rows to existing history."""
+    from src.helpers.dashboard_helper import update_history_csv
+
+    source_path = tmp_path / "source.csv"
+    history_path = tmp_path / "history.csv"
+    gitignore_path = tmp_path / ".gitignore"
+
+    history_content = "id,data\n1,A\n2,B\n"
+    history_path.write_text(history_content, encoding="utf-8")
+
+    source_content = "id,data\n2,B\n3,C\n1,A\n4,D\n"
+    source_path.write_text(source_content, encoding="utf-8")
+
+    update_history_csv(str(source_path), str(history_path), str(gitignore_path))
+
+    final_history = history_path.read_text(encoding="utf-8")
+
+    assert "id,data" in final_history
+    assert "1,A" in final_history
+    assert "2,B" in final_history
+    assert "3,C" in final_history
+    assert "4,D" in final_history
+    assert len(final_history.strip().split("\n")) == 5  # Header + 4 unique data rows
+    mock_write_git.assert_not_called()
+
+
+@patch("src.helpers.dashboard_helper.write_filename_to_gitignore")
+def test_update_history_csv_no_new_rows(mock_write_git, tmp_path):
+    """Test update_history_csv when source has no new rows."""
+    from src.helpers.dashboard_helper import update_history_csv
+
+    source_path = tmp_path / "source.csv"
+    history_path = tmp_path / "history.csv"
+    gitignore_path = tmp_path / ".gitignore"
+
+    history_content = "id,data\n1,A\n2,B\n"
+    history_path.write_text(history_content, encoding="utf-8")
+    source_content = "id,data\n2,B\n1,A\n"
+    source_path.write_text(source_content, encoding="utf-8")
+
+    update_history_csv(str(source_path), str(history_path), str(gitignore_path))
+
+    assert history_path.read_text(encoding="utf-8") == history_content
+    mock_write_git.assert_not_called()
+
+
+def test_update_history_csv_source_empty_or_missing(tmp_path):
+    """Test update_history_csv when source is empty or missing."""
+    from src.helpers.dashboard_helper import update_history_csv
+
+    source_path = tmp_path / "source.csv"
+    history_path = tmp_path / "history.csv"
+    gitignore_path = tmp_path / ".gitignore"
+
+    history_content = "id,data\n1,A\n"
+    history_path.write_text(history_content, encoding="utf-8")
+
+    # Case 1: Source is empty
+    source_path.write_text("", encoding="utf-8")
+    update_history_csv(str(source_path), str(history_path), str(gitignore_path))
+    assert history_path.read_text(encoding="utf-8") == history_content
+
+    # Case 2: Source is missing
+    os.remove(source_path)
+    assert not source_path.exists()
+    update_history_csv(str(source_path), str(history_path), str(gitignore_path))
+    assert history_path.read_text(encoding="utf-8") == history_content
+
 
 # --- Tests for Orchestration / Logic Functions ---
 
