@@ -42,7 +42,7 @@ def test_run_script_calls(
     This is a basic check, not a functional UI test.
     """
 
-    mock_initialize.return_value = MagicMock()  # Mocked youtube client
+    mock_initialize.return_value = MagicMock()
     mock_load_interests.return_value = "Test Interests"
     mock_st_sidebar.slider.return_value = (0, 60)
     mock_st_sidebar.text_input.return_value = "Test Interests"
@@ -56,7 +56,6 @@ def test_run_script_calls(
 
     runpy.run_path("run.py")
 
-    # Assertions (Check if functions were called)
     mock_initialize.assert_called_once()
     mock_load_interests.assert_called_once()
     mock_save_interests.assert_called_with("Test Interests")
@@ -68,8 +67,6 @@ def test_run_script_calls(
     mock_st_sidebar.checkbox.assert_called()
     mock_st_tabs.assert_called_once()
 
-    # Check if build functions were called within their respective tab contexts
-    # This requires asserting calls on the mocked youtube object passed in
     mock_build_trending.assert_called_once_with(
         "YouTube API", mock_initialize.return_value
     )
