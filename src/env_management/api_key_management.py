@@ -52,7 +52,7 @@ def create_youtube_client(api_key: str) -> Resource:
     return build(api_service_name, api_version, developerKey=api_key)
 
 
-if __name__ == "__main__":
+def main():
     """Main execution block for testing API key retrieval and YouTube client creation."""
     try:
         google_api_key: str | None = get_api_key("TOKEN_GOOGLEAPI")
@@ -66,3 +66,7 @@ if __name__ == "__main__":
             print("YouTube API Key not found or is None.")
     except ValueError as e:
         print(f"Error: {e}")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,10 +1,14 @@
-from platform import system
+import time
 import pytest
 import os
 import signal
 import subprocess
 from unittest.mock import patch, MagicMock, call
-import time
+from platform import system
+
+# NOTE: As these tests strongly depend on the os, some of the tests (3)
+#       are only implemented for MacOS. These tests are are marked by
+#       @pytest.mark.skipif(system == "Windows", reason=REASON")
 
 
 APP_FILE = "run.py"
@@ -14,7 +18,8 @@ system = system()
 
 
 @pytest.mark.skipif(
-    system == "Windows", reason="Used Mac/Linux Paths, Windows Paths differ"
+    system == "Windows",
+    reason="Windows paths and os-attributes differ, tests implemented for macOS/Unix",
 )
 @patch("src.restart_app.subprocess.check_output")
 @patch("src.restart_app.os.kill")
@@ -41,7 +46,8 @@ def test_kill_existing_streamlit_found(mock_os_kill, mock_check_output):
 
 
 @pytest.mark.skipif(
-    system == "Windows", reason="Used Mac/Linux Paths, Windows Paths differ"
+    system == "Windows",
+    reason="Windows paths and os-attributes differ, tests implemented for macOS/Unix",
 )
 @patch("src.restart_app.subprocess.check_output")
 @patch("src.restart_app.os.kill")
@@ -63,7 +69,8 @@ def test_kill_existing_streamlit_not_found(mock_os_kill, mock_check_output):
 
 
 @pytest.mark.skipif(
-    system == "Windows", reason="Used Mac/Linux Paths, Windows Paths differ"
+    system == "Windows",
+    reason="Windows paths and os-attributes differ, tests implemented for macOS/Unix",
 )
 @patch("src.restart_app.shutil.rmtree")
 @patch("src.restart_app.os.path.exists")
