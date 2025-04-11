@@ -52,7 +52,7 @@ def test_run_script_calls(
     mock_tab_objects = [MagicMock() for _ in range(8)]
     mock_st_tabs.return_value = mock_tab_objects
     for i, tab in enumerate(mock_tab_objects):
-        tab.__enter__.return_value = tab  # Simulate entering 'with tab:'
+        tab.__enter__.return_value = tab
 
     runpy.run_path("run.py")
 

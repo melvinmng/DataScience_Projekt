@@ -8,6 +8,7 @@ import time
 
 
 APP_FILE = "run.py"
+system = system()
 
 # === Tests für kill_existing_streamlit ===
 
