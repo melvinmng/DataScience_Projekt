@@ -1,26 +1,24 @@
 import pytest
-from unittest.mock import patch, MagicMock, call
 import pandas as pd
+import importlib
+from unittest.mock import patch, MagicMock, call
 
 
-# NOTE: Deviating from the standard "patch where it's looked up" rule for get_api_key.
-# We patch it directly at its source ('src.env_management...') because this function
-# is executed at the module level when 'src.helpers.gemini_helper' is imported below.
-# Patching 'src.helpers.gemini_helper.get_api_key' proved unreliable, likely due
-# to the timing of module execution vs. patch application. Patching the source
-# guarantees that the gemini_helper module imports the already-mocked function.
-@patch(
-    "src.env_management.api_key_management.get_api_key", return_value="fake_gemini_key"
-)
 @patch("google.genai.Client")
-def test_module_initialization(mock_genai_client, mock_get_api_key):
+def test_module_initialization(mock_genai_client, monkeypatch):
     """Tests if the Gemini client is initialized on module import."""
+
+    mock_get_key_func = MagicMock(return_value="fake_gemini_key")
+    monkeypatch.setattr(
+        "src.env_management.api_key_management.get_api_key", mock_get_key_func
+    )
 
     try:
         import src.helpers.gemini_helper
 
-        # If the module uses the client upon import, check calls here
-        mock_get_api_key.assert_called_with("TOKEN_GOOGLEAPI")
+        importlib.reload(src.helpers.gemini_helper)
+
+        mock_get_key_func.assert_called_with("TOKEN_GOOGLEAPI")
         mock_genai_client.assert_called_with(api_key="fake_gemini_key")
     except Exception as e:
         pytest.fail(f"Module import failed: {e}")
