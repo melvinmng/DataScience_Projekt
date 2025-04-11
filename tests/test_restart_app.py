@@ -40,6 +40,9 @@ def test_kill_existing_streamlit_found(mock_os_kill, mock_check_output):
     assert mock_os_kill.call_count == 2
 
 
+@pytest.mark.skipif(
+    system == "Windows", reason="Used Mac/Linux Paths, Windows Paths differ"
+)
 @patch("src.restart_app.subprocess.check_output")
 @patch("src.restart_app.os.kill")
 def test_kill_existing_streamlit_not_found(mock_os_kill, mock_check_output):
