@@ -17,7 +17,7 @@ MOCK_YT_DLP_SEARCH_RESULT = {
             "title": "Search Result 1 (DLP)",
             "thumbnail": "thumb_search1_url",
             "uploader": "Search Channel A",
-            "duration": 65,  # 1:05
+            "duration": 65,
             "tags": ["search", "dlp"],
             "upload_date": "20240110",
             "view_count": 101,
@@ -27,7 +27,7 @@ MOCK_YT_DLP_SEARCH_RESULT = {
             "title": "Search Result 2 (DLP)",
             "thumbnail": "thumb_search2_url",
             "uploader": "Search Channel B",
-            "duration": 125,  # 2:05
+            "duration": 125,
             "tags": [],
             "upload_date": "20240101",
             "view_count": 202,
