@@ -52,17 +52,16 @@ def parse_duration(duration: str) -> str:
         str: The duration formatted as "MM:SS". Returns "00:00" if parsing fails
              or if minutes/seconds are not present.
     """
-    pattern = re.compile(r"PT(\d+M)?(\d+S)?")
-    match = pattern.match(duration)
-
     minutes = 0
     seconds = 0
 
-    if match:
-        if match.group(1):
-            minutes = int(match.group(1)[:-1])
-        if match.group(2):
-            seconds = int(match.group(2)[:-1])
+    min_match = re.search(r"(\d+)M", duration)
+    if min_match:
+        minutes = int(min_match.group(1))
+
+    sec_match = re.search(r"(\d+)S", duration)
+    if sec_match:
+        seconds = int(sec_match.group(1))
 
     return f"{minutes:02}:{seconds:02}"
 
