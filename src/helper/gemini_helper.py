@@ -123,6 +123,7 @@ def get_channel_recommondations(
             return "Fehler"
     except Exception as e:
         st.write(f"Fehler: {e}")
+        return e
 
         
 def get_summary_without_spoiler(transcript: str, title: str) -> str | None:
@@ -191,7 +192,7 @@ def get_summary(spoiler: bool, transcript: str, title: str) -> str | None:
                 return None
         except Exception as e:
             st.write(f"Fehler: {e}")
-            return None
+            return e
 
 
 
@@ -445,7 +446,7 @@ def get_subscriptions_based_on_interests(
             return None
     except Exception as e:
         st.write(f"Fehler: {e}")
-        return None
+        return e
 
 
 if __name__ == "__main__":
