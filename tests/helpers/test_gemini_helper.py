@@ -56,7 +56,6 @@ def test_get_short_summary_for_watch_list_api_error(
     assert summary == "Original Transcript"
 
 
-@pytest.mark.xfail(reason="No Exception Handling, will be fixed")
 @patch("src.helpers.gemini_helper.get_api_key", return_value="fake_gemini_key")
 @patch("src.helpers.gemini_helper.ai_client")
 def test_get_channel_recommendations_error(mock_client_instance, mock_get_api_key):
@@ -75,7 +74,6 @@ def test_get_channel_recommendations_error(mock_client_instance, mock_get_api_ke
     assert recommendations == "Fehler"
 
 
-@pytest.mark.xfail(reason="No Exception Handling, will be fixed")
 @patch("src.helpers.gemini_helper.get_api_key", return_value="fake_gemini_key")
 @patch("src.helpers.gemini_helper.ai_client")
 def test_get_summary_api_error(mock_client_instance, mock_get_api_key):
@@ -89,7 +87,6 @@ def test_get_summary_api_error(mock_client_instance, mock_get_api_key):
     assert "Fehler beim Erzeugen der Zusammenfassung: API Error" in summary
 
 
-@pytest.mark.xfail(reason="No Exception Handling, will be fixed")
 @patch("src.helpers.gemini_helper.get_api_key", return_value="fake_gemini_key")
 @patch("src.helpers.gemini_helper.ai_client")
 def test_get_summary_without_spoiler_api_error(mock_client_instance, mock_get_api_key):
@@ -176,9 +173,7 @@ def test_combine_video_id_title_and_transcript(
 
         result = combine_video_id_title_and_transcript(videos)
 
-    assert (
-        mock_executor_instance.submit.call_count == 4
-    )  # Called for id1, id2, id3, id4
+    assert mock_executor_instance.submit.call_count == 4
 
     expected_submit_calls = [
         call(mock_get_transcript_safe, "id1"),
@@ -294,7 +289,6 @@ def test_check_for_clickbait_no_response(mock_client_instance, mock_get_api_key)
     assert result == "no response"
 
 
-@pytest.mark.xfail(reason="No Exception Handling, will be fixed")
 @patch("src.helpers.gemini_helper.get_api_key", return_value="fake_gemini_key")
 @patch("src.helpers.gemini_helper.ai_client")
 def test_check_for_clickbait_api_error(mock_client_instance, mock_get_api_key):
@@ -331,7 +325,6 @@ def test_get_subscriptions_based_on_interests(mock_client_instance, mock_get_api
     assert f"{num_channels} Youtube Kanäle filtern" in kwargs["contents"]
 
 
-@pytest.mark.xfail(reason="No Exception Handling, will be fixed")
 @patch("src.helpers.gemini_helper.get_api_key", return_value="fake_gemini_key")
 @patch("src.helpers.gemini_helper.ai_client")
 def test_get_subscriptions_based_on_interests_api_error(

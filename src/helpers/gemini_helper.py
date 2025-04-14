@@ -157,7 +157,7 @@ def get_summary(transcript: str, title: str) -> str | None:
         return f"Fehler beim Erzeugen der Zusammenfassung: {e}"
 
 
-def get_summary_without_spoiler(transcript: str) -> str | None:
+def get_summary_without_spoiler(transcript: str, title: str) -> str | None:
     """Generates a non-spoiler summary of a YouTube video transcript using Gemini.
 
     Focuses on content description and potential clickbait elements without
@@ -165,6 +165,8 @@ def get_summary_without_spoiler(transcript: str) -> str | None:
 
     Args:
         transcript (str): The transcript text of the YouTube video.
+        title (str): The title of the YouTube video.
+
 
     Returns:
         str | None: The generated non-spoiler summary text, or None if the
@@ -175,7 +177,13 @@ def get_summary_without_spoiler(transcript: str) -> str | None:
             model=ai_model,
             config=ai_generate_content_config,
             contents=(
-                f"Fasse mir dieses Video zusammen: {transcript}. Gehe dabei nur auf den Inhalt und mögliche Clickbait-Elemente ein und achte darauf, keinen Inhalt zu spoilern."
+                f"""Fasse mir dieses Video unglaublich 
+            kurz und prägnant zusammen, sodass nur das Hauptthema des Videos 
+            klar wird: {transcript}. Gehe dabei nur auf die Kernaussage ein. 
+            Vergleiche zudem den Inhalt des Videos mit dem Titel: {title} und 
+            untersuche diesen auf potenziellen Clickbait. Achte dabei darauf,
+            keinen Inhalt zu spoilern!
+            """
             ),
         )
 
@@ -376,6 +384,7 @@ def check_for_clickbait(transcript: str, title: str) -> str:
             return "no transcript"
     except Exception as e:
         return f"Fehler beim Erzeugen der Clickbait-Einordnung: {e}"
+
 
 def live_conversation() -> str:
     """Starts a simple interactive command-line conversation with the Gemini model.
