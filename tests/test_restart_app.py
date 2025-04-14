@@ -8,7 +8,7 @@ from platform import system
 
 # NOTE: As these tests strongly depend on the os, some of the tests (3)
 #       are only implemented for MacOS. These tests are are marked by
-#       @pytest.mark.skipif(system == "Windows", reason=REASON")
+#       @pytest.mark.skipif(system == "Windows", reason="REASON")
 
 
 APP_FILE = "run.py"
