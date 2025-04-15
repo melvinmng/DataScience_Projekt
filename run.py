@@ -24,15 +24,6 @@ youtube = initialize()
 st.title("YouTube FY Dashboard 🎬")
 st.subheader("Intelligent. Modern. Interaktiv.")
 
-# Sidebar-Einstellungen
-st.sidebar.header("Präferenzen")
-length_filter = st.sidebar.slider(
-    "Wie lange möchtest du YouTube schauen?",
-    min_value=0,
-    max_value=180,
-    value=(0, 60),
-)
-
 user_interests = st.sidebar.text_input("Deine Interessen", value=load_interests())
 save_interests(user_interests)
 
