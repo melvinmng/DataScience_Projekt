@@ -40,9 +40,13 @@ search_method = st.sidebar.radio(
     "Suchmethode wählen:", ("YouTube API", "yt-dlp (Experimentell)")
 )
 
+<<<<<<< HEAD
 st.session_state.show_spoiler = st.sidebar.checkbox(
     "Spoiler anzeigen", value=st.session_state.show_spoiler
 )
+=======
+show_spoiler = st.sidebar.checkbox("Spoiler anzeigen", value=st.session_state.show_spoiler)
+>>>>>>> pre_merge_ricky
 
 # Tabs für verschiedene Funktionen
 tabs = st.tabs(
@@ -59,6 +63,7 @@ tabs = st.tabs(
 )
 
 # Inhalte der Tabs
+<<<<<<< HEAD
 with tabs[0]:
     build_trending_videos_tab(search_method, youtube)
 with tabs[1]:
@@ -75,3 +80,13 @@ with tabs[6]:
     build_feedback_tab()
 with tabs[7]:
     build_settings_tab()
+=======
+with tabs[0]: build_trending_videos_tab(show_spoiler, search_method, youtube)
+with tabs[1]: build_recommendation_tab(show_spoiler, search_method, youtube, user_interests)
+with tabs[2]: build_clickbait_recognition_tab()
+with tabs[3]: build_search_tab(show_spoiler, search_method, youtube)
+with tabs[4]: build_subs_tab(show_spoiler, search_method, youtube, user_interests)
+with tabs[5]: build_watch_later_tab(show_spoiler)
+with tabs[6]: build_feedback_tab()
+with tabs[7]: build_settings_tab()
+>>>>>>> pre_merge_ricky

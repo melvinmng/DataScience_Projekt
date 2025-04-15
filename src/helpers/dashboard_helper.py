@@ -76,7 +76,6 @@ try:
     from src.helpers.gemini_helper import (
         extract_video_id_and_reason,
         get_summary,
-        get_summary_without_spoiler,
         get_recommendation,
         combine_video_id_title_and_transcript,
         check_for_clickbait,
@@ -89,7 +88,6 @@ except:
     from src.helpers.gemini_helper import (
         extract_video_id_and_reason,
         get_summary,
-        get_summary_without_spoiler,
         get_recommendation,
         combine_video_id_title_and_transcript,
         check_for_clickbait,
@@ -480,13 +478,16 @@ def delete_video_by_id(video: dict[str, Any], filename: str = watch_later_csv) -
     print(f"Das Video mit der video_id {video_id} wurde erfolgreich gelöscht.")
 
 
-def build_video_list(incoming_videos: list[dict[str, Any]], key_id: str) -> None:
+def build_video_list(show_spoiler: bool ,incoming_videos: list[dict[str, Any]], key_id: str) -> None:
+    
     """Renders a list of videos using Streamlit components.
 
     Displays title, channel, link, an expandable summary, video player,
     length, views, and conditional add/delete buttons for each video.
 
     Args:
+        show_spoiler (bool): value that controls whether your summary is with or without spoilers
+
         incoming_videos (List[Dict[str, Any]]): A list of dictionaries,
                         where each dictionary represents a video and contains
                         keys like 'title', 'channel_name', 'video_id', 'length', 'views'.
@@ -533,10 +534,11 @@ def build_video_list(incoming_videos: list[dict[str, Any]], key_id: str) -> None
             Returns:
                 None
             """
+            
             try:
                 transcript = get_transcript(video_id)
                 summary = (
-                    get_summary(transcript, title)
+                    get_summary(show_spoiler, transcript, title)
                     if transcript
                     else "Keine Zusammenfassung verfügbar."
                 )
@@ -577,7 +579,7 @@ def build_video_list(incoming_videos: list[dict[str, Any]], key_id: str) -> None
 
 
 # Build Tabs
-def build_trending_videos_tab(search_method: str, youtube: Resource | None) -> None:
+def build_trending_videos_tab(spoiler: bool, search_method: str, youtube: Resource | None) -> None:
     """Builds the Streamlit tab displaying trending YouTube videos.
 
     Allows selection of region and loads trending videos using either the
@@ -605,10 +607,11 @@ def build_trending_videos_tab(search_method: str, youtube: Resource | None) -> N
         if not videos:
             st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
         else:
-            build_video_list(videos, key_id="trending_videos")
+            build_video_list( spoiler, videos, key_id="trending_videos")
 
 
 def build_trend_recommendations(
+    spoiler: bool,
     search_method: str,
     youtube: Resource | None,
     user_interests: str,
@@ -689,7 +692,7 @@ def build_trend_recommendations(
                 )
                 response = request.execute()
                 video_data = get_video_data(youtube, response, "trends")
-                build_video_list(video_data, key_id="recommendation")
+                build_video_list(spoiler, video_data, key_id="recommendation")
             else:
                 st.error("YouTube API Client nicht verfügbar.")
         else:
@@ -699,7 +702,7 @@ def build_trend_recommendations(
             else:
                 video_data = []
             if video_data:
-                build_video_list(video_data, key_id="recommendation")
+                build_video_list(spoiler, video_data, key_id="recommendation")
             else:
                 st.warning(
                     f"Konnte Videodaten für {recommendations['video_id']} nicht laden."
@@ -710,6 +713,7 @@ def build_trend_recommendations(
 
 
 def build_gemini_recommondations(
+    spoiler: bool,
     search_method: str,
     youtube: Resource | None,
     user_interests: str,
@@ -760,34 +764,35 @@ def build_gemini_recommondations(
                         history, subscriptions, max_subs, user_interests
                     )
                     for channel in recommended_channels:
-                        print(channel)
-                        print("response:_______________________________")
-                        if search_method == "YouTube API":
-                            if youtube:
-                                try:
-                                    request = youtube.search().list(
-                                        part="snippet",
-                                        q=channel,
-                                        type="video",
-                                        maxResults=max_results,
-                                    )
-                                    response = request.execute()
-                                    videos = get_video_data(youtube, response)
-                                except Exception as e:
-                                    st.error(
-                                        f"API-Fehler bei Suche nach Kanal '{channel}': {e}"
-                                    )
+                        if channel != "Fehler":
+                            print(channel)
+                            print("response:_______________________________")
+                            if search_method == "YouTube API":
+                                if youtube:
+                                    try:
+                                        request = youtube.search().list(
+                                            part="snippet",
+                                            q=channel,
+                                            type="video",
+                                            maxResults=max_results,
+                                        )
+                                        response = request.execute()
+                                        videos = get_video_data(youtube, response)
+                                    except Exception as e:
+                                        st.error(
+                                            f"API-Fehler bei Suche nach Kanal '{channel}': {e}"
+                                        )
+                                        videos = []
+                                else:
+                                    st.error("YouTube API Client nicht verfügbar.")
                                     videos = []
                             else:
-                                st.error("YouTube API Client nicht verfügbar.")
-                                videos = []
-                        else:
-                            videos = search_videos_dlp(channel, max_results=max_results)
+                                videos = search_videos_dlp(channel, max_results=max_results)
 
-                        for video in videos:
-                            recommended_videos.append(video)
+                            for video in videos:
+                                recommended_videos.append(video)
 
-                    build_video_list(recommended_videos, "gemini_rec")
+                    build_video_list(spoiler, recommended_videos, "gemini_rec")
             else:
                 st.error(
                     "Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf."
@@ -799,6 +804,7 @@ def build_gemini_recommondations(
 
 
 def build_recommendation_tab(
+    spoiler: bool,
     search_method: str,
     youtube: Resource | None,
     user_interests: str,
@@ -831,6 +837,7 @@ def build_recommendation_tab(
     with tab1:
         if st.button("🔄 Trend Recommendation laden"):
             build_trend_recommendations(
+                spoiler,
                 search_method,
                 youtube,
                 user_interests,
@@ -841,7 +848,7 @@ def build_recommendation_tab(
 
     with tab2:
         build_gemini_recommondations(
-            search_method, youtube, user_interests, "watch_later_history.csv"
+            spoiler, search_method, youtube, user_interests, "watch_later_history.csv"
         )
 
 
@@ -948,7 +955,7 @@ def build_feedback_tab() -> None:
             st.warning("Bitte gib ein Feedback ein, bevor du es absendest.")
 
 
-def build_search_tab(search_method: str, youtube: Resource | None) -> None:
+def build_search_tab(spoiler: bool, search_method: str, youtube: Resource | None) -> None:
     """Builds the Streamlit tab for searching YouTube videos.
 
     Provides a text input for the query and optionally a slider for max results.
@@ -1002,10 +1009,10 @@ def build_search_tab(search_method: str, youtube: Resource | None) -> None:
         st.session_state["last_tab"] = "search"
 
     if st.session_state.get("videos"):
-        build_video_list(st.session_state["videos"], key_id="search")
+        build_video_list(spoiler, st.session_state["videos"], key_id="search")
 
 
-def build_subs_tab(search_method: str, youtube: Resource, user_interests: str) -> None:
+def build_subs_tab(spoiler, search_method: str, youtube: Resource, user_interests: str) -> None:
     """Builds the Streamlit tab displaying recent videos from subscribed channels.
 
     Fetches subscriptions, filters channels based on interests using Gemini,
@@ -1099,10 +1106,10 @@ def build_subs_tab(search_method: str, youtube: Resource, user_interests: str) -
                 st.session_state["last_tab"] = "subs"
 
             if st.session_state.get("videos"):
-                build_video_list(st.session_state["videos"], key_id="subs")
+                build_video_list(spoiler, st.session_state["videos"], key_id="subs")
 
 
-def build_watch_later_tab() -> None:
+def build_watch_later_tab(spoiler) -> None:
     """Builds the Streamlit tab displaying the user's 'Watch Later' list.
 
     Reads videos from the watch later CSV file and displays them using
@@ -1126,7 +1133,7 @@ def build_watch_later_tab() -> None:
         videos = read_csv_to_list(watch_later_csv)
         if len(videos) != 0:
             st.header("Watch list")
-            build_video_list(videos, key_id="watch_later")
+            build_video_list(spoiler, videos, key_id="watch_later")
         else:
             st.warning("Es wurden noch keine Videos zur Watchlist hinzugefügt")
     else:
