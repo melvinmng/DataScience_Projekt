@@ -518,6 +518,7 @@ def build_video_list(show_spoiler: bool ,incoming_videos: list[dict[str, Any]], 
         )
 
         expander_key = f"summary_{video['video_id']}_{key_id}"
+        print(expander_key)
         if expander_key not in st.session_state:
             st.session_state[expander_key] = None
 

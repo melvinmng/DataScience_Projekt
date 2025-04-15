@@ -258,22 +258,23 @@ def get_video_data(
             except Exception as e:
                 print(f"Fehler beim Verarbeiten des Items {index}: {e}")
                 continue
+        
+        if video_id != "Unknown":
+            videos.append(
+                {
+                    "place": index,
+                    "title": title,
+                    "tags": ", ".join(tags) if tags else "Keine Tags",
+                    "video_id": video_id,
+                    "thumbnail": thumbnail,
+                    "length": length,
+                    "channel_name": channel_name,
+                    "views": views,
+                    "upload_date": upload_date,
+                }
+            )
 
-        videos.append(
-            {
-                "place": index,
-                "title": title,
-                "tags": ", ".join(tags) if tags else "Keine Tags",
-                "video_id": video_id,
-                "thumbnail": thumbnail,
-                "length": length,
-                "channel_name": channel_name,
-                "views": views,
-                "upload_date": upload_date,
-            }
-        )
-
-        videos = [d for d in videos if d]
+    videos = [d for d in videos if d]
 
     return sorted(videos, key=lambda v: v["upload_date"] or datetime.min, reverse=True)
 
