@@ -24,6 +24,7 @@ youtube = initialize()
 st.title("YouTube FY Dashboard 🎬")
 st.subheader("Intelligent. Modern. Interaktiv.")
 
+st.sidebar.header("Präferenzen")
 user_interests = st.sidebar.text_input("Deine Interessen", value=load_interests())
 save_interests(user_interests)
 
