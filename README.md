@@ -3,7 +3,7 @@
 ## Purpose
 This multifunctional application connects interfaces to 
 YouTube and Gemini and allows interaction by means of a graphical representation through Streamlit.
-Thereby content can be structured in a user-specific way. By using artificial intelligence, videos can be summarized and analyzed for clickbait.
+Thereby YouTube content can be structured in a user-specific way. By using artificial intelligence, videos can be summarized and analyzed for clickbait.
 
 
 ## Typical procedure of the application
