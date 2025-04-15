@@ -1,6 +1,5 @@
 from typing import Callable, Any
 from google import genai
-from google.genai import types
 from pandas import DataFrame
 import re
 import concurrent.futures
@@ -30,14 +29,14 @@ else:
     print("API_KEY gefunden")
 
 ai_model = "gemini-2.0-flash"
-ai_generate_content_config = types.GenerateContentConfig(
+ai_generate_content_config = genai.types.GenerateContentConfig(
     temperature=1,
     top_p=0.95,
     top_k=40,
     max_output_tokens=8192,
     response_mime_type="text/plain",
     system_instruction=[
-        types.Part.from_text(
+        genai.types.Part.from_text(
             text="""Du bist ein Experte im Bereich Datenanalyse und For-You-Pages. 
             Im Folgenden wirst du immer wieder YouTube-Videos und ihre Transkripte
             zugeschickt bekommen und ausgehend von diesen Inhalte zusammenfassen, 
