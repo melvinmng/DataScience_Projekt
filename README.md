@@ -1,55 +1,75 @@
-# DataScience_Projekt
-Repository für unser Data-Science-Projekt
+# Personalized YouTube Content Curation
 
-## How to work with .env-files
-### Required packages
-- os
-- dotenv
+## Purpose
+This multifunctional application connects interfaces to 
+YouTube and Gemini and allows interaction by means of a graphical representation through Streamlit.
+Thereby content can be structured in a user-specific way. By using artificial intelligence, videos can be summarized and analyzed for clickbait.
 
-### Instructions
-1. Erstellen Sie eine .env-Datei in Ihrem Projektordner
-2. Speichern Sie Ihre Passwörter in folgender Form in Ihrer .env-Datei: NAME_DES_PASSWORTS (später zum Aufrufen benötigt) = "Passwort/Key"
-3. Importieren Sie die notwendigen Packages in das Modul, in welchem Sie auf Ihre Passwörter/Keys zugreifen möchten
-4. Rufen Sie ihre Passwörter mit folgendem Befehl auf: os.getenv("NAME_DES_PASSWORTS")
 
-## How to create a Gemini API Key
-1. Erstellen Sie einen Account für das Google AI Studio: https://aistudio.google.com/app/apikey?_gl=1*e137ex*_ga*MTE4NjE1OTYwLjE3NDE2MDM4Mzk.*_ga_P1DBVKWT6V*MTc0MTYwNTEyMS4xLjEuMTc0MTYwNTIzMy4wLjAuMTgyNDY0NDU1Nw..
-2. Klicken Sie auf "Get API Key"
-3. Klicken Sie auf "API Schlüssel erstellen"
-4. Falls nötig, erstellen Sie ein Projekt und wählen Sie dieses für den API-Schlüssel aus
-5. Klicken Sie auf "API Schlüssel in bestehendem Projekt erstellen"
-6. Kopieren Sie ihren API-Schlüssel und fügen ihn in ihre lokale .env-Datei ein, damit der Code auf diesen zugreifen kann (halten Sie dabei folgende Struktur ein: TOKEN_GOOGLEAPI = "YOUR_KEY")
+## Typical procedure of the application
+1. Configuration by the user
+2. Fetching data with YouTube API or yt_dlp, respecitvely
+3. Processing data with Python and Gemini (2.0 Flash)
+4. Displaying results in a graphical user interface with Streamlit
 
-## How to create a YouTube API Key
-1. Melden Sie sich mit ihrem Google Account bei Google Cloud Platform an: https://console.cloud.google.com/
-2. Falls nötig, erstellen Sie ein Projekt und wählen Sie dieses für den API-Schlüssel aus
-3. Aktivieren Sie für Ihr Projekt die YouTube Data API v3 über "API und Dienste" oder direkt über die Suchzeile.
-4. Klicken Sie auf "Anmeldedaten"
-5. Klicken Sie auf "Anmeldedaten erstellen" und wählen Sie "API Schlüssel" aus
-6. Kopieren Sie ihren API-Schlüssel und fügen ihn in ihre lokale .env-Datei ein, damit der Code auf diesen zugreifen kann (halten Sie dabei folgende Struktur ein: YOUTUBE_API_KEY = "YOUR_KEY")
 
-## Das muss später in die requirements.txt
-Um die benötigten Pakete zu installieren, führen Sie folgende Befehle aus:
+## Setup
+### Prerequisites
+- Python (3.9+)
+- Google account (YouTube account/channel is recommended additionally)
 
-```bash
-pip install --upgrade google-api-python-client
-pip install --upgrade google-auth-oauthlib google-auth-httplib2
+
+### 1. Clone the repository
+```
+    https://github.com/melvinmng/DataScience_Projekt.git
+    cd DataScience_Projekt
 ```
 
-## Zugriff auf YouTube Abonnements einrichten
-> Das Nachfolgende würde ich am Ende mit einer neuen E-Mail Adresse machen. Wenn wir es abgeben, müssen wir diejenigen, die es testen sollen als Tester mit ihren Adressen eintragen. So muss unser Projekt nicht von Google geprüft werden.
+### 2. Install requirements
+```
+    pip install -r requirements.txt
+```
 
-1. Gehe zu deiner Google Cloud Console und navigiere zu deinem Projekt.
-2. Klicke auf APIs & Dienste > Anmeldedaten.
-3. Klicke auf Anmeldedaten erstellen und wähle OAuth-Client-ID.
-Wähle Desktop-App und gib einen Namen ein.
-4. Klicke auf Erstellen, und lade die Client-ID-Datei (JSON) herunter. Du benötigst diese Datei für die Authentifizierung.
-Speichere die heruntergeladene JSON-Datei an einem sicheren Ort, z.B. unter credentials.json.
 
-> Hinweis zu 4.
-> 
-> Man braucht wirklich die ganze JSON, es sei denn, wir kriegen das auch in die .env integriert, aber da gab es bisher noch Fehler mit dem Format. Dann muss man im Code einmal die Variable auf den Pfad setzen, wo die JSON lokal gespeichert ist.
->
-> Wenn man sich einmal mit dem 0auth angemeldet hat wird ein `token.pickle` erstellt, sodass man sich danach nicht mehr authentifizieren muss. Wenn ihr also das Anmelden absichtlich auslösen wollt, müsst ihr vorher `token.pickle` löschen.
->
-> In eure `.env` muss also noch ein `.*json`und ein `*.pickle`.
+### How to work with .env-files
+1. Create an .env file in your project folder
+2. Save your passwords in the following form in your .env file: NAME_OF_PASSWORD = “Password/Key”
+
+
+### How to activate APIs
+1. Create an account for the Google AI Studio: https://aistudio.google.com/app/apikey?_gl=1*e137ex*_ga*MTE4NjE1OTYwLjE3NDE2MDM4Mzk.*_ga_P1DBVKWT6V*MTc0MTYwNTEyMS4xLjEuMTc0MTYwNTIzMy4wLjAuMTgyNDY0NDU1Nw.
+
+
+#### Gemini API Key
+1. Log in to Google Cloud Platform with your Google account: https://console.cloud.google.com/
+2. If necessary, create a project and select it for the API key
+3. Activate the Generative Language API for your project via "API and Services" or directly via the search bar.
+4. Click on "Get API Key"
+5. Click on "Create API Key"
+6. Click on "Create API Key in existing project"
+7. Copy your API key and paste it into your local .env file so that the code can access it (keep the following structure: TOKEN_GOOGLEAPI = "YOUR_KEY")
+
+> API Keys can be added through the GUI as well.
+
+
+#### How to create a YouTube API Key
+1. Log in to Google Cloud Platform with your Google account: https://console.cloud.google.com/
+2. If necessary, create a project and select it for the API key
+3. Activate the YouTube Data API v3 for your project via "API and Services" or directly via the search bar.
+4. Click on "Credentials"
+5. Click on "Create credentials" and select "API key" from
+6. Copy your API key and paste it into your local .env file so that the code can access it (keep the following structure: YOUTUBE_API_KEY = "YOUR_KEY")
+
+> API Keys can be added through the GUI as well.
+
+
+#### [Recommended] Set up access to YouTube subscriptions
+1. Make sure you have a YouTube account/channel
+2. Log in to YouTube: https://www.youtube.com/
+3. Click on "Settings"
+4. Click on "Privacy"
+5. Make sure that subscriptions are <u>not</u> kept private
+6. Click on "Advanced settings"
+7. Copy your Channel ID and paste it into your local .env file so that the code can access it (keep the following structure: CHANNEL_ID = "YOUR_ID")
+
+> Access to subscriptions is optional and can be configured later thorugh the GUI as well.
