@@ -44,7 +44,6 @@ def test_run_script_calls(
 
     mock_initialize.return_value = MagicMock()
     mock_load_interests.return_value = "Test Interests"
-    mock_st_sidebar.slider.return_value = (0, 60)
     mock_st_sidebar.text_input.return_value = "Test Interests"
     mock_st_sidebar.radio.return_value = "YouTube API"
     mock_st_sidebar.checkbox.return_value = False
@@ -61,7 +60,6 @@ def test_run_script_calls(
     mock_save_interests.assert_called_with("Test Interests")
     mock_st_title.assert_called_with("YouTube FY Dashboard 🎬")
     mock_st_subheader.assert_called_with("Intelligent. Modern. Interaktiv.")
-    mock_st_sidebar.slider.assert_called()
     mock_st_sidebar.text_input.assert_called()
     mock_st_sidebar.radio.assert_called()
     mock_st_sidebar.checkbox.assert_called()
