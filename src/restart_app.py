@@ -61,8 +61,12 @@ def restart_app() -> None:
     subprocess.Popen(["streamlit", "run", APP_FILE], env={**os.environ, **env_vars})
 
 
-if __name__ == "__main__":
+def main():
     kill_existing_streamlit()
     clear_streamlit_cache()
     time.sleep(1)
     restart_app()
+
+
+if __name__ == "__main__":
+    main()
