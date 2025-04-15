@@ -82,7 +82,7 @@ def test_get_summary_api_error(mock_client_instance, mock_get_api_key):
 
     from src.helpers.gemini_helper import get_summary
 
-    summary = get_summary("transcript", "title")
+    summary = get_summary(True, "transcript", "title")
 
     assert "Fehler beim Erzeugen der Zusammenfassung: API Error" in summary
 

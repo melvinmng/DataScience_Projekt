@@ -68,17 +68,17 @@ def test_run_script_calls(
     mock_st_tabs.assert_called_once()
 
     mock_build_trending.assert_called_once_with(
-        "YouTube API", mock_initialize.return_value
+        False, "YouTube API", mock_initialize.return_value
     )
     mock_build_recommendation.assert_called_once_with(
-        "YouTube API", mock_initialize.return_value, "Test Interests"
+        False, "YouTube API", mock_initialize.return_value, "Test Interests"
     )
     mock_build_clickbait.assert_called_once()
     mock_build_search.assert_called_once_with(
-        "YouTube API", mock_initialize.return_value
+        False, "YouTube API", mock_initialize.return_value
     )
     mock_build_abobox.assert_called_once_with(
-        "YouTube API", mock_initialize.return_value, "Test Interests"
+        False, "YouTube API", mock_initialize.return_value, "Test Interests"
     )
     mock_build_watch_later.assert_called_once()
     mock_build_feedback.assert_called_once()

@@ -569,7 +569,9 @@ def test_build_trending_videos_tab_api(
 
     mock_get_api.return_value = MOCK_VIDEO_DATA_LIST
 
-    build_trending_videos_tab(search_method="YouTube API", youtube=mock_youtube)
+    build_trending_videos_tab(
+        spoiler=True, search_method="YouTube API", youtube=mock_youtube
+    )
 
     mock_st_obj.header.assert_called_with("Trending Videos")
     mock_st_obj.radio.assert_called_with("Region wählen:", ("DE", "US", "GB"))
@@ -578,7 +580,7 @@ def test_build_trending_videos_tab_api(
     mock_get_api.assert_called_once_with(mock_youtube, "DE")
     mock_get_dlp.assert_not_called()
     mock_build_list.assert_called_once_with(
-        MOCK_VIDEO_DATA_LIST, key_id="trending_videos"
+        True, MOCK_VIDEO_DATA_LIST, key_id="trending_videos"
     )
 
 
@@ -594,7 +596,7 @@ def test_build_trending_videos_tab_dlp(
     mock_get_dlp.return_value = [{"video_id": "dlp1"}]
     mock_streamlit.button.return_value = True
 
-    build_trending_videos_tab(search_method="yt-dlp", youtube=None)
+    build_trending_videos_tab(spoiler=False, search_method="yt-dlp", youtube=None)
 
     mock_streamlit.header.assert_called_with("Trending Videos")
     mock_streamlit.radio.assert_called_with("Region wählen:", ("DE", "US", "GB"))
@@ -602,7 +604,7 @@ def test_build_trending_videos_tab_dlp(
     mock_get_api.assert_not_called()
     mock_get_dlp.assert_called_once_with(mock_streamlit.radio.return_value)
     mock_build_list.assert_called_once_with(
-        [{"video_id": "dlp1"}], key_id="trending_videos"
+        False, [{"video_id": "dlp1"}], key_id="trending_videos"
     )
 
 
@@ -640,7 +642,7 @@ def test_build_trend_recommendations_dlp(
     }
 
     build_trend_recommendations(
-        search_method="yt-dlp", youtube=None, user_interests="testing"
+        spoiler=True, search_method="yt-dlp", youtube=None, user_interests="testing"
     )
 
     mock_get_trending_dlp.assert_called_once_with(region_code="DE")
@@ -655,7 +657,7 @@ def test_build_trend_recommendations_dlp(
 
     mock_get_video_dlp.assert_called_once_with("t2")
     mock_build_list.assert_called_once_with(
-        [mock_get_video_dlp.return_value], key_id="recommendation"
+        True, [mock_get_video_dlp.return_value], key_id="recommendation"
     )
     mock_streamlit.write.assert_any_call("## Begründung:")
     mock_streamlit.write.assert_any_call("Because it's cool.")

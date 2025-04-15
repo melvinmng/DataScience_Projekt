@@ -153,8 +153,7 @@ def get_summary_without_spoiler(transcript: str, title: str) -> str | None:
         else:
             return None
     except Exception as e:
-        st.write(f"Fehler: {e}")
-        return None
+        return f"Fehler beim Erzeugen der Zusammenfassung: {e}"
 
 
 def get_summary(spoiler: bool, transcript: str, title: str) -> str | None:
