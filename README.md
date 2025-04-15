@@ -73,3 +73,9 @@ Thereby YouTube content can be structured in a user-specific way. By using artif
 7. Copy your Channel ID and paste it into your local .env file so that the code can access it (keep the following structure: CHANNEL_ID = "YOUR_ID")
 
 > Access to subscriptions is optional and can be configured later thorugh the GUI as well.
+
+
+## Run the application
+```
+    streamlit run run.py
+```
