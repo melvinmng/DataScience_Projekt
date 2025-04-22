@@ -35,6 +35,8 @@ Thereby YouTube content can be structured in a user-specific way. By using artif
 1. Create an .env file in your project folder
 2. Save your passwords in the following form in your .env file: NAME_OF_PASSWORD = “Password/Key”
 
+> The .env file can also be automatically generated on first use.
+
 
 ### How to activate APIs
 1. Create an account for the Google AI Studio: https://aistudio.google.com/app/apikey?_gl=1*e137ex*_ga*MTE4NjE1OTYwLjE3NDE2MDM4Mzk.*_ga_P1DBVKWT6V*MTc0MTYwNTEyMS4xLjEuMTc0MTYwNTIzMy4wLjAuMTgyNDY0NDU1Nw.
