@@ -65,7 +65,7 @@ Thereby YouTube content can be structured in a user-specific way. By using artif
 > API Keys can be added through the GUI as well.
 
 
-#### [Recommended] Set up access to YouTube subscriptions
+#### Set up YouTube and access to YouTube subscriptions
 1. Make sure you have a YouTube account/channel
 2. Log in to YouTube: https://www.youtube.com/
 3. Click on "Settings"
@@ -74,10 +74,20 @@ Thereby YouTube content can be structured in a user-specific way. By using artif
 6. Click on "Advanced settings"
 7. Copy your Channel ID and paste it into your local .env file so that the code can access it (keep the following structure: CHANNEL_ID = "YOUR_ID")
 
-> Access to subscriptions is optional and can be configured later thorugh the GUI as well.
+> Access to subscriptions can be added through the GUI as well.
 
 
 ## Run the application
 ```
     streamlit run run.py
 ```
+
+## Troubleshooting
+#### Tests
+- Make sure the application is correctly initialized before running any tests.
+- Running tests with an empty .env file could lead to problems.
+
+#### YouTube
+- Make sure you paste your Channel ID and not your User ID.
+- Some videos can be restricted due to copyright issues.
+- Some videos do not have a transcript.
