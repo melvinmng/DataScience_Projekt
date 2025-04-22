@@ -38,6 +38,56 @@ from src.env_management.api_key_management import get_api_key, create_youtube_cl
 from src.env_management.youtube_channel_id import load_channel_id
 
 
+def build_settings_pop_up() -> None:
+    """Builds a pop-up modal (simulated via main page content) for initial API key setup.
+
+    Displayed when API keys are missing upon initialization. Allows user
+    to input and save keys to the .env file. Triggers an app restart on save.
+
+    Returns:
+        None
+    """
+    env_path = ".env"
+    load_dotenv()
+
+    if not os.path.exists(env_path):
+        with open(env_path, "w") as f:
+            f.write("# API Keys\n")
+
+    current_env = dotenv_values(env_path)
+    youtube_api_key = current_env.get("YOUTUBE_API_KEY", "")
+    gemini_api_key = current_env.get("TOKEN_GOOGLEAPI", "")
+    channel_id = current_env.get("CHANNEL_ID", "")
+
+    youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
+    gemini_key = st.text_input("🤖 Gemini API Key", gemini_api_key, type="password")
+    channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
+
+    if st.button("💾 Speichern"):
+        if youtube_key:
+            set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
+        if gemini_key:
+            set_key(env_path, "TOKEN_GOOGLEAPI", gemini_key)
+        if channel_id:
+            set_key(env_path, "CHANNEL_ID", channel_id)
+
+        updated_env = dotenv_values(env_path)
+
+        if (
+            updated_env.get("YOUTUBE_API_KEY") == youtube_key
+            and updated_env.get("TOKEN_GOOGLEAPI") == gemini_key
+            and updated_env.get("CHANNEL_ID") == channel_id
+        ):
+
+            st.success("✅ API-Keys wurden gespeichert!")
+            st.session_state.show_settings = False
+            time.sleep(2)
+            subprocess.Popen([sys.executable, "src/restart_app.py"])
+            os.kill(os.getpid(), signal.SIGTERM)
+
+        else:
+            st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
+
 def initialize() -> Resource | NoReturn:
     """Initializes the Google API Client for YouTube.
 
@@ -1141,55 +1191,7 @@ def build_watch_later_tab(spoiler) -> None:
         st.warning("Es wurden noch keine Videos zur Watchlist hinzugefügt")
 
 
-def build_settings_pop_up() -> None:
-    """Builds a pop-up modal (simulated via main page content) for initial API key setup.
 
-    Displayed when API keys are missing upon initialization. Allows user
-    to input and save keys to the .env file. Triggers an app restart on save.
-
-    Returns:
-        None
-    """
-    env_path = ".env"
-    load_dotenv()
-
-    if not os.path.exists(env_path):
-        with open(env_path, "w") as f:
-            f.write("# API Keys\n")
-
-    current_env = dotenv_values(env_path)
-    youtube_api_key = current_env.get("YOUTUBE_API_KEY", "")
-    gemini_api_key = current_env.get("TOKEN_GOOGLEAPI", "")
-    channel_id = current_env.get("CHANNEL_ID", "")
-
-    youtube_key = st.text_input("🎬 YouTube API Key", youtube_api_key, type="password")
-    gemini_key = st.text_input("🤖 Gemini API Key", gemini_api_key, type="password")
-    channel_id = st.text_input("ℹ️ Channel ID", channel_id, type="password")
-
-    if st.button("💾 Speichern"):
-        if youtube_key:
-            set_key(env_path, "YOUTUBE_API_KEY", youtube_key)
-        if gemini_key:
-            set_key(env_path, "TOKEN_GOOGLEAPI", gemini_key)
-        if channel_id:
-            set_key(env_path, "CHANNEL_ID", channel_id)
-
-        updated_env = dotenv_values(env_path)
-
-        if (
-            updated_env.get("YOUTUBE_API_KEY") == youtube_key
-            and updated_env.get("TOKEN_GOOGLEAPI") == gemini_key
-            and updated_env.get("CHANNEL_ID") == channel_id
-        ):
-
-            st.success("✅ API-Keys wurden gespeichert!")
-            st.session_state.show_settings = False
-            time.sleep(2)
-            subprocess.Popen([sys.executable, "src/restart_app.py"])
-            os.kill(os.getpid(), signal.SIGTERM)
-
-        else:
-            st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
 
 
 def build_settings_tab() -> None:
