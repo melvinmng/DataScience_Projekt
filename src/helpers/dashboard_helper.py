@@ -88,6 +88,7 @@ def build_settings_pop_up() -> None:
         else:
             st.error("⚠️ Fehler beim Speichern! Bitte erneut versuchen.")
 
+
 def initialize() -> Resource | NoReturn:
     """Initializes the Google API Client for YouTube.
 
@@ -528,8 +529,9 @@ def delete_video_by_id(video: dict[str, Any], filename: str = watch_later_csv) -
     print(f"Das Video mit der video_id {video_id} wurde erfolgreich gelöscht.")
 
 
-def build_video_list(show_spoiler: bool ,incoming_videos: list[dict[str, Any]], key_id: str) -> None:
-    
+def build_video_list(
+    show_spoiler: bool, incoming_videos: list[dict[str, Any]], key_id: str
+) -> None:
     """Renders a list of videos using Streamlit components.
 
     Displays title, channel, link, an expandable summary, video player,
@@ -585,7 +587,7 @@ def build_video_list(show_spoiler: bool ,incoming_videos: list[dict[str, Any]], 
             Returns:
                 None
             """
-            
+
             try:
                 transcript = get_transcript(video_id)
                 summary = (
@@ -630,7 +632,9 @@ def build_video_list(show_spoiler: bool ,incoming_videos: list[dict[str, Any]], 
 
 
 # Build Tabs
-def build_trending_videos_tab(spoiler: bool, search_method: str, youtube: Resource | None) -> None:
+def build_trending_videos_tab(
+    spoiler: bool, search_method: str, youtube: Resource | None
+) -> None:
     """Builds the Streamlit tab displaying trending YouTube videos.
 
     Allows selection of region and loads trending videos using either the
@@ -658,7 +662,7 @@ def build_trending_videos_tab(spoiler: bool, search_method: str, youtube: Resour
         if not videos:
             st.write("Keine Videos gefunden oder ein Fehler ist aufgetreten.")
         else:
-            build_video_list( spoiler, videos, key_id="trending_videos")
+            build_video_list(spoiler, videos, key_id="trending_videos")
 
 
 def build_trend_recommendations(
@@ -838,7 +842,9 @@ def build_gemini_recommondations(
                                     st.error("YouTube API Client nicht verfügbar.")
                                     videos = []
                             else:
-                                videos = search_videos_dlp(channel, max_results=max_results)
+                                videos = search_videos_dlp(
+                                    channel, max_results=max_results
+                                )
 
                             for video in videos:
                                 recommended_videos.append(video)
@@ -846,11 +852,11 @@ def build_gemini_recommondations(
                     build_video_list(spoiler, recommended_videos, "gemini_rec")
             else:
                 st.error(
-                    "Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf."
+                    "Um Empfehlungen erhalten zu können, brauchst du einen Watchlist Verlauf."
                 )
         else:
             st.error(
-                "Um Empfehlungen geben zu können brauchst du einen Watchlist Verlauf."
+                "Um Empfehlungen erhalten zu können, brauchst du einen Watchlist Verlauf."
             )
 
 
@@ -916,7 +922,7 @@ def build_clickbait_recognition_tab() -> None:
     st.write("Teste, ob ein Videotitel als Clickbait einzustufen ist.")
 
     video_url = st.text_input(
-        "🔎 Welches Video möchtest du prüfen? Gib hier die Video-Url ein!",
+        "🔎 Welches Video möchtest du prüfen? Gib hier die Video-URL ein!",
         "https://www.youtube.com/watch?v=onE9aPkSmlw",
     )
     if st.button("🔄 Clickbait Analyse laden"):
@@ -1006,7 +1012,9 @@ def build_feedback_tab() -> None:
             st.warning("Bitte gib ein Feedback ein, bevor du es absendest.")
 
 
-def build_search_tab(spoiler: bool, search_method: str, youtube: Resource | None) -> None:
+def build_search_tab(
+    spoiler: bool, search_method: str, youtube: Resource | None
+) -> None:
     """Builds the Streamlit tab for searching YouTube videos.
 
     Provides a text input for the query and optionally a slider for max results.
@@ -1063,7 +1071,9 @@ def build_search_tab(spoiler: bool, search_method: str, youtube: Resource | None
         build_video_list(spoiler, st.session_state["videos"], key_id="search")
 
 
-def build_subs_tab(spoiler, search_method: str, youtube: Resource, user_interests: str) -> None:
+def build_subs_tab(
+    spoiler, search_method: str, youtube: Resource, user_interests: str
+) -> None:
     """Builds the Streamlit tab displaying recent videos from subscribed channels.
 
     Fetches subscriptions, filters channels based on interests using Gemini,
@@ -1189,9 +1199,6 @@ def build_watch_later_tab(spoiler) -> None:
             st.warning("Es wurden noch keine Videos zur Watchlist hinzugefügt")
     else:
         st.warning("Es wurden noch keine Videos zur Watchlist hinzugefügt")
-
-
-
 
 
 def build_settings_tab() -> None:
